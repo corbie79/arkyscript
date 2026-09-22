@@ -74,7 +74,7 @@ class DapTests(unittest.TestCase):
                 self.assertEqual(frame['source']['sourceReference'],0)
                 self.assertEqual(frame['source']['name'],source.name)
                 content=dap.request('source',{'source':{'path':str(source)}})['content']
-                self.assertEqual(content,source.read_text())
+                self.assertEqual(content,source.read_bytes().decode('utf-8'))
                 process.stdin.close()
                 self.assertEqual(process.wait(timeout=5),0,process.stderr.read().decode())
             finally:

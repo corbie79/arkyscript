@@ -18,29 +18,30 @@ class SourceMapTests(unittest.TestCase):
         return subprocess.run([str(CLI), *map(str,args)], cwd=ROOT, env={**os.environ,'TYNEX_LUAJIT':str(LUAJIT)}, capture_output=True, text=True)
 
     def test_bundle_maps_modules_and_errors_without_editing_original(self):
-        with tempfile.TemporaryDirectory() as directory:
-            directory = Path(directory)
-            source = directory / '한글 test.tlj'
-            original = 'local n: number = 7\nerror("mapped failure")\n'
-            source.write_text(original)
-            output = directory / 'out'
-            result = self.cli('bundle',source,'--out',output)
-            self.assertEqual(result.returncode,0,result.stderr)
-            mapping = json.loads((output/'debug-map.json').read_text())['files'][0]
-            self.assertEqual(mapping['lines'][:2],[None,None])
-            self.assertEqual(mapping['lines'][3]['line'],2)
-            generated = Path(mapping['generated'])
-            standard = json.loads(generated.with_suffix('.lua.map').read_text())
-            self.assertEqual(standard['version'],3)
-            self.assertEqual(standard['file'],generated.name)
-            self.assertEqual(standard['sourcesContent'],[original])
-            self.assertEqual(standard['sources'],[source.resolve().as_posix()])
-            if LUAJIT.is_file():
-                failed = self.cli('exec-bundle',output)
-                self.assertEqual(failed.returncode,1)
-                self.assertIn(f'{source.resolve()}:2: mapped failure',failed.stderr)
-                self.assertNotIn(str(generated)+':4',failed.stderr)
-            self.assertEqual(source.read_text(),original)
+        for newline in ("\n", "\r\n"):
+            with self.subTest(newline=repr(newline)), tempfile.TemporaryDirectory() as directory:
+                directory = Path(directory)
+                source = directory / '한글 test.tlj'
+                original = 'local n: number = 7\nerror("mapped failure")\n'.replace('\n', newline)
+                source.write_bytes(original.encode('utf-8'))
+                output = directory / 'out'
+                result = self.cli('bundle',source,'--out',output)
+                self.assertEqual(result.returncode,0,result.stderr)
+                mapping = json.loads((output/'debug-map.json').read_text())['files'][0]
+                self.assertEqual(mapping['lines'][:2],[None,None])
+                self.assertEqual(mapping['lines'][3]['line'],2)
+                generated = Path(mapping['generated'])
+                standard = json.loads(generated.with_suffix('.lua.map').read_text())
+                self.assertEqual(standard['version'],3)
+                self.assertEqual(standard['file'],generated.name)
+                self.assertEqual(standard['sourcesContent'],[original])
+                self.assertEqual(standard['sources'],[source.resolve().as_posix()])
+                if LUAJIT.is_file():
+                    failed = self.cli('exec-bundle',output)
+                    self.assertEqual(failed.returncode,1)
+                    self.assertIn(f'{source.resolve()}:2: mapped failure',failed.stderr)
+                    self.assertNotIn(str(generated)+':4',failed.stderr)
+                self.assertEqual(source.read_bytes(),original.encode('utf-8'))
 
     def test_bundle_refuses_unowned_output_and_can_rebuild(self):
         with tempfile.TemporaryDirectory() as directory:

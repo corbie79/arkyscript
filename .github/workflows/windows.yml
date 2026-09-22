@@ -98,6 +98,7 @@ jobs:
       - name: Execute the independent Rust frontend against the cross-built engine
         env:
           PYTHONUTF8: '1'
+          PYTHONPATH: tests
         shell: pwsh
         run: |
           $exe = @(Get-ChildItem artifacts -Recurse -Filter luajit.exe)
@@ -105,13 +106,5 @@ jobs:
           $env:TYNEX_LUAJIT = $exe[0].FullName
           cargo test --workspace --locked
           if ($LASTEXITCODE -ne 0) { throw "Rust frontend tests failed" }
-          python -m unittest discover -s tests -p test_cli.py -v
-          if ($LASTEXITCODE -ne 0) { throw "Rust/LuaJIT runtime tests failed" }
-          python -m unittest discover -s tests -p test_source_maps.py -v
-          if ($LASTEXITCODE -ne 0) { throw "Source map runtime tests failed" }
-          python -m unittest discover -s tests -p test_dap.py -v
-          if ($LASTEXITCODE -ne 0) { throw "DAP bridge tests failed" }
-          python -m unittest discover -s tests -p test_language_extensions.py -v
-          if ($LASTEXITCODE -ne 0) { throw "Import/declaration/exception runtime tests failed" }
-          python -m unittest discover -s tests -p test_tasks.py -v
-          if ($LASTEXITCODE -ne 0) { throw "Parallel Task runtime tests failed" }
+          python -m unittest -v test_cli test_source_maps test_dap test_language_extensions test_tasks
+          if ($LASTEXITCODE -ne 0) { throw "Frontend, debugging or Task runtime tests failed" }
