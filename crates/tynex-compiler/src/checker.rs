@@ -42,8 +42,34 @@ struct Checker<'a> {
     conditional: usize,
     nominals: BTreeMap<u64, NominalType>,
     self_type: Option<Type>,
+    async_body: bool,
 }
 
+fn callable_results(is_async: bool, result: Pack) -> Pack {
+    if is_async {
+        Pack::one(Type::Task(Box::new(result)))
+    } else {
+        result
+    }
+}
+fn current_type(declared: &Type, actual: Type) -> Type {
+    if *declared == Type::Any || matches!(actual, Type::Any | Type::Unknown) {
+        return declared.clone();
+    }
+    // A trusted dynamic Task adapter must not leak any back through an
+    // explicit Task<T> boundary. Retain only the useful non-nil refinement.
+    if matches!(actual, Type::Task(_)) {
+        if matches!(declared, Type::Task(_)) {
+            return declared.clone();
+        }
+        if let Type::Optional(inner) = declared
+            && matches!(inner.as_ref(), Type::Task(_))
+        {
+            return (**inner).clone();
+        }
+    }
+    actual
+}
 fn function(args: Vec<Type>, result: Type) -> Type {
     Type::Function(args, Box::new(Pack::one(result)), None)
 }
@@ -71,6 +97,7 @@ pub fn check(body: &[Stmt], mode: Mode, modules: &BTreeMap<String, Interface>) -
         conditional: 0,
         nominals: modules.values().flat_map(|m| m.nominals.clone()).collect(),
         self_type: None,
+        async_body: false,
     };
     let values = vec![
         (
@@ -95,6 +122,18 @@ pub fn check(body: &[Stmt], mode: Mode, modules: &BTreeMap<String, Interface>) -
         ("ipairs", Type::IteratorFactory(true)),
         ("select", Type::Select),
         ("unpack", Type::Unpack),
+        (
+            "scheduler",
+            library(vec![
+                ("run", Type::AsyncRun),
+                ("step", Type::AsyncStep),
+                ("pending", function(vec![], Type::Number)),
+                (
+                    "from_worker",
+                    function(vec![Type::Any], Type::Task(Box::new(Pack::one(Type::Any)))),
+                ),
+            ]),
+        ),
         (
             "math",
             library(vec![
@@ -224,6 +263,18 @@ fn substitute_self(ty: &Type, id: u64, replacement: &Type) -> Type {
             tail.as_ref()
                 .map(|t| Box::new(substitute_self(t, id, replacement))),
         ),
+        Type::Task(result) => Type::Task(Box::new(Pack {
+            values: result
+                .values
+                .iter()
+                .map(|t| substitute_self(t, id, replacement))
+                .collect(),
+            tail: result
+                .tail
+                .as_ref()
+                .map(|t| Box::new(substitute_self(t, id, replacement))),
+            minimum: result.minimum,
+        })),
         other => other.clone(),
     }
 }
@@ -237,6 +288,11 @@ fn safe_abstract_result(ty: &Type, id: u64) -> bool {
         Type::AbstractSelf(found, _) if *found == id => true,
         Type::Optional(inner) => safe_abstract_result(inner, id),
         Type::Union(types) => types.iter().all(|t| safe_abstract_result(t, id)),
+        Type::Task(result) => result
+            .values
+            .iter()
+            .chain(result.tail.as_deref())
+            .all(|t| safe_abstract_result(t, id)),
         other => !mentions_self(other, id),
     }
 }
@@ -298,6 +354,7 @@ impl Checker<'_> {
                 Box::new(self.resolve_pack(result, span.clone())),
                 tail.as_ref().map(|t| Box::new(self.resolve(t, span))),
             ),
+            Type::Task(result) => Type::Task(Box::new(self.resolve_pack(result, span))),
             other => other.clone(),
         }
     }
@@ -318,7 +375,7 @@ impl Checker<'_> {
     fn nominal(&mut self, binding: &Binding, is_trait: bool) -> u64 {
         if matches!(
             binding.name.as_str(),
-            "number" | "string" | "boolean" | "any" | "Self"
+            "number" | "string" | "boolean" | "any" | "Self" | "Task"
         ) {
             self.error(
                 "T014",
@@ -450,6 +507,7 @@ impl Checker<'_> {
         for (field, declared) in declaration.fields.iter().zip(declarations) {
             let binding = &field.binding;
             let saved = self.scopes.clone();
+            let old_async = std::mem::replace(&mut self.async_body, false);
             // Defaults run after captured locals may have changed, so they
             // cannot depend on declaration-time flow refinements.
             self.reset();
@@ -458,6 +516,7 @@ impl Checker<'_> {
                 .as_ref()
                 .map(|e| self.expr_expected(e, declared.as_ref()));
             self.scopes = saved;
+            self.async_body = old_async;
             if let (Some(declared), Some(actual)) = (&declared, &actual) {
                 self.expect(declared, actual, binding.span.clone());
             }
@@ -716,6 +775,9 @@ impl Checker<'_> {
             }
             return *actual == Type::Nil || self.accepts(inner, actual);
         }
+        if let (Type::Task(expected), Type::Task(actual)) = (expected, actual) {
+            return self.accepts_task_pack(expected, actual);
+        }
         if let Type::Instance(expected_id, _) = expected {
             let actual_id = match actual {
                 Type::Instance(id, _) | Type::AbstractSelf(id, _) => Some(*id),
@@ -744,6 +806,62 @@ impl Checker<'_> {
         // are contextualized separately; existing aliases are never widened.
         false
     }
+    fn accepts_task_pack(&self, expected: &Pack, actual: &Pack) -> bool {
+        if actual.values == [Type::Never] {
+            return true;
+        }
+        let dynamic = actual.tail.as_ref().is_some_and(|t| {
+            **t == Type::Any || **t == Type::Unknown && self.mode == Mode::Gradual
+        });
+        // A Task exposes its complete result pack via await/result/run. Unlike
+        // assigning ordinary Lua locals, covariance cannot manufacture missing
+        // return slots, even when their value types happen to include nil.
+        if !dynamic && actual.minimum < expected.minimum {
+            return false;
+        }
+        if expected.tail.is_none()
+            && (actual.values.len() > expected.values.len() || actual.tail.is_some() && !dynamic)
+        {
+            return false;
+        }
+        if !expected
+            .values
+            .iter()
+            .enumerate()
+            .all(|(index, ty)| self.accepts(ty, &actual.at(index)))
+        {
+            return false;
+        }
+        if let Some(tail) = &expected.tail {
+            return actual
+                .values
+                .iter()
+                .skip(expected.values.len())
+                .chain(actual.tail.as_deref())
+                .all(|ty| self.accepts(tail, ty));
+        }
+        true
+    }
+    fn task_results(&mut self, ty: &Type, span: Range<usize>) -> Pack {
+        match ty {
+            Type::Task(result) => (**result).clone(),
+            Type::Any => Pack::variadic(Type::Any),
+            Type::Unknown if self.mode == Mode::Gradual => Pack::variadic(Type::Unknown),
+            Type::Never => Pack::one(Type::Never),
+            Type::Union(types) => types
+                .iter()
+                .map(|ty| self.task_results(ty, span.clone()))
+                .fold(Pack::one(Type::Never), Pack::join),
+            _ => {
+                self.error(
+                    "T016",
+                    format!("expected an async Task, got {ty}; await requires a non-nil Task"),
+                    span,
+                );
+                Pack::variadic(Type::Unknown)
+            }
+        }
+    }
     fn expect(&mut self, expected: &Type, actual: &Type, span: Range<usize>) {
         if !self.accepts(expected, actual) {
             self.error("T001", format!("expected {expected}, got {actual}"), span);
@@ -768,11 +886,7 @@ impl Checker<'_> {
             );
         }
         // Annotation contracts take precedence over escaped dynamic values.
-        let current = if declared == Type::Any || actual == Type::Any || actual == Type::Unknown {
-            declared.clone()
-        } else {
-            actual
-        };
+        let current = current_type(&declared, actual);
         self.insert(&binding.name, declared, current);
     }
     fn scoped(&mut self, body: &[Stmt], returns: Option<&Pack>) -> Flow {
@@ -913,13 +1027,7 @@ impl Checker<'_> {
                         && let Some(variable) = self.lookup_mut(name)
                     {
                         let actual = values.at(i);
-                        variable.current = if variable.declared == Type::Any
-                            || matches!(actual, Type::Any | Type::Unknown)
-                        {
-                            variable.declared.clone()
-                        } else {
-                            actual
-                        };
+                        variable.current = current_type(&variable.declared, actual);
                     }
                 }
             }
@@ -1077,15 +1185,14 @@ impl Checker<'_> {
         if let Some(receiver) = receiver {
             params.insert(0, Type::Receiver(Box::new(receiver.clone())));
         }
+        let returns = function
+            .returns
+            .as_ref()
+            .map(|p| self.resolve_pack(p, function.span.clone()))
+            .unwrap_or_else(|| Pack::variadic(Type::Unknown));
         Type::Function(
             params,
-            Box::new(
-                function
-                    .returns
-                    .as_ref()
-                    .map(|p| self.resolve_pack(p, function.span.clone()))
-                    .unwrap_or_else(|| Pack::variadic(Type::Unknown)),
-            ),
+            Box::new(callable_results(function.is_async, returns)),
             function.variadic.as_ref().map(|b| {
                 Box::new(
                     b.annotation
@@ -1107,11 +1214,22 @@ impl Checker<'_> {
         else {
             unreachable!()
         };
+        // Async call sites see one Task; annotations still describe the body
+        // result pack, which is checked before wrapping it for callers.
+        let signature_returns = if function.is_async {
+            let Type::Task(result) = &signature_returns.values[0] else {
+                unreachable!()
+            };
+            result.clone()
+        } else {
+            signature_returns
+        };
         // Resolve the complete signature in its declaration scope before any
         // parameter can shadow a class/trait name used by another annotation.
         let contract = function.returns.as_ref().map(|_| *signature_returns);
         let saved = self.scopes.clone();
         let old_varargs = self.varargs.clone();
+        let old_async = std::mem::replace(&mut self.async_body, function.is_async);
         let old_conditional = self.conditional;
         self.conditional = 0;
         self.varargs = variadic.as_deref().cloned();
@@ -1182,8 +1300,13 @@ impl Checker<'_> {
         }
         self.scopes = saved;
         self.varargs = old_varargs;
+        self.async_body = old_async;
         self.conditional = old_conditional;
-        Type::Function(params, Box::new(result), variadic)
+        Type::Function(
+            params,
+            Box::new(callable_results(function.is_async, result)),
+            variadic,
+        )
     }
     fn expect_returns(&mut self, expected: &Pack, actual: &Pack, span: Range<usize>) {
         if actual.values == [Type::Never] {
@@ -1192,6 +1315,9 @@ impl Checker<'_> {
         let dynamic = actual.tail.as_ref().is_some_and(|t| {
             **t == Type::Any || **t == Type::Unknown && self.mode == Mode::Gradual
         });
+        if self.async_body && !dynamic && actual.minimum < expected.minimum {
+            self.error("T006","async return annotations require every fixed result slot; return nil explicitly for a nullable result",span.clone());
+        }
         if expected.tail.is_none()
             && (actual.values.len() > expected.values.len() || actual.tail.is_some() && !dynamic)
         {
@@ -1499,6 +1625,7 @@ impl Checker<'_> {
             }
             ExprKind::Call(..)
             | ExprKind::MethodCall(..)
+            | ExprKind::Await(..)
             | ExprKind::OptionalChain(..)
             | ExprKind::Varargs => self.expansion(expr).at(0),
         };
@@ -1507,7 +1634,10 @@ impl Checker<'_> {
     }
     fn expands(expr: &Expr) -> bool {
         match &expr.kind {
-            ExprKind::Call(..) | ExprKind::MethodCall(..) | ExprKind::Varargs => true,
+            ExprKind::Call(..)
+            | ExprKind::MethodCall(..)
+            | ExprKind::Await(..)
+            | ExprKind::Varargs => true,
             ExprKind::OptionalChain(_, steps) => steps.last().is_some_and(|step| {
                 matches!(
                     step.kind,
@@ -1650,6 +1780,12 @@ impl Checker<'_> {
         self.depth += 1;
         let result = match &expr.kind {
             ExprKind::Varargs => Pack::variadic(self.varargs.clone().unwrap_or(Type::Unknown)),
+            ExprKind::Await(value) => {
+                let ty = self.expr(value);
+                let result = self.task_results(&ty, expr.span.clone());
+                self.reset();
+                result
+            }
             ExprKind::OptionalChain(base, steps) => self.optional_chain(base, steps),
             ExprKind::Call(callee, args) => {
                 let ty = self.expr(callee);
@@ -1688,6 +1824,40 @@ impl Checker<'_> {
         let offset = usize::from(receiver.is_some());
         let result = match ty {
             Type::Definition(id, _) => self.construct(*id, arguments, receiver, span),
+            Type::AsyncRun => {
+                if self.async_body {
+                    self.error("T016","scheduler.run cannot pump the scheduler inside an async function; use await",span.clone());
+                }
+                let actual = self.expressions(arguments, &[], None);
+                let dynamic = actual.tail.as_ref().is_some_and(|t| {
+                    **t == Type::Any || **t == Type::Unknown && self.mode == Mode::Gradual
+                });
+                if receiver.is_some()
+                    || actual.values.len() > 1
+                    || !dynamic
+                        && (actual.minimum != 1
+                            || actual.values.len() != 1
+                            || actual.tail.is_some())
+                {
+                    self.error(
+                        "T006",
+                        "scheduler.run requires exactly one Task",
+                        span.clone(),
+                    );
+                }
+                self.task_results(&actual.at(0), span)
+            }
+            Type::AsyncStep => {
+                if self.async_body {
+                    self.error("T016","scheduler.step cannot pump the scheduler inside an async function; use await",span.clone());
+                }
+                self.call(
+                    &function(vec![Type::Number.optional()], Type::Boolean),
+                    arguments,
+                    receiver,
+                    span,
+                )
+            }
             Type::Function(params, returns, variadic) => {
                 let expected: Vec<_> = params.iter().skip(offset).cloned().map(Some).collect();
                 let mut actual = self.expressions(arguments, &expected, variadic.as_deref());
@@ -1930,6 +2100,30 @@ impl Checker<'_> {
             return Type::Any;
         }
         if *ty == Type::Unknown && self.mode == Mode::Gradual {
+            return Type::Unknown;
+        }
+        if let Type::Task(result) = ty {
+            if write {
+                self.error("T016", "Task methods and state are immutable", span.clone());
+            }
+            let returns = match name {
+                Some(b"ready" | b"cancel") => Some(Pack::one(Type::Boolean)),
+                Some(b"status") => Some(Pack::one(Type::String)),
+                Some(b"result") => Some((**result).clone()),
+                _ => None,
+            };
+            if let Some(returns) = returns {
+                return Type::Function(
+                    vec![Type::Receiver(Box::new(ty.clone()))],
+                    Box::new(returns),
+                    None,
+                );
+            }
+            self.error(
+                "T016",
+                "unknown Task member; supported methods are ready, result, cancel, and status",
+                span,
+            );
             return Type::Unknown;
         }
         if let Type::Instance(id, _) | Type::AbstractSelf(id, _) | Type::Definition(id, _) = ty {

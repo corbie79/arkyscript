@@ -22,6 +22,9 @@ pub enum Type {
     // Shared immutable snapshots avoid copying every earlier method receiver.
     Table(Arc<TableType>),
     Function(Vec<Type>, Box<Pack>, Option<Box<Type>>),
+    Task(Box<Pack>),
+    AsyncRun,
+    AsyncStep,
     Receiver(Box<Type>),
     IteratorFactory(bool),
     Require,
@@ -133,6 +136,10 @@ impl Type {
                     || result.tail.as_ref().is_some_and(|t| t.unknown_in(visited))
                     || tail.as_ref().is_some_and(|t| t.unknown_in(visited))
             }
+            Self::Task(result) => {
+                result.values.iter().any(|t| t.unknown_in(visited))
+                    || result.tail.as_ref().is_some_and(|t| t.unknown_in(visited))
+            }
             _ => false,
         }
     }
@@ -199,6 +206,22 @@ impl std::fmt::Display for Type {
             Self::Named(name) | Self::Instance(_, name) => f.write_str(name),
             Self::AbstractSelf(_, name) => write!(f, "Self ({name})"),
             Self::Definition(_, name) => write!(f, "type {name}"),
+            Self::Task(result) => {
+                f.write_str("Task<")?;
+                for (index, ty) in result.values.iter().enumerate() {
+                    if index > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "{ty}")?;
+                }
+                if let Some(tail) = &result.tail {
+                    if !result.values.is_empty() {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "...{tail}")?;
+                }
+                f.write_str(">")
+            }
             Self::Optional(t) => write!(f, "{t}?"),
             Self::Receiver(t) => write!(f, "self {t}"),
             Self::Union(types) => {
@@ -227,6 +250,8 @@ impl std::fmt::Display for Type {
                 f.write_str("}")
             }
             Self::Function(..)
+            | Self::AsyncRun
+            | Self::AsyncStep
             | Self::IteratorFactory(_)
             | Self::Require
             | Self::Select
@@ -259,12 +284,13 @@ pub enum ExprKind {
     Call(Box<Expr>, Vec<Expr>),
     MethodCall(Box<Expr>, Vec<u8>, Vec<Expr>),
     OptionalChain(Box<Expr>, Vec<ChainStep>),
+    Await(Box<Expr>),
     Varargs,
     Field(Box<Expr>, Vec<u8>),
     Index(Box<Expr>, Box<Expr>),
     Group(Box<Expr>),
     Table(Vec<TableField>),
-    Function(Function),
+    Function(Box<Function>),
 }
 #[derive(Debug)]
 pub struct ChainStep {
@@ -293,6 +319,7 @@ pub struct Binding {
 }
 #[derive(Debug)]
 pub struct Function {
+    pub is_async: bool,
     pub params: Vec<Binding>,
     pub returns: Option<Pack>,
     pub variadic: Option<Binding>,

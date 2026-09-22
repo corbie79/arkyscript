@@ -1,12 +1,13 @@
 # 현재 지원하는 typed Lua 문법
 
-이 문서는 현재 구현 범위다. class·trait·enum·async에 대한 [설계 제안](language-design.md)과 구분한다. `.tlj`는 독립 Rust 코어로 검사하고 타입 표기를 제거하고 확장 문법을 Lua로 변환해 공식 LuaJIT에서 실행한다. 원본 `.lua`의 legacy 실행에는 아래 정적 문법 제한을 적용하지 않는다.
+이 문서는 현재 구현 범위다. enum·match 등의 [설계 제안](language-design.md)과 구분한다. `.tlj`는 독립 Rust 코어로 검사하고 타입 표기를 제거하고 확장 문법을 Lua로 변환해 공식 LuaJIT에서 실행한다. 원본 `.lua`의 legacy 실행에는 아래 정적 문법 제한을 적용하지 않는다.
 
 ## 문장과 함수
 
 - 다중 지역 변수 선언과 대입, 테이블 필드·인덱스 대입.
 - `local function`, 일반/테이블 함수 선언, 익명 함수, 함수 값, 재귀 함수. strict에서 재귀의 반환형 추론이 해결되지 않으면 반환형을 명시한다.
 - 다중 반환값·가변 인수, 일반 함수·메서드 호출, `print "hello"`·`print {1, 2}` 형태의 인자 축약.
+- `local async function`, async 함수 값·메서드, async 본문의 `await`, 결과 계약 `Task<number, string>`·`Task<>`. [async/await 규칙](async-await.md)을 따른다.
 - nil이면 생략하는 `obj?.field`, `obj?[key]`, `fn?(args)`, `obj?:method(args)`. [평가·타입·체인 규칙](optional-chaining.md)을 따른다.
 - `do/end`, `if/elseif/else`, `while/do`, `repeat/until`, 숫자 `for`, `pairs/ipairs` 순회, 루프 안의 `break`.
 - 기본 산술·비교·문자열 연결·길이·논리 연산, Lua 문자열·긴 문자열·주석.
@@ -131,7 +132,7 @@ end
 
 내장 타입은 `print`, `tostring`, `tonumber`, `require`, `error`, `type`, `pairs`, `ipairs`, `select`, `unpack`, `math.abs/floor/ceil/sqrt/min/max/pi/huge`, `string.len/upper/lower/sub`에 제공한다. 인자·반환형을 검사하는 초기 시그니처이며 모든 라이브러리나 값 범위·런타임 예외를 모델링하지 않는다. CLI에서 정적 require의 결과는 typed 모듈의 공개 타입 또는 legacy `.d.tlj`에서 얻는다. 선언 없는 legacy·외부·동적 require는 unknown이며 strict에서는 명시적 `any` 경계가 필요하다. [혼합 모듈 안내](modules.md)
 
-아직 지원하지 않는 typed 문법은 일반 iterator 목록, goto/label, 타입 별칭·제네릭·enum·match·async/await다. 정적 혼합 모듈 로더·레거시 선언 파일·프로젝트 전체 검사와 진단 LSP를 구현했다.
+아직 지원하지 않는 typed 문법은 일반 iterator 목록, goto/label, 타입 별칭·사용자 제네릭·enum·match다. Task는 내장 결과 타입으로만 제공한다. 정적 혼합 모듈 로더·레거시 선언 파일·프로젝트 전체 검사와 진단 LSP를 구현했다.
 
 파일당 4096 토큰과 중첩 128의 초기 제한이 있다. 한계를 넘거나 미지원 문법을 사용하면 검사 성공으로 처리하지 않고 진단한다. 큰 기존 프로젝트는 `.lua` legacy 경로를 유지하며 지원 범위에 맞는 파일부터 전환할 수 있다.
 

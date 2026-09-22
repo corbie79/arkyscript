@@ -1,0 +1,24 @@
+local async function pair(n: number): (number, string)
+   return n, "ok"
+end
+local async function consume(value: Task<number, string>): number
+   local n, text = await value
+   await pair(n)
+   return n
+end
+local callback: async function(number): number = async function(n: number): number
+   return await consume(pair(n))
+end
+local pending: Task<>? = nil
+local variadic: Task<number, ...string>
+trait Fetcher
+   fetch: async function(Self): number
+end
+class Client is Fetcher
+   async function fetch(): number
+      return await callback(42)
+   end
+end
+async function api:request(): number
+   return await callback(42) + 1
+end

@@ -81,6 +81,16 @@ const onig = require('vscode-oniguruma');
     [1,'read','entity.name.function'], [1,'number','storage.type'], [1,'?','keyword.operator.type'],
     [1,'?','keyword.operator.optional',true], [1,'return','keyword'], [1,'nil','constant.language'],
     [1,'nil','storage.type',true], [1,'end','keyword']]);
+  check('local async function fetch(n: number): number\n  local result = await work(n)\n  return result\nend\nlocal pending: Task<number, string> = fetch(42)\nlocal cb: async function(number): number = fetch\nlocal grouped: Task<Task<number>>? = nil\n-- async await Task<number>\nlocal text = "async await Task<number>"', [
+    [0,'async','keyword'], [0,'fetch','entity.name.function'], [0,'n:','variable.parameter'],
+    [0,'number','storage.type'], [1,'await','keyword'], [1,'work','entity.name.function'],
+    [4,'Task','storage.type'], [4,'number','storage.type'], [4,'string','storage.type'],
+    [4,'fetch','meta.type.annotation',true], [5,'async','keyword'], [5,'number','storage.type'],
+    [6,'?','keyword.operator.type'], [6,'nil','constant.language'], [7,'await','comment'], [8,'await','string']]);
+  check('trait Fetcher\n  fetch: async function(Self): number\nend\nclass Client is Fetcher\n  async function fetch(): number\n    return await work()\n  end\nend\nlocal incomplete: Task<\n number\n> = result\nlocal next: string = "ok"', [
+    [1,'fetch','entity.name.function'], [1,'async','keyword'], [1,'Self','entity.name.type'],
+    [4,'async','keyword'], [4,'fetch','entity.name.function'], [5,'await','keyword'],
+    [8,'Task','storage.type'], [9,'number','storage.type'], [11,'string','storage.type']]);
   registry.dispose();
-  console.log('TextMate highlighting: 15 fixtures passed');
+  console.log('TextMate highlighting: 17 fixtures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

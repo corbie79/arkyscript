@@ -1,0 +1,24 @@
+--!typecheck strict
+-- These functions share the main VM. No worker threads are created.
+local async function double(value: number): number
+   return value * 2
+end
+
+local async function main(): number
+   local first: Task<number> = double(21)
+   local second = double(15)
+   local a = await first
+   local b = await second
+   return a + b
+end
+
+local pending = main()
+print("scheduled", pending:status())
+print("result", scheduler.run(pending))
+
+-- A game host can instead call scheduler.step() once per frame.
+local framed = double(10)
+while scheduler.step(1) do
+   print("pending", scheduler.pending())
+end
+print("frame result", framed:result())

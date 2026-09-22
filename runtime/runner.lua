@@ -54,6 +54,28 @@ if runtime_dir then
    package.cpath = runtime_dir .. "/?.so;" .. runtime_dir .. "/?.dll;" .. package.cpath
 end
 
+-- Load the scheduler from the checked bundle, and capture its native bridge
+-- before user modules run. Neither lookup uses mutable require/preload state.
+local native_loadlib, native_paths = package.loadlib, package.cpath
+local function load_worker_adapter()
+   local errors = {}
+   for template in native_paths:gmatch("[^;]+") do
+      local path = template:gsub("%?", "tynex_task")
+      local file = io.open(path, "rb")
+      if file then
+         file:close()
+         local open, message = native_loadlib(path, "luaopen_tynex_task")
+         if open then return open() end
+         errors[#errors+1] = message
+      end
+   end
+   error("native task adapter unavailable: " .. table.concat(errors, "; "), 0)
+end
+local async_runtime = assert(loadfile(manifest.async_runtime))(load_worker_adapter)
+local async_traceback = async_runtime.__traceback
+local public_scheduler = setmetatable({}, {__index=async_runtime, __metatable="Tynex scheduler",
+   __newindex=function() error("scheduler methods are read-only", 2) end})
+
 local function local_candidate(name)
    if type(name) ~= "string" then return end
    -- Static project names are dotted, never paths. Other names are external.
@@ -87,7 +109,8 @@ local function typed_require(name)
    end
    return raw_require(name)
 end
-local typed_environment = setmetatable({require=typed_require, __tynex_import=static_import}, {__index=_G, __newindex=_G})
+local typed_environment = setmetatable({require=typed_require, __tynex_import=static_import,
+   __tynex_async_runtime=async_runtime, scheduler=public_scheduler}, {__index=_G, __newindex=_G})
 load_unit = function(unit)
    local chunk, err
    if unit.generated then
@@ -148,11 +171,11 @@ if action == "debug" then
 end
 local ok, chunk = pcall(load_unit, manifest.entry)
 if not ok then fail(chunk) end
-if manifest.entry.mapped then
-   -- Error text from the VM uses real generated paths. Convert only locations
-   -- belonging to this bundle; leave helper and external frames unchanged.
-   local function mapped_traceback(message)
-      local trace = debug.traceback(tostring(message), 2)
+local function report_traceback(message)
+   local trace = async_traceback(message) or debug.traceback(tostring(message), 2)
+   if manifest.entry.mapped then
+      -- Error text from the VM uses real generated paths. Convert only locations
+      -- belonging to this bundle; leave helper and external frames unchanged.
       for generated, mapping in pairs(manifest.locations) do
          -- Lua truncates long filenames in short_src. Ask the VM for the
          -- exact display name instead of assuming a fixed LUA_IDSIZE.
@@ -168,10 +191,8 @@ if manifest.entry.mapped then
          replace(generated)
          if short ~= generated then replace(short) end
       end
-      return trace
    end
-   local success, message = xpcall(function() chunk(unpack(arguments)) end, mapped_traceback)
-   if not success then fail(message) end
-else
-   chunk(unpack(arguments))
+   return trace
 end
+local success, message = xpcall(function() chunk(unpack(arguments)) end, report_traceback)
+if not success then fail(message) end

@@ -17,6 +17,7 @@ pub(crate) struct Parsed {
     pub imports: bool,
     pub exceptions: bool,
     pub classes: bool,
+    pub async_runtime: bool,
 }
 struct Parser {
     tokens: Vec<Token>,
@@ -32,6 +33,8 @@ struct Parser {
     imports: bool,
     exceptions: usize,
     classes: bool,
+    async_body: bool,
+    async_runtime: bool,
 }
 pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
     let mut p = Parser {
@@ -48,6 +51,8 @@ pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
         imports: false,
         exceptions: 0,
         classes: false,
+        async_body: false,
+        async_runtime: false,
     };
     let body = p.block(&[])?;
     Ok(Parsed {
@@ -57,6 +62,7 @@ pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
         imports: p.imports,
         exceptions: p.exceptions > 0,
         classes: p.classes,
+        async_runtime: p.async_runtime,
     })
 }
 pub fn declaration(tokens: Vec<Token>) -> Result<Type, Diagnostic> {
@@ -74,6 +80,8 @@ pub fn declaration(tokens: Vec<Token>) -> Result<Type, Diagnostic> {
         imports: false,
         exceptions: 0,
         classes: false,
+        async_body: false,
+        async_runtime: false,
     };
     if p.take("export") {
         p.expect(":")?;
@@ -177,26 +185,51 @@ impl Parser {
             self.expect(")")?;
             ty
         } else if self.take("function") {
-            self.expect("(")?;
-            let mut params = vec![];
-            let mut tail = None;
-            if !self.at(")") {
+            self.function_type(false)?
+        } else if self.take("async") {
+            self.expect("function")?;
+            self.function_type(true)?
+        } else if self.at("Task")
+            && self
+                .tokens
+                .get(self.index + 1)
+                .is_some_and(|token| token.text == "<")
+        {
+            self.index += 2;
+            let mut results = Pack::default();
+            if !self.at(">") && !self.at(">=") {
                 loop {
                     if self.take("...") {
-                        tail = Some(Box::new(self.ty()?));
+                        results.tail = Some(Box::new(self.ty()?));
                         break;
                     }
-                    params.push(self.ty()?);
+                    results.values.push(self.ty()?);
                     if !self.take(",") {
                         break;
                     }
                 }
             }
-            self.expect(")")?;
-            let returns = self
-                .return_annotation()?
-                .ok_or_else(|| self.fail("function types require a return annotation"))?;
-            Type::Function(params, Box::new(returns), tail)
+            // A type annotation can be followed immediately by assignment.
+            // Split >= only here, retaining the original byte spans for erasure.
+            if self.at(">=") {
+                let span = self.tok().span.clone();
+                self.tokens[self.index] = Token {
+                    kind: Kind::Symbol,
+                    text: ">".into(),
+                    span: span.start..span.start + 1,
+                };
+                self.tokens.insert(
+                    self.index + 1,
+                    Token {
+                        kind: Kind::Symbol,
+                        text: "=".into(),
+                        span: span.start + 1..span.end,
+                    },
+                );
+            }
+            self.expect(">")?;
+            results.minimum = results.values.len();
+            Type::Task(Box::new(results))
         } else if self.take("{") {
             let mut table = TableType::default();
             if !self.at("}") {
@@ -266,6 +299,33 @@ impl Parser {
         self.depth -= 1;
         Ok(ty)
     }
+    fn function_type(&mut self, is_async: bool) -> Result<Type, Diagnostic> {
+        self.expect("(")?;
+        let mut params = vec![];
+        let mut tail = None;
+        if !self.at(")") {
+            loop {
+                if self.take("...") {
+                    tail = Some(Box::new(self.ty()?));
+                    break;
+                }
+                params.push(self.ty()?);
+                if !self.take(",") {
+                    break;
+                }
+            }
+        }
+        self.expect(")")?;
+        let returns = self
+            .return_annotation()?
+            .ok_or_else(|| self.fail("function types require a return annotation"))?;
+        let returns = if is_async {
+            Pack::one(Type::Task(Box::new(returns)))
+        } else {
+            returns
+        };
+        Ok(Type::Function(params, Box::new(returns), tail))
+    }
     fn binding(&mut self) -> Result<Binding, Diagnostic> {
         let t = self.name()?;
         Ok(Binding {
@@ -316,7 +376,7 @@ impl Parser {
             .push(start..self.tokens[self.index - 1].span.end);
         Ok(Some(pack))
     }
-    fn function(&mut self, start: usize) -> Result<Function, Diagnostic> {
+    fn function(&mut self, start: usize, is_async: bool) -> Result<Function, Diagnostic> {
         self.expect("(")?;
         let mut params = Vec::new();
         let mut variadic = None;
@@ -341,21 +401,77 @@ impl Parser {
         let returns = self.return_annotation()?;
         let previous_loops = self.loops;
         let previous_variadic = self.variadic;
+        let previous_async = self.async_body;
         let previous_protected = std::mem::take(&mut self.protected);
         self.loops = 0;
         self.variadic = variadic.is_some();
+        self.async_body = is_async;
+        self.async_runtime |= is_async;
         let body = self.block(&["end"])?;
         self.expect("end")?;
         self.protected = previous_protected;
         self.loops = previous_loops;
         self.variadic = previous_variadic;
+        self.async_body = previous_async;
+        if is_async {
+            let end = self.tokens[self.index - 1].span.end;
+            self.edit(end..end, ")".into());
+        }
         Ok(Function {
+            is_async,
             params,
             returns,
             variadic,
             body,
             span: start..self.tokens[self.index - 1].span.end,
         })
+    }
+    fn named_function(&mut self, start: usize, is_async: bool) -> Result<Stmt, Diagnostic> {
+        let function_token = self.tokens[self.index - 1].span.clone();
+        let name = self.name()?;
+        let mut target = Expr {
+            kind: ExprKind::Name(name.text),
+            span: name.span,
+        };
+        while self.take(".") {
+            let name = self.name()?;
+            let span = target.span.start..name.span.end;
+            target = Expr {
+                kind: ExprKind::Field(Box::new(target), name.text.into_bytes()),
+                span,
+            };
+        }
+        let method = self.take(":");
+        if method {
+            if is_async {
+                self.edit(self.tokens[self.index - 1].span.clone(), ".".into());
+            }
+            let name = self.name()?;
+            let span = target.span.start..name.span.end;
+            target = Expr {
+                kind: ExprKind::Field(Box::new(target), name.text.into_bytes()),
+                span,
+            };
+        }
+        let opening = self.tok().span.end;
+        let function = self.function(start, is_async)?;
+        if is_async {
+            self.edit(function.span.end..function.span.end, ";".into());
+            self.edit(function_token, String::new());
+            self.edit(
+                target.span.end..target.span.end,
+                " = __tynex_async_runtime.create(function".into(),
+            );
+            if method {
+                let receiver = if function.params.is_empty() && function.variadic.is_none() {
+                    "self"
+                } else {
+                    "self, "
+                };
+                self.edit(opening..opening, receiver.into());
+            }
+        }
+        Ok(Stmt::NamedFunction(target, function, method))
     }
     fn expressions(&mut self) -> Result<Vec<Expr>, Diagnostic> {
         let mut values = vec![self.expr(0)?];
@@ -429,14 +545,38 @@ impl Parser {
             } else if self.typed && self.take("trait") {
                 self.trait_statement(start)?
             } else if self.take("local") {
-                if self.take("function") {
+                let is_async = self.typed && self.take("async");
+                if is_async {
+                    self.edit(self.tokens[self.index - 1].span.clone(), String::new());
+                }
+                if if is_async {
+                    self.expect("function")?;
+                    true
+                } else {
+                    self.take("function")
+                } {
+                    let function_token = self.tokens[self.index - 1].span.clone();
                     let t = self.name()?;
                     let name = Binding {
                         name: t.text,
                         annotation: None,
                         span: t.span,
                     };
-                    Stmt::Function(name, self.function(start)?)
+                    if is_async {
+                        self.edit(function_token, String::new());
+                        self.edit(
+                            name.span.clone(),
+                            format!(
+                                "{0}; {0} = __tynex_async_runtime.create(function",
+                                name.name
+                            ),
+                        );
+                    }
+                    let function = self.function(start, is_async)?;
+                    if is_async {
+                        self.edit(function.span.end..function.span.end, ";".into());
+                    }
+                    Stmt::Function(name, function)
                 } else {
                     let mut names = vec![self.binding()?];
                     while self.take(",") {
@@ -450,29 +590,11 @@ impl Parser {
                     Stmt::Local(names, values)
                 }
             } else if self.take("function") {
-                let name = self.name()?;
-                let mut target = Expr {
-                    kind: ExprKind::Name(name.text),
-                    span: name.span,
-                };
-                while self.take(".") {
-                    let name = self.name()?;
-                    let span = target.span.start..name.span.end;
-                    target = Expr {
-                        kind: ExprKind::Field(Box::new(target), name.text.into_bytes()),
-                        span,
-                    };
-                }
-                let method = self.take(":");
-                if method {
-                    let name = self.name()?;
-                    let span = target.span.start..name.span.end;
-                    target = Expr {
-                        kind: ExprKind::Field(Box::new(target), name.text.into_bytes()),
-                        span,
-                    };
-                }
-                Stmt::NamedFunction(target, self.function(start)?, method)
+                self.named_function(start, false)?
+            } else if self.typed && self.take("async") {
+                self.edit(self.tokens[self.index - 1].span.clone(), String::new());
+                self.expect("function")?;
+                self.named_function(start, true)?
             } else if self.take("do") {
                 let body = self.block(&["end"])?;
                 self.expect("end")?;
@@ -587,8 +709,10 @@ impl Parser {
                         return Err(self.fail("expected an assignable name or table field"));
                     }
                     Stmt::Assign(targets, self.expressions()?)
-                } else if matches!(target.kind, ExprKind::Call(..) | ExprKind::MethodCall(..))
-                    || matches!(&target.kind, ExprKind::OptionalChain(_, steps) if steps.last().is_some_and(|step| matches!(step.kind, ChainStepKind::Call(_) | ChainStepKind::MethodCall(..))))
+                } else if matches!(
+                    target.kind,
+                    ExprKind::Call(..) | ExprKind::MethodCall(..) | ExprKind::Await(_)
+                ) || matches!(&target.kind, ExprKind::OptionalChain(_, steps) if steps.last().is_some_and(|step| matches!(step.kind, ChainStepKind::Call(_) | ChainStepKind::MethodCall(..))))
                 {
                     Stmt::Call(target)
                 } else {
@@ -620,10 +744,14 @@ impl Parser {
             span: token.span,
         })
     }
-    fn method(&mut self, start: usize) -> Result<Method, Diagnostic> {
+    fn method(&mut self, start: usize, is_async: bool) -> Result<Method, Diagnostic> {
+        let function_token = self.tokens[self.index - 1].span.clone();
         let name = self.declaration_name()?;
         let opening = self.tok().span.end;
-        let function = self.function(start)?;
+        let function = self.function(start, is_async)?;
+        if is_async {
+            self.edit(function.span.end..function.span.end, ";".into());
+        }
         if let Some(parameter) = function.params.iter().find(|p| p.name == "self") {
             return Err(Diagnostic::new(
                 "P001",
@@ -631,7 +759,16 @@ impl Parser {
                 parameter.span.clone(),
             ));
         }
-        self.edit(name.span.clone(), format!("__tynex_methods.{}", name.name));
+        let method_name = if is_async {
+            self.edit(function_token, String::new());
+            format!(
+                "__tynex_methods.{} = __tynex_async_runtime.create(function",
+                name.name
+            )
+        } else {
+            format!("__tynex_methods.{}", name.name)
+        };
+        self.edit(name.span.clone(), method_name);
         self.edit(
             opening..opening,
             if function.params.is_empty() && function.variadic.is_none() {
@@ -690,8 +827,13 @@ impl Parser {
                 continue;
             }
             let member_start = self.tok().span.start;
-            if self.take("function") {
-                methods.push(self.method(member_start)?);
+            let is_async = self.take("async");
+            if is_async {
+                self.edit(self.tokens[self.index - 1].span.clone(), String::new());
+                self.expect("function")?;
+            }
+            if is_async || self.take("function") {
+                methods.push(self.method(member_start, is_async)?);
             } else {
                 let binding = self.binding()?;
                 let nullable = matches!(
@@ -715,10 +857,13 @@ impl Parser {
                     // zero-argument closure. It captures lexical locals but not
                     // the containing function's varargs or protected return tag.
                     let previous_variadic = self.variadic;
+                    let previous_async = self.async_body;
                     let previous_protected = std::mem::take(&mut self.protected);
                     self.variadic = false;
+                    self.async_body = false;
                     let value = self.expr(0)?;
                     self.variadic = previous_variadic;
+                    self.async_body = previous_async;
                     self.protected = previous_protected;
                     self.edit(value.span.end..value.span.end, " end;".into());
                     Some(value)
@@ -752,8 +897,13 @@ impl Parser {
                 continue;
             }
             let member_start = self.tok().span.start;
-            if self.take("function") {
-                methods.push(self.method(member_start)?);
+            let is_async = self.take("async");
+            if is_async {
+                self.edit(self.tokens[self.index - 1].span.clone(), String::new());
+                self.expect("function")?;
+            }
+            if is_async || self.take("function") {
+                methods.push(self.method(member_start, is_async)?);
             } else {
                 let binding = self.binding()?;
                 if !matches!(binding.annotation, Some(Type::Function(..))) {
@@ -952,7 +1102,22 @@ impl Parser {
     fn expr(&mut self, min: u8) -> Result<Expr, Diagnostic> {
         self.enter()?;
         let t = self.tok().clone();
-        let mut lhs = if self.take("-") || self.take("not") || self.take("#") {
+        let mut lhs = if self.typed && self.take("await") {
+            if !self.async_body {
+                return Err(Diagnostic::new(
+                    "P001",
+                    "await is only allowed inside an async function body",
+                    t.span,
+                ));
+            }
+            let rhs = self.expr(7)?;
+            self.edit(t.span.clone(), "__tynex_async_runtime.await(".into());
+            self.edit(rhs.span.end..rhs.span.end, ")".into());
+            Expr {
+                span: t.span.start..rhs.span.end,
+                kind: ExprKind::Await(Box::new(rhs)),
+            }
+        } else if self.take("-") || self.take("not") || self.take("#") {
             let rhs = self.expr(7)?;
             Expr {
                 span: t.span.start..rhs.span.end,
@@ -993,7 +1158,14 @@ impl Parser {
                     ExprKind::Literal(Type::Nil)
                 }
                 _ if self.take("{") => ExprKind::Table(self.table()?),
-                _ if self.take("function") => ExprKind::Function(self.function(t.span.start)?),
+                _ if self.typed && self.take("async") => {
+                    self.expect("function")?;
+                    self.edit(t.span.clone(), "__tynex_async_runtime.create(".into());
+                    ExprKind::Function(Box::new(self.function(t.span.start, true)?))
+                }
+                _ if self.take("function") => {
+                    ExprKind::Function(Box::new(self.function(t.span.start, false)?))
+                }
                 Kind::Word => ExprKind::Name(self.name()?.text),
                 _ => return Err(self.fail(
                     "expected an expression; varargs and advanced syntax are not implemented yet",

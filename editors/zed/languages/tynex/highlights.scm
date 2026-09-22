@@ -8,6 +8,7 @@
 (nil) @constant.builtin
 (identifier) @variable
 (primitive_type) @type.builtin
+"Task" @type.builtin
 (named_type) @type
 (class_declaration name: (identifier) @type)
 (trait_declaration name: (identifier) @type)
@@ -27,7 +28,7 @@
 (function_declaration name: (dot_index_expression field: (identifier) @function))
 ["local" "function" "return" "end" "if" "then" "else" "elseif"
  "do" "while" "repeat" "until" "for" "in" "export"
- "import" "from" "declare" "try" "except" "class" "trait" "is"] @keyword
+ "import" "from" "declare" "try" "except" "class" "trait" "is" "async" "await"] @keyword
 ["and" "or" "not"] @keyword.operator
 ["+" "-" "*" "/" "%" "^" "#" "==" "~=" "<=" ">=" "<" ">" "=" ".." "?" "..."] @operator
 ["?." "?[" "?(" "?:"] @operator

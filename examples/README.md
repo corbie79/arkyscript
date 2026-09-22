@@ -14,7 +14,7 @@
 | 스크립트 class | [class.tlj](class.tlj), [안내](design/class.md) | 실행 가능: 필수 필드·기본값·메서드·명명 타입 |
 | 스크립트 trait·기본 동작 조합 | [traits.tlj](traits.tlj), [안내](design/traits.md) | 실행 가능: 필수·기본 메서드·복수 trait·충돌 검사 |
 | 값을 담는 enum·Result/Option·match | [설계 예제](design/enum-match.md) | 미구현 |
-| async / await | [설계 예제](design/async-await.md) | 미구현; 네이티브 Task API와 구분 |
+| async / await | [async.tlj](async.tlj), [tasks/async.tlj](tasks/async.tlj) | 실행 가능: coroutine·Task 타입·worker 연결·오류·취소·프레임 step |
 | VS Code·Zed 하이라이트·디버깅 | [debug/](debug/), [에디터](../docs/editors.md), [디버깅](../docs/debugging.md) | 현재 문법 지원; Task worker 디버깅은 미구현 |
 | 공식 엔진 다운로드·업데이트, xwin | [업데이트/플랫폼 안내](../README.md#배포-플랫폼과-공식-소스), [Windows](../docs/windows-build.md) | 원본 수정 없이 빌드·검증 |
 | 64비트 Android/iOS/Linux/Windows | [구현 계획](../docs/implementation-plan.md) | 모바일 앱 임베딩·기기 검증은 미완료 |
@@ -52,11 +52,13 @@ make binder-examples
 ./bin/tynex run examples/class.tlj
 ./bin/tynex run examples/traits.tlj
 ./bin/tynex run examples/optional_chaining.tlj
+./bin/tynex run examples/async.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/exceptions.tlj
 ./bin/tynex run examples/modules/main.tlj
 ./bin/tynex run examples/tasks/main.tlj
 ./bin/tynex run examples/tasks/cancellation.tlj
+./bin/tynex run examples/tasks/async.tlj
 ```
 
 `multiple_values.tlj`는 현재 지원되는 Lua 테이블 메서드와 다중 반환을, `imports/`는 정적 import·선언 파일·try/except/else를 보여줍니다. 오류 진단 확인용 `type_error.tlj`는 의도적으로 타입 검사가 실패합니다.
@@ -70,6 +72,5 @@ make binder-examples
 아래 문서는 아직 구현되지 않은 제안 문법이며 현재 CLI로 실행할 수 없습니다.
 
 - [payload enum·match](design/enum-match.md): 경우별 데이터, Result/Option, 완전성 검사 제안
-- [async/await](design/async-await.md): 실제 worker Task를 기다리는 비동기 문법 제안
 
 전체 규칙은 [언어 설계](../docs/language-design.md)에 있습니다.

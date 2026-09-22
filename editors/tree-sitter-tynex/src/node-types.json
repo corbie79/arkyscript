@@ -38,6 +38,10 @@
     "named": true,
     "subtypes": [
       {
+        "type": "await_expression",
+        "named": true
+      },
+      {
         "type": "binary_expression",
         "named": true
       },
@@ -109,6 +113,10 @@
     "subtypes": [
       {
         "type": "assignment_statement",
+        "named": true
+      },
+      {
+        "type": "await_expression",
         "named": true
       },
       {
@@ -249,6 +257,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "await_expression",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1772,6 +1796,25 @@
     }
   },
   {
+    "type": "task_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "type",
+          "named": true
+        },
+        {
+          "type": "variadic_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "trait_declaration",
     "named": true,
     "fields": {
@@ -1922,6 +1965,10 @@
         },
         {
           "type": "table_type",
+          "named": true
+        },
+        {
+          "type": "task_type",
           "named": true
         }
       ]
@@ -2245,6 +2292,10 @@
     "named": false
   },
   {
+    "type": "Task",
+    "named": false
+  },
+  {
     "type": "[",
     "named": false
   },
@@ -2270,6 +2321,14 @@
   },
   {
     "type": "any",
+    "named": false
+  },
+  {
+    "type": "async",
+    "named": false
+  },
+  {
+    "type": "await",
     "named": false
   },
   {

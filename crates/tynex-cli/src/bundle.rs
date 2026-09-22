@@ -140,6 +140,11 @@ pub fn write(
     )
     .map_err(|e| e.to_string())?;
     fs::write(
+        directory.join("async.lua"),
+        include_str!("../../../runtime/async.lua"),
+    )
+    .map_err(|e| e.to_string())?;
+    fs::write(
         directory.join("debug-map.json"),
         serde_json::to_vec_pretty(&map).unwrap(),
     )

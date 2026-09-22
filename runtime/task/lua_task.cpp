@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstring>
 #include <string>
+#include <chrono>
+#include <thread>
 
 namespace {
 constexpr const char* pool_type = "tynex.task.pool";
@@ -169,6 +171,13 @@ int wait(lua_State* L) {
     next2::luax::pusher<next2::luax::value>::push(L, result);
     return 1;
 }
+int async_sleep(lua_State* L) {
+    const int milliseconds = next2::luax::carg<int>(L, 1).to();
+    if (milliseconds < 0 || milliseconds > 1000)
+        throw next2::luax::error("async sleep expects 0..1000 milliseconds");
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+    return 0;
+}
 int shutdown(lua_State* L) {
     auto& owner = pool(L);
     owner.closed = true;
@@ -218,6 +227,12 @@ int open(lua_State* L) {
     module_function<configure>(L, "configure", owner);
     module_function<spawn>(L, "spawn", owner);
     module_function<shutdown>(L, "shutdown", owner);
+    // Exact userdata validation protects the coroutine scheduler's native
+    // adapter from forged Lua objects and replaced per-handle methods.
+    method<ready>(L, "_async_ready");
+    method<wait>(L, "_async_wait");
+    method<cancel>(L, "_async_cancel");
+    method<async_sleep>(L, "_async_sleep");
     return 1;
 }
 } // namespace

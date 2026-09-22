@@ -90,3 +90,15 @@ class LspRuntimeTests(unittest.TestCase):
         self.assertEqual(errors[0]['code'], 'T001')
         self.assertEqual(errors[0]['range']['start']['line'], 2)
         self.assertEqual(self.check_buffer('optional.tlj', source.replace('"wrong"', '42')), [])
+
+    def test_async_results_and_await_are_checked_in_unsaved_buffer(self):
+        source = ('--!typecheck strict\n'
+                  'local async function fetch():number return 42 end\n'
+                  'local async function main():string\n'
+                  '    return await fetch()\n'
+                  'end\n')
+        errors = self.check_buffer('async.tlj', source)
+        self.assertTrue(errors)
+        self.assertEqual(errors[0]['code'], 'T001')
+        self.assertEqual(errors[0]['range']['start']['line'], 3)
+        self.assertEqual(self.check_buffer('async.tlj', source.replace('main():string', 'main():number')), [])

@@ -97,6 +97,7 @@ pub struct Prepared {
     imports: bool,
     exceptions: bool,
     classes: bool,
+    async_runtime: bool,
 }
 /// Parse once; discovery never executes code and does not suppress final errors.
 pub fn prepare(source: &str, typed_syntax: bool) -> Result<Prepared, Vec<Diagnostic>> {
@@ -124,6 +125,7 @@ pub fn prepare(source: &str, typed_syntax: bool) -> Result<Prepared, Vec<Diagnos
         imports: parsed.imports,
         exceptions: parsed.exceptions,
         classes: parsed.classes,
+        async_runtime: parsed.async_runtime,
     })
 }
 pub fn declaration(source: &str) -> Result<Interface, Vec<Diagnostic>> {
@@ -184,6 +186,9 @@ impl Prepared {
             // Keep the helper on the first line, just like import/try helpers.
             emitter.helper(&CLASS_RUNTIME.replace('\n', " "));
             emitter.helper("; ");
+        }
+        if self.async_runtime {
+            emitter.helper("local __tynex_async_runtime = assert(__tynex_async_runtime, 'async requires the Tynex async runtime'); ");
         }
         let mut edits: Vec<_> = self
             .edits

@@ -95,7 +95,7 @@
     },
     {
       "name": "entity.name.function.lua",
-      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*:\\s*function\\b)"
+      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*:\\s*(?:async\\s+)?function\\b)"
     },
     {
       "name": "variable.language.lua",
@@ -110,7 +110,7 @@
     },
     {
       "name": "keyword.control.lua",
-      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except|class|trait|is)\\b"
+      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except|class|trait|is|async|await)\\b"
     },
     {
       "name": "entity.name.function.lua",
@@ -155,12 +155,33 @@
     "types": {
       "patterns": [
         {
+          "begin": "\\b(Task)\\s*(<)",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.tynex"
+            },
+            "2": {
+              "name": "punctuation.section.type.begin.tynex"
+            }
+          },
+          "end": ">",
+          "name": "meta.type.task.tynex",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#types"
+            }
+          ]
+        },
+        {
           "name": "storage.type.tynex",
           "match": "\\b(?:number|string|boolean|nil|any)\\b"
         },
         {
           "name": "keyword.control.lua",
-          "match": "\\bfunction\\b"
+          "match": "\\b(?:async|function)\\b"
         },
         {
           "begin": "\\{",
@@ -225,7 +246,7 @@
     },
     "annotation": {
       "name": "meta.type.annotation.tynex",
-      "begin": ":(?!:)(?=\\s*(?:function\\b|[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*\\b(?![\\w.]|\\s*[(\\\"\\'{])|[\\{(]))",
+      "begin": ":(?!:)(?=\\s*(?:(?:async\\s+)?function\\b|[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*\\b(?![\\w.]|\\s*[(\\\"\\'{])|[\\{(]))",
       "beginCaptures": {
         "0": {
           "name": "punctuation.separator.type.tynex"

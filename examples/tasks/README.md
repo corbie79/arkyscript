@@ -25,7 +25,7 @@ Pool still works: 42
 
 정해진 OS 스레드가 작업 큐를 소비합니다. Task마다 새 OS 스레드를 만들지 않습니다. 실행되는 각 Lua 작업에는 독립 VM을 만들므로 VM 생성·입력/결과 복사 비용은 있습니다. 짧은 연산 하나마다 Task를 만들기보다 여러 연산을 묶어 제출하세요. JIT 설정은 공식 엔진의 기본값을 유지합니다.
 
-`spawn`은 완료를 기다리지 않고 핸들을 반환합니다. `ready()`와 `status()`로 확인하고 `wait()`로 결과를 받습니다. `wait()`는 호출 스레드를 막습니다. **async/await 문법과 coroutine 스케줄러는 아직 구현 전**입니다.
+`spawn`은 완료를 기다리지 않고 핸들을 반환합니다. `ready()`와 `status()`로 확인하고 `wait()`로 결과를 받습니다. `wait()`는 호출 스레드를 막습니다. `async/await`와 coroutine 스케줄러도 지원합니다. [async.tlj](async.tlj)는 같은 worker를 `scheduler.from_worker()`로 연결해 기다립니다. [사용 규칙](../../docs/async-await.md)을 참고하세요.
 
 클로저 캡처는 거부합니다. 입력은 두 번째 인자로 전달하고, 함수는 `(input, context)`를 받습니다. `context.checkpoint()`에서 취소 요청을 검사하며 `context.cancelled()`로 직접 조회할 수도 있습니다. `cancel()`은 대기 작업을 취소하거나 실행 작업에 중단을 요청합니다. 체크포인트 없는 무한 루프나 블로킹 네이티브 호출을 강제로 중단하지 않습니다. `shutdown()`과 VM 종료는 작업 종료까지 기다립니다.
 

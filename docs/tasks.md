@@ -1,6 +1,6 @@
 # Task 런타임
 
-상태: **C++20 스레드 풀과 Lua/.tlj용 네이티브 Task API는 실행 가능**하다. `async/await`, `Task<T>` 문법, coroutine/event-loop 스케줄러, 비동기 I/O API는 아직 구현 전이다. [실행 예제](../examples/tasks/README.md), [C++ 예제](../examples/cpp_tasks.cpp), [async 문법 제안](../examples/design/async-await.md)을 구분한다.
+상태: **C++20 스레드 풀과 Lua/.tlj용 네이티브 Task API는 실행 가능**하다. `async/await`·내장 `Task<T>`·coroutine 스케줄러도 구현했다. [async 안내](async-await.md)를 따른다. 비동기 I/O API는 아직 없다. [Task 실행 예제](../examples/tasks/README.md), [C++ 예제](../examples/cpp_tasks.cpp), [worker await 예제](../examples/tasks/async.tlj)를 제공한다.
 
 ## 실행 모델
 
@@ -32,7 +32,7 @@ Task마다 OS 스레드를 만들지 않는다. 대기 Task는 함수 바이트�
 | `context.cancelled()` | 취소 요청 여부 조회 |
 | `task.shutdown()` | 대기 작업 취소·실행 작업에 취소 요청·worker 종료까지 대기 |
 
-`wait()`는 여러 번 호출해도 같은 결과의 **새 복사본**을 받는다. `shutdown()`은 반복 호출할 수 있으며 이후 새 작업은 거부한다. 완료된 결과 핸들은 shutdown 뒤에도 읽을 수 있다. 모듈의 소유 VM이 닫힐 때도 풀을 정리한다. 핸들만 GC되었다고 작업이 취소되지는 않는다. 메인 스레드에서 Lua 콜백을 자동 호출하는 완료 큐와 `await` resume은 후속 단계다.
+`wait()`는 여러 번 호출해도 같은 결과의 **새 복사본**을 받는다. `shutdown()`은 반복 호출할 수 있으며 이후 새 작업은 거부한다. 완료된 결과 핸들은 shutdown 뒤에도 읽을 수 있다. 모듈의 소유 VM이 닫힐 때도 풀을 정리한다. 핸들만 GC되었다고 작업이 취소되지는 않는다. `scheduler.from_worker(handle)`로 managed Task를 만들면 `await`할 수 있다. 메인 스레드의 `scheduler.step()`이 native 완료 상태를 확인하고 기다리던 coroutine을 재개한다.
 
 취소는 협력 방식이다. 실행 중인 작업은 `cancelling`에서 실제 종료한 뒤 `cancelled`가 된다. 취소 요청 후 함수가 정상 값을 반환해도 그 결과를 버리고 취소 완료로 처리한다. 긴 루프에 적절한 간격으로 체크포인트를 둔다. 블로킹 C 함수·FFI 호출·체크포인트 없는 무한 루프를 강제 종료하지 않으므로 shutdown도 기다릴 수 있다. worker에서 다른 풀을 중첩 생성하는 사용은 지원하지 않는다.
 
@@ -42,7 +42,7 @@ Task마다 OS 스레드를 만들지 않는다. 대기 Task는 함수 바이트�
 
 `input`과 반환은 nil·boolean·유한 number·string·plain table 트리 하나다. table 키는 문자열·boolean·정확히 표현 가능한 정수로 제한한다. 반환값이 여럿이면 첫 값만 전달한다. 객체·함수·userdata·coroutine·FFI cdata·메타테이블·순환 참조·공유 하위 table은 거부한다. 클래스 인스턴스를 옮길 때는 필요한 필드를 일반 table로 만들어 전달한다. 데이터 깊이 64, 노드 100000, 추정 값 크기 8 MiB, 바이트코드 8 MiB 제한을 적용한다. 이 제한은 실행 중 VM의 메모리 상한을 의미하지 않는다.
 
-이 VM 분리는 동시 접근을 방지하는 실행 구조이며 **보안 샌드박스가 아니다**. 표준 라이브러리와 FFI가 있으므로 신뢰하는 작업 코드를 실행한다. 런타임의 전송 검사와 `.d.tlj`의 선언 계약은 서로 다른 역할이다. 아직 제네릭·사용자 정의 타입이 없어 예제 계약은 값과 핸들에 명시적 `any`를 사용한다.
+이 VM 분리는 동시 접근을 방지하는 실행 구조이며 **보안 샌드박스가 아니다**. 표준 라이브러리와 FFI가 있으므로 신뢰하는 작업 코드를 실행한다. 런타임의 전송 검사와 `.d.tlj`의 선언 계약은 서로 다른 역할이다. worker API의 전송 값과 native 핸들은 명시적 `any`를 사용한다. 변환한 핸들은 `Task<any>`이며, 사용자 제네릭은 아직 없다.
 
 메인 VM의 기존 디버깅은 유지된다. worker 내부 VM의 중단점·스텝 실행·논리 async 스택은 아직 지원하지 않는다. 오류 문자열에는 Lua가 제공한 원본 정보가 남을 수 있지만 worker에 대한 완전한 소스 맵 디버깅을 보장하지 않는다.
 
@@ -63,4 +63,4 @@ make binder-windows        # Windows 테스트·예제 EXE 크로스 빌드
 
 공식 엔진 업데이트 검증에는 Task 네이티브 빌드·Windows 크로스 빌드·C++ 테스트·Lua 실행 검증을 포함한다. 실제 Windows 실행은 CI의 별도 Windows job에서 수행한다. 현재 Task 대상은 macOS 개발 호스트, Linux와 Windows x64 빌드/CI이며 Android·iOS의 임베딩/패키징 검증은 후속 작업이다.
 
-현재 typed 함수 안의 `try/except`·`import` 변환도 컴파일러 helper를 upvalue로 캡처하므로 그 함수는 Task에 직접 제출할 수 없습니다. 워커는 외부 캡처 없는 계산 함수로 작성하고, 실패 처리는 예제처럼 호출 측 `wait()` 주위의 `try/except`에서 합니다. 워커 내부에서 오류를 처리해야 한다면 현재는 표준 Lua `pcall`을 사용할 수 있습니다.
+현재 typed 함수 안의 `try/except`·`import`·`async/await` 변환도 컴파일러 helper를 upvalue로 캡처하므로 그 함수는 Task에 직접 제출할 수 없습니다. 워커는 외부 캡처 없는 계산 함수로 작성하고, 실패 처리는 예제처럼 호출 측 `wait()` 또는 `await scheduler.from_worker(handle)` 주위의 `try/except`에서 합니다. 워커 내부에서 오류를 처리해야 한다면 현재는 표준 Lua `pcall`을 사용할 수 있습니다.

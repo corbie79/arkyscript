@@ -3,7 +3,8 @@
 An independent editor grammar extending a pinned, unmodified MIT Lua grammar.
 The Rust compiler remains authoritative for valid syntax and types. This grammar
 recognizes optional and parenthesized types, records, arrays, maps, function
-signatures, variadic parameters/results, class/trait declarations, and optional
+signatures, variadic parameters/results, class/trait declarations, async functions,
+await expressions, builtin Task result packs, and optional
 field/index/function/method chains (`?.`, `?[`, `?(`, `?:`). It recovers while editing incomplete
 code. Future language features must add compiler tests and editor fixtures together.
 

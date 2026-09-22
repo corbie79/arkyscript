@@ -11,7 +11,7 @@
 .lua → legacy 원본 로딩 ────────────────────────────────┘
 ```
 
-현재는 기본 타입·함수·테이블·제어 흐름·다중 값과 **정적 import·선언 파일·try/except/else·`.lua/.tlj` 혼합 모듈 검사·실행**을 지원합니다. VS Code·Zed 전용 구문 강조, 최소 진단 LSP, 소스 맵을 사용하는 디버깅 번들도 제공합니다. 스크립트의 **class·trait**도 지원하며 필드 초기화, 메서드, 필수·기본 동작과 충돌을 검사합니다. 전체 Lua 문법의 정적 검사와 payload enum·async/await는 아직 구현 전입니다. 지원하지 않는 typed 문법을 검사 완료로 통과시키지 않습니다. 기존 `.lua`는 legacy에서 전체 LuaJIT 문법을 실행할 수 있습니다.
+현재는 기본 타입·함수·테이블·제어 흐름·다중 값과 **정적 import·선언 파일·try/except/else·`.lua/.tlj` 혼합 모듈 검사·실행**을 지원합니다. VS Code·Zed 전용 구문 강조, 최소 진단 LSP, 소스 맵을 사용하는 디버깅 번들도 제공합니다. 스크립트의 **class·trait·async/await**도 지원합니다. 전체 Lua 문법의 정적 검사와 payload enum·match는 아직 구현 전입니다. 지원하지 않는 typed 문법을 검사 완료로 통과시키지 않습니다. 기존 `.lua`는 legacy에서 전체 LuaJIT 문법을 실행할 수 있습니다.
 
 ## 시작하기
 
@@ -26,6 +26,7 @@ make setup
 ./bin/tynex run examples/class.tlj
 ./bin/tynex run examples/traits.tlj
 ./bin/tynex run examples/optional_chaining.tlj
+./bin/tynex run examples/async.tlj
 ./bin/tynex run examples/modules/main.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/tasks/main.tlj
@@ -59,7 +60,9 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 `task.spawn`은 고정 개수의 OS worker에 작은 작업을 배분합니다. 실행 작업마다 독립 Lua VM을 사용하고 입력·결과를 복사하므로 메인 VM을 여러 스레드가 동시에 건드리지 않습니다. Task마다 스레드를 새로 만들지는 않지만 VM 생성·데이터 복사 비용은 있습니다. 공식 LuaJIT은 수정하지 않습니다.
 
-[실행 예제](examples/tasks/README.md)는 정적 import·선언 파일과 함께 제출, 상태 조회, 결과, 취소, 실패를 보여줍니다. `make setup`으로 네이티브 모듈을 준비하고 `make task-test`로 검증합니다. **`wait()`는 호출 스레드를 막으며 async/await 문법은 아직 없습니다.** 긴 작업의 취소는 `context.checkpoint()`를 사용하는 협력 방식입니다. [Task API·제한·빌드](docs/tasks.md), [요청 기능별 예제 확인표](examples/README.md)를 참고하세요.
+[실행 예제](examples/tasks/README.md)는 정적 import·선언 파일과 함께 제출, 상태 조회, 결과, 취소, 실패를 보여줍니다. `make setup`으로 네이티브 모듈을 준비하고 `make task-test`로 검증합니다. **네이티브 `wait()`는 호출 스레드를 막습니다.** `async/await`에서는 `scheduler.from_worker(handle)`로 연결해 coroutine만 기다리게 할 수 있습니다. 긴 작업의 취소는 `context.checkpoint()`를 사용하는 협력 방식입니다. [Task API·제한·빌드](docs/tasks.md), [요청 기능별 예제 확인표](examples/README.md)를 참고하세요.
+
+`local async function f(): number`를 호출하면 `Task<number>`를 반환합니다. `await`는 async 본문에서 사용하며 새 스레드를 만들지 않습니다. CLI는 `scheduler.run(main())`, 게임 호스트는 매 프레임 `scheduler.step()`으로 진행합니다. [async 규칙·호스트 연결](docs/async-await.md), [기본 예제](examples/async.tlj), [worker await 예제](examples/tasks/async.tlj)를 제공합니다.
 
 ## 현재 문법
 
@@ -151,7 +154,7 @@ declare label: function(string, number): string
 
 `tynex lsp`와 VS Code 로컬 확장을 추가했습니다. 미저장 파일·의존 모듈·선언 파일의 진단을 같은 Rust 검사기로 처리합니다. VS Code 확장 설치와 Zed 연결은 [에디터 안내](docs/editors.md)를 따릅니다. 두 에디터 모두 `.tlj` 전용 타입 구문 강조를 제공합니다. 자동완성·정의 이동은 아직 없습니다.
 
-VS Code·Zed의 **Tynex: mapped modules** 구성은 생성 번들과 원본 소스 맵을 사용합니다. [디버깅 안내](docs/debugging.md)를 따릅니다. macOS ARM64에서 실제 VS Code 확장 호스트와 EmmyLua DAP를 통해 행 이동·모듈 Step Into/Over·Watch·조건부 중단점·오류·재연결을 검증했습니다. Zed 전용 확장은 구문 강조·LSP·소스 맵 디버깅 설정과 WASM 빌드를 제공합니다. [검증 기록](docs/editor-validation.md)에 방식을 구분했습니다. 이후 추가한 class·trait·선택적 호출은 자동 테스트로 검증했으며 GUI 세션은 재검증하지 않았습니다. match·async 변환과 async 논리 스택은 후속 작업입니다.
+VS Code·Zed의 **Tynex: mapped modules** 구성은 생성 번들과 원본 소스 맵을 사용합니다. [디버깅 안내](docs/debugging.md)를 따릅니다. macOS ARM64에서 실제 VS Code 확장 호스트와 EmmyLua DAP를 통해 행 이동·모듈 Step Into/Over·Watch·조건부 중단점·오류·재연결을 검증했습니다. Zed 전용 확장은 구문 강조·LSP·소스 맵 디버깅 설정과 WASM 빌드를 제공합니다. [검증 기록](docs/editor-validation.md)에 방식을 구분했습니다. 이후 추가한 class·trait·선택적 호출·async는 자동 테스트로 검증했으며 GUI 세션은 재검증하지 않았습니다. match와 디버거의 전체 async 논리 스택은 후속 작업입니다.
 
 ## 배포 플랫폼과 공식 소스
 

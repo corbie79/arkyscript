@@ -46,6 +46,11 @@ def main():
     brackets = run('query', '--captures', QUERIES / 'brackets.scm', chaining)
     for text in ['?(', '?[']:
         assert any(' - open,' in line and f'text: `{text}`' in line for line in brackets.splitlines()), (text, brackets)
+    asynchronous = GRAMMAR / 'test/fixtures/async-await.tlj'
+    captures = run('query', '--captures', QUERIES / 'highlights.scm', asynchronous)
+    for kind, text in [('keyword', 'async'), ('keyword', 'await'), ('type.builtin', 'Task'),
+                       ('function', 'pair'), ('function.method', 'fetch'), ('variable.parameter', 'value')]:
+        assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in captures.splitlines()), (kind, text, captures)
     with tempfile.TemporaryDirectory() as directory:
         shape_query = Path(directory) / 'optional-shapes.scm'
         shape_query.write_text('''
@@ -96,6 +101,9 @@ def main():
         for word in ['Recovery', 'Self']:
             assert any(' - type,' in line and f'text: `{word}`' in line for line in captures.splitlines()), captures
         source.write_text('local broken = player?.\nlocal next: string = "still highlighted"\n')
+        captures = run('query', '--captures', QUERIES / 'highlights.scm', source)
+        assert any('type.builtin' in line and 'text: `string`' in line for line in captures.splitlines()), captures
+        source.write_text('local async function broken(): number\n local n = await\nend\nlocal next: string = "still highlighted"\n')
         captures = run('query', '--captures', QUERIES / 'highlights.scm', source)
         assert any('type.builtin' in line and 'text: `string`' in line for line in captures.splitlines()), captures
     print(f'Tree-sitter highlighting: {len(examples)} examples, {len(fixtures)} editor fixtures, all queries, captures and recovery passed')

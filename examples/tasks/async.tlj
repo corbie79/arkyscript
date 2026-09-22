@@ -1,0 +1,24 @@
+--!typecheck strict
+import task from "task"
+task.configure(2, 16)
+
+local function calculate(input: any, context: any): any
+   local total = 0
+   for i = 1, input do
+      if i % 1000 == 0 then context.checkpoint() end
+      total = total + i
+   end
+   return total
+end
+
+local async function main(): number
+   -- Submit both jobs before awaiting either result.
+   local first = scheduler.from_worker(task.spawn(calculate, 10000))
+   local second = scheduler.from_worker(task.spawn(calculate, 20000))
+   local a: number = await first
+   local b: number = await second
+   return a + b
+end
+
+print("Async worker sum: " .. tostring(scheduler.run(main())))
+task.shutdown()

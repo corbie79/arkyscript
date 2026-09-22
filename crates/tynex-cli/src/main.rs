@@ -240,6 +240,11 @@ fn execute(cli: Cli) -> Result<u8, String> {
     let manifest = write_manifest(&project, &entry, temporary.path(), false)?;
     let runner = temporary.path().join("runner.lua");
     fs::write(&runner, include_str!("../../../runtime/runner.lua")).map_err(|e| e.to_string())?;
+    fs::write(
+        temporary.path().join("async.lua"),
+        include_str!("../../../runtime/async.lua"),
+    )
+    .map_err(|e| e.to_string())?;
     let engine = engine.unwrap();
     let status = Command::new(&engine)
         .arg(runner)
@@ -332,8 +337,9 @@ fn write_manifest(
         );
     }
     let mut manifest = format!(
-        "return {{entry={},roots={{",
-        definitions[&entry.to_path_buf()]
+        "return {{entry={},async_runtime={},roots={{",
+        definitions[&entry.to_path_buf()],
+        lua_path(&directory.join("async.lua"))?
     );
     for root in &project.search {
         manifest.push_str(&lua_path(root)?);
