@@ -1,0 +1,32 @@
+--!typecheck strict
+local scores: {number} = {10, 20, 30}
+local player = { name = "Mina", score = 0 }
+
+for index, score in ipairs(scores) do
+   player.score = player.score + score
+end
+
+local function describe(score: number?): string
+   if score == nil then
+      return "missing"
+   elseif score >= 20 then
+      return "high"
+   else
+      return "low"
+   end
+end
+
+local bonus = function(score: number): number
+   return math.max(score, 5)
+end
+local rounds = 0
+while rounds < 3 do
+   rounds = rounds + 1
+end
+repeat
+   rounds = rounds - 1
+until rounds == 0
+
+print(player.name .. ": " .. player.score)
+print(describe(scores[2]), describe(scores[99]))
+print(bonus(2), rounds)

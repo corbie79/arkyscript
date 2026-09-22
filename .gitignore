@@ -1,0 +1,8 @@
+.deps/
+build/
+target/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+*.vsix

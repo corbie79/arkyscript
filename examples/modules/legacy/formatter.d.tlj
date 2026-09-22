@@ -1,0 +1,2 @@
+-- This contract is trusted; the legacy implementation receives syntax checking.
+export: {label: function(string, number): string}

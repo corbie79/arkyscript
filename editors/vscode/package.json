@@ -1,0 +1,145 @@
+{
+  "name": "tynex",
+  "displayName": "Tynex",
+  "description": "Tynex typed Lua development tools: diagnostics, syntax highlighting, and mapped debugging.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/corbie79/tynex.git",
+    "directory": "editors/vscode"
+  },
+  "version": "0.1.0",
+  "publisher": "tynex-local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:lua",
+    "onDebug:tynex"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "scripts": {
+    "test": "node --check extension.js && node test/highlighting.cjs",
+    "test:editor": "node test/run.cjs",
+    "package": "vsce package --allow-missing-repository --skip-license"
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "tynex",
+        "aliases": [
+          "Tynex",
+          "tlj"
+        ],
+        "extensions": [
+          ".tlj"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "tynex",
+        "scopeName": "source.tynex",
+        "path": "./syntaxes/tynex.tmLanguage.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "tynex"
+      }
+    ],
+    "commands": [
+      {
+        "command": "tynex.restart",
+        "title": "Tynex: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "Tynex",
+      "properties": {
+        "tynex.serverPath": {
+          "type": "string",
+          "default": "tynex",
+          "scope": "window",
+          "description": "Tynex executable path. Supports ${workspaceFolder}; relative paths are resolved from the first workspace folder. Restart the server after changing."
+        },
+        "tynex.checkLua": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "description": "Also synchronize .lua buffers and diagnose them using their legacy/gradual/strict policy. Restart the server after changing."
+        }
+      }
+    },
+    "debuggers": [
+      {
+        "type": "tynex",
+        "label": "Tynex (LuaJIT)",
+        "languages": [
+          "tynex"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "entry"
+            ],
+            "properties": {
+              "entry": {
+                "type": "string",
+                "description": "Entry source file, relative to the workspace."
+              },
+              "bundleDirectory": {
+                "type": "string",
+                "default": "build/debug/vscode"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "legacy",
+                  "gradual",
+                  "strict"
+                ]
+              },
+              "scriptArguments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "name": "Tynex: current file",
+            "type": "tynex",
+            "request": "launch",
+            "entry": "${file}"
+          }
+        ]
+      }
+    ]
+  },
+  "devDependencies": {
+    "@vscode/vsce": "4.0.0",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.2.1"
+  },
+  "license": "UNLICENSED"
+}

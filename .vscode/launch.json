@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Rust frontend on LuaJIT: example",
+      "type": "lua-local",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": {
+        "command": "${workspaceFolder}/target/debug/tynex",
+        "communication": "pipe"
+      },
+      "windows": {
+        "program": {
+          "command": "${workspaceFolder}/target/debug/tynex.exe",
+          "communication": "pipe"
+        }
+      },
+      "preLaunchTask": "Tynex: build Rust CLI",
+      "args": [
+        "debug",
+        "examples/main.tlj"
+      ],
+      "stopOnEntry": false
+    },
+    {
+      "name": "Tynex: mapped modules",
+      "type": "tynex",
+      "request": "launch",
+      "entry": "examples/debug/main.tlj",
+      "bundleDirectory": "build/debug/modules"
+    },
+    {
+      "name": "Tynex: import and try",
+      "type": "tynex",
+      "request": "launch",
+      "entry": "examples/imports/main.tlj",
+      "bundleDirectory": "build/debug/vscode-imports"
+    }
+  ]
+}

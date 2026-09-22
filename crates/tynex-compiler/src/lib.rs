@@ -1,0 +1,225 @@
+//! Independent compiler core. No filesystem, Teal, Lua VM, or native dependency.
+mod ast;
+mod checker;
+mod lexer;
+mod parser;
+pub mod source_map;
+
+use std::{collections::BTreeMap, ops::Range};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    Legacy,
+    Gradual,
+    Strict,
+}
+
+impl std::str::FromStr for Mode {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "legacy" => Ok(Self::Legacy),
+            "gradual" => Ok(Self::Gradual),
+            "strict" => Ok(Self::Strict),
+            _ => Err(format!(
+                "unknown type mode '{s}'; expected legacy, gradual, or strict"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Legacy => "legacy",
+            Self::Gradual => "gradual",
+            Self::Strict => "strict",
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub code: &'static str,
+    pub message: String,
+    pub span: Range<usize>,
+}
+
+impl Diagnostic {
+    pub(crate) fn new(code: &'static str, message: impl Into<String>, span: Range<usize>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            span,
+        }
+    }
+
+    /// One-based Unicode scalar columns. Spans use UTF-8 bytes; source maps use UTF-16 columns.
+    pub fn location(&self, source: &str) -> (usize, usize) {
+        let before = &source[..self.span.start.min(source.len())];
+        let line = before.bytes().filter(|b| *b == b'\n').count() + 1;
+        let column = before.rsplit('\n').next().unwrap_or("").chars().count() + 1;
+        (line, column)
+    }
+}
+
+/// Public module value, inferred from the first return value or a declaration.
+#[derive(Clone, Debug)]
+pub struct Interface {
+    pub(crate) value: ast::Type,
+}
+impl Interface {
+    pub fn unknown() -> Self {
+        Self {
+            value: ast::Type::Unknown,
+        }
+    }
+}
+impl std::fmt::Display for Interface {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+#[derive(Clone, Debug)]
+pub struct Import {
+    pub static_import: bool,
+    pub name: Option<String>,
+    pub span: Range<usize>,
+}
+
+pub struct Prepared {
+    source: String,
+    body: Vec<ast::Stmt>,
+    erased_spans: Vec<Range<usize>>,
+    edits: Vec<parser::Edit>,
+    imports: bool,
+    exceptions: bool,
+}
+/// Parse once; discovery never executes code and does not suppress final errors.
+pub fn prepare(source: &str, typed_syntax: bool) -> Result<Prepared, Vec<Diagnostic>> {
+    let tokens = lexer::lex(source).map_err(|e| vec![e])?;
+    let parsed = parser::parse(tokens, typed_syntax).map_err(|e| vec![e])?;
+    let mut spans = parsed.erased;
+    // A function type contains its own return annotation. Merge these nested
+    // ranges before feeding the ordered source-map emitter.
+    spans.sort_by_key(|span| span.start);
+    let mut erased_spans: Vec<Range<usize>> = Vec::new();
+    for span in spans {
+        if let Some(previous) = erased_spans.last_mut()
+            && span.start <= previous.end
+        {
+            previous.end = previous.end.max(span.end);
+        } else {
+            erased_spans.push(span);
+        }
+    }
+    Ok(Prepared {
+        source: source.to_owned(),
+        body: parsed.body,
+        erased_spans,
+        edits: parsed.edits,
+        imports: parsed.imports,
+        exceptions: parsed.exceptions,
+    })
+}
+pub fn declaration(source: &str) -> Result<Interface, Vec<Diagnostic>> {
+    let tokens = lexer::lex(source).map_err(|e| vec![e])?;
+    parser::declaration(tokens)
+        .map(|value| Interface { value })
+        .map_err(|e| vec![e])
+}
+impl Prepared {
+    pub fn imports(&self, mode: Mode) -> Vec<Import> {
+        self.imports_with(mode, &BTreeMap::new())
+    }
+    pub fn imports_with(&self, mode: Mode, modules: &BTreeMap<String, Interface>) -> Vec<Import> {
+        checker::check(&self.body, mode, modules).imports
+    }
+    pub fn compile(
+        &self,
+        mode: Mode,
+        modules: &BTreeMap<String, Interface>,
+    ) -> Result<Output, Vec<Diagnostic>> {
+        if mode == Mode::Legacy {
+            return Err(vec![Diagnostic::new(
+                "M001",
+                "legacy source must use the original LuaJIT loader",
+                0..0,
+            )]);
+        }
+        let analysis = checker::check(&self.body, mode, modules);
+        if !analysis.errors.is_empty() {
+            return Err(analysis.errors);
+        }
+        let mut lua = self.source.as_bytes().to_vec();
+        for span in &self.erased_spans {
+            for byte in &mut lua[span.clone()] {
+                if *byte != b'\n' && *byte != b'\r' {
+                    *byte = b' ';
+                }
+            }
+        }
+        if lua.starts_with(b"#!") {
+            lua[..2].copy_from_slice(b"--");
+        }
+        let lua = String::from_utf8(lua).expect("complete-token erasure preserves UTF-8");
+        let mut emitter = source_map::Emitter::default();
+        if self.imports {
+            // The runner supplies a graph-bound loader. Standalone generated Lua
+            // must be embedded with the same explicit loader contract.
+            emitter.helper("local __tynex_import = assert(__tynex_import, 'static import requires the Tynex project loader'); ");
+        }
+        if self.exceptions {
+            emitter.helper("local __tynex_pcall, __tynex_unpack, __tynex_select = pcall, unpack, select; local function __tynex_pack(...) return {n=__tynex_select('#', ...), ...} end; ");
+        }
+        let mut edits: Vec<_> = self
+            .edits
+            .iter()
+            .map(|e| (e.span.clone(), e.text.as_str()))
+            .collect();
+        for span in &self.erased_spans {
+            edits.push((span.clone(), &lua[span.clone()]));
+        }
+        edits.sort_by_key(|(span, _)| (span.start, span.end));
+        let mut position = source_map::Position::default();
+        let mut cursor = 0;
+        for (span, replacement) in edits {
+            emitter.copied(&lua[cursor..span.start], position);
+            position.advance(&self.source[cursor..span.start]);
+            emitter.lowered(replacement, position);
+            position.advance(&self.source[span.clone()]);
+            cursor = span.end;
+        }
+        emitter.copied(&lua[cursor..], position);
+        let lua = emitter.code;
+        Ok(Output {
+            lua,
+            source_map: emitter.map,
+            erased_spans: self.erased_spans.clone(),
+            interface: analysis.interface,
+            imports: analysis.imports,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Output {
+    pub lua: String,
+    pub source_map: source_map::SourceMap,
+    /// Ranges removed by the current annotation erasure pass.
+    pub erased_spans: Vec<Range<usize>>,
+    pub interface: Interface,
+    pub imports: Vec<Import>,
+}
+
+/// Compile one file without a module resolver. Imports remain dynamic boundaries.
+pub fn compile(source: &str, mode: Mode, typed_syntax: bool) -> Result<Output, Vec<Diagnostic>> {
+    if mode == Mode::Legacy {
+        return Err(vec![Diagnostic::new(
+            "M001",
+            "legacy source must use the original LuaJIT loader",
+            0..0,
+        )]);
+    }
+    prepare(source, typed_syntax)?.compile(mode, &BTreeMap::new())
+}

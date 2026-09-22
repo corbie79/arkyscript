@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tynex mapped EmmyLua session",
+  "type": "object",
+  "required": ["request", "tynexMap"],
+  "properties": {
+    "type": {"type": "string", "enum": ["emmylua_new"]},
+    "request": {"type": "string", "enum": ["launch", "attach"]},
+    "tynexMap": {"type": "string", "description": "Path to the checked bundle's debug-map.json."},
+    "tynexBackend": {"type": "string", "description": "Optional EmmyLua DAP executable path."},
+    "host": {"type": "string", "default": "127.0.0.1"},
+    "port": {"type": "integer", "minimum": 1, "maximum": 65535, "default": 9966},
+    "sourcePaths": {"type": "array", "items": {"type": "string"}},
+    "ext": {"type": "array", "items": {"type": "string"}, "default": [".lua"]},
+    "ideConnectDebugger": {"type": "boolean", "default": true},
+    "stopOnEntry": {"type": "boolean", "default": false}
+  }
+}

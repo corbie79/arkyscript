@@ -1,0 +1,11 @@
+--!typecheck strict
+import worker from "worker"
+import legacy from "legacy"
+local score = 0
+try
+   score = worker.double(21)
+except err then
+   print("failed: " .. tostring(err))
+else
+   print(legacy.label("score", score))
+end

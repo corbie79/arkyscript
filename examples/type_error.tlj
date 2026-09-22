@@ -1,0 +1,3 @@
+print("MUST NOT EXECUTE")
+local score: number = "wrong"
+print(score)

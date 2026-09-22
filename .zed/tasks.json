@@ -1,0 +1,88 @@
+[
+  {
+    "label": "Tynex: check example",
+    "command": "cargo",
+    "args": [
+      "run",
+      "--quiet",
+      "--locked",
+      "-p",
+      "tynex-cli",
+      "--",
+      "check",
+      "examples/main.tlj"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all"
+  },
+  {
+    "label": "Tynex: run example",
+    "command": "cargo",
+    "args": [
+      "run",
+      "--quiet",
+      "--locked",
+      "-p",
+      "tynex-cli",
+      "--",
+      "run",
+      "examples/main.tlj"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all"
+  },
+  {
+    "label": "Tynex: start example for EmmyLua",
+    "command": "cargo",
+    "args": [
+      "run",
+      "--quiet",
+      "--locked",
+      "-p",
+      "tynex-cli",
+      "--",
+      "debug",
+      "examples/main.tlj"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false
+  },
+  {
+    "label": "Tynex: prepare debug bundle",
+    "command": "cargo",
+    "args": [
+      "run",
+      "--quiet",
+      "--locked",
+      "-p",
+      "tynex-cli",
+      "--",
+      "bundle",
+      "examples/debug/main.tlj",
+      "--out",
+      "build/debug/modules"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all"
+  },
+  {
+    "label": "Tynex: start mapped bundle for EmmyLua",
+    "command": "cargo",
+    "args": [
+      "run",
+      "--quiet",
+      "--locked",
+      "-p",
+      "tynex-cli",
+      "--",
+      "exec-bundle",
+      "build/debug/modules",
+      "--debug"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false
+  }
+]

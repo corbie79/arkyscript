@@ -1,0 +1,8 @@
+local function add(score: number, amount: number): number
+   local total: number = score + amount
+   return total
+end
+local function fail()
+   error("mapped module error")
+end
+return {add = add, fail = fail}

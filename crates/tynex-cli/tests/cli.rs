@@ -1,0 +1,101 @@
+use std::{
+    fs,
+    process::{Command, Output},
+};
+use tempfile::TempDir;
+
+fn check(dir: &TempDir, name: &str, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_tynex"))
+        .current_dir(dir.path())
+        .args(["check", name])
+        .args(args)
+        .output()
+        .unwrap()
+}
+fn file(dir: &TempDir, name: &str, source: &str) {
+    let path = dir.path().join(name);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, source).unwrap();
+}
+#[test]
+fn cli_overrides_directive_and_last_matching_glob_overrides_project_default() {
+    let dir = TempDir::new().unwrap();
+    file(
+        &dir,
+        "tynex.toml",
+        "type_mode = 'strict'\n[[overrides]]\nfiles=['**/*.tlj']\nmode='strict'\n[[overrides]]\nfiles=['new/**/*.tlj']\nmode='gradual'\n",
+    );
+    file(&dir, "new/main.tlj", "local function f(x) return x end");
+    assert!(check(&dir, "new/main.tlj", &[]).status.success());
+    file(
+        &dir,
+        "new/main.tlj",
+        "--!typecheck strict\nlocal function f(x) return x end",
+    );
+    assert!(!check(&dir, "new/main.tlj", &[]).status.success());
+    assert!(
+        check(&dir, "new/main.tlj", &["--mode", "gradual"])
+            .status
+            .success()
+    );
+}
+#[test]
+fn nearest_config_and_explicit_project_are_deterministic() {
+    let dir = TempDir::new().unwrap();
+    file(&dir, "tynex.toml", "type_mode = 'strict'\n");
+    file(&dir, "nested/tynex.toml", "type_mode = 'gradual'\n");
+    file(&dir, "nested/main.tlj", "local function f(x) return x end");
+    assert!(check(&dir, "nested/main.tlj", &[]).status.success());
+    assert!(
+        !check(&dir, "nested/main.tlj", &["--project", "tynex.toml"])
+            .status
+            .success()
+    );
+}
+#[test]
+fn malformed_configuration_does_not_fall_back_to_a_looser_mode() {
+    let dir = TempDir::new().unwrap();
+    file(&dir, "main.tlj", "print(1)");
+    for config in [
+        "type_mode = 'typo'",
+        "type_mdoe = 'strict'",
+        "[[overrides]]\nfiles=['[']\nmode='strict'",
+    ] {
+        file(&dir, "tynex.toml", config);
+        assert!(!check(&dir, "main.tlj", &[]).status.success());
+    }
+}
+#[test]
+fn comments_in_long_strings_are_not_mode_directives() {
+    let dir = TempDir::new().unwrap();
+    file(
+        &dir,
+        "main.tlj",
+        "local s=[=[\n--!typecheck strict\n]=]\nlocal function f(x) return x end",
+    );
+    assert!(check(&dir, "main.tlj", &[]).status.success());
+}
+#[test]
+fn json_type_diagnostics_have_code_mode_and_original_location() {
+    let dir = TempDir::new().unwrap();
+    file(&dir, "main.tlj", "-- hello\nlocal n: number = 'bad'");
+    let output = check(&dir, "main.tlj", &["--format", "json"]);
+    assert!(!output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["diagnostics"][0]["code"], "T001");
+    assert_eq!(value["diagnostics"][0]["line"], 2);
+    assert_eq!(value["diagnostics"][0]["mode"], "gradual");
+}
+#[test]
+fn retired_teal_and_invalid_legacy_selection_are_explicit_errors() {
+    let dir = TempDir::new().unwrap();
+    file(&dir, "main.tl", "print(1)");
+    file(&dir, "main.tlj", "print(1)");
+    let output = check(&dir, "main.tl", &[]);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Teal .tl support has been retired"));
+    assert!(
+        !check(&dir, "main.tlj", &["--mode", "legacy"])
+            .status
+            .success()
+    );
+}

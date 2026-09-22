@@ -1,0 +1,115 @@
+name: Windows x64 LuaJIT
+on:
+  push:
+    paths:
+      - 'dependencies.json'
+      - 'windows-toolchain.json'
+      - 'scripts/**'
+      - 'runtime/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'bin/**'
+      - 'tests/**'
+      - 'binder/**'
+      - 'examples/cpp_binder.cpp'
+      - '.github/workflows/windows.yml'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cross-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install LLVM and pinned xwin
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tools-18 lld-18 llvm-18
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+          cargo install xwin --version 0.10.0 --locked
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Verify Windows cross-build tools
+        run: |
+          clang-cl --version
+          lld-link --version
+          llvm-lib --version
+          llvm-readobj --version
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .deps/xwin-cache
+            .deps/xwin
+          key: xwin-linux-x64-${{ hashFiles('windows-toolchain.json') }}
+      - name: Native regression tests and Windows cross-build
+        run: python3 scripts/update_luajit.py --verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: build/windows-x64/*/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binder-windows-x64
+          path: build/binder/windows-x64/*/*.exe
+          if-no-files-found: error
+  windows-runtime:
+    needs: cross-build
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+          path: artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: binder-windows-x64
+          path: binder-artifacts
+      - name: Execute C++20 binder tests and example
+        shell: pwsh
+        run: |
+          foreach ($name in @('arg.exe', 'object.exe', 'value.exe', 'binder.exe', 'cpp_binder.exe')) {
+            $exe = @(Get-ChildItem binder-artifacts -Recurse -Filter $name)
+            if ($exe.Count -ne 1) { throw "Expected one $name" }
+            & $exe[0].FullName
+            if ($LASTEXITCODE -ne 0) { throw "$name failed" }
+          }
+      - name: Execute JIT, FFI and static embedding smoke tests
+        shell: pwsh
+        run: |
+          $exe = @(Get-ChildItem artifacts -Recurse -Filter luajit.exe)
+          if ($exe.Count -ne 1) { throw "Expected one LuaJIT executable" }
+          Set-Location $exe[0].Directory.FullName
+          & .\luajit.exe -v
+          if ($LASTEXITCODE -ne 0) { throw "Version check failed" }
+          & .\luajit.exe smoke.lua
+          if ($LASTEXITCODE -ne 0) { throw "JIT/FFI smoke test failed" }
+          & .\embed-smoke.exe
+          if ($LASTEXITCODE -ne 0) { throw "Static embedding smoke test failed" }
+      - name: Execute the independent Rust frontend against the cross-built engine
+        env:
+          PYTHONUTF8: '1'
+        shell: pwsh
+        run: |
+          $exe = @(Get-ChildItem artifacts -Recurse -Filter luajit.exe)
+          if ($exe.Count -ne 1) { throw "Expected one LuaJIT executable" }
+          $env:TYNEX_LUAJIT = $exe[0].FullName
+          cargo test --workspace --locked
+          if ($LASTEXITCODE -ne 0) { throw "Rust frontend tests failed" }
+          python -m unittest discover -s tests -p test_cli.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Rust/LuaJIT runtime tests failed" }
+          python -m unittest discover -s tests -p test_source_maps.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Source map runtime tests failed" }
+          python -m unittest discover -s tests -p test_dap.py -v
+          if ($LASTEXITCODE -ne 0) { throw "DAP bridge tests failed" }
+          python -m unittest discover -s tests -p test_language_extensions.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Import/declaration/exception runtime tests failed" }

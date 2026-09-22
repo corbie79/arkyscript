@@ -1,0 +1,43 @@
+{
+  "file_types": {
+    "Tynex": [
+      "tlj"
+    ],
+    "EmmyLua": [
+      "lua",
+      "lua.txt"
+    ]
+  },
+  "languages": {
+    "EmmyLua": {
+      "language_servers": [
+        "emmylua"
+      ],
+      "format_on_save": "off"
+    },
+    "Tynex": {
+      "language_servers": [
+        "tynex"
+      ],
+      "format_on_save": "off"
+    }
+  },
+  "lsp": {
+    "emmylua": {
+      "binary": {
+        "path": "./target/debug/tynex",
+        "arguments": [
+          "lsp"
+        ]
+      }
+    },
+    "tynex": {
+      "binary": {
+        "path": "./target/debug/tynex",
+        "arguments": [
+          "lsp"
+        ]
+      }
+    }
+  }
+}

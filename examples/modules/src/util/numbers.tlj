@@ -1,0 +1,11 @@
+local numbers = {}
+
+function numbers.sum(values: {number}): number
+   local total = 0
+   for _, value in ipairs(values) do
+      total = total + value
+   end
+   return total
+end
+
+return numbers

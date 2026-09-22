@@ -1,0 +1,2 @@
+-- Runtime implementation: legacy.lua. This file contains no executable code.
+declare label: function(string, number): string

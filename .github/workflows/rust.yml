@@ -1,0 +1,63 @@
+name: Rust frontend
+on:
+  push:
+    paths:
+      - 'crates/**'
+      - 'editors/**'
+      - 'scripts/test_editor_grammar.py'
+      - 'scripts/prepare_zed.py'
+      - 'runtime/runner.lua'
+      - 'Cargo.*'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/rust.yml'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rust:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+  mobile-core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup target add aarch64-linux-android aarch64-apple-ios
+      - run: cargo check -p tynex-compiler --locked --target aarch64-linux-android
+      - run: cargo check -p tynex-compiler --locked --target aarch64-apple-ios
+  vscode-package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - run: npm --prefix editors/vscode ci --ignore-scripts
+      - run: npm --prefix editors/vscode test
+      - run: npm --prefix editors/vscode run package
+
+  zed-grammar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: editors/tree-sitter-tynex/package-lock.json
+      - run: npm --prefix editors/tree-sitter-tynex ci
+      - run: python3 scripts/test_editor_grammar.py
+      - run: rustup target add wasm32-wasip2
+      - run: cargo fmt --manifest-path editors/zed/Cargo.toml -- --check
+      - run: cargo test --manifest-path editors/zed/Cargo.toml --locked
+      - run: cargo build --manifest-path editors/zed/Cargo.toml --target wasm32-wasip2 --release --locked

@@ -1,0 +1,66 @@
+[
+  {
+    "label": "Rust frontend on LuaJIT: connect to example",
+    "adapter": "emmylua_new",
+    "type": "emmylua_new",
+    "request": "launch",
+    "host": "127.0.0.1",
+    "port": 9966,
+    "sourcePaths": [
+      "$ZED_WORKTREE_ROOT"
+    ],
+    "ext": [
+      ".tlj",
+      ".lua"
+    ],
+    "ideConnectDebugger": true
+  },
+  {
+    "label": "Tynex: mapped modules",
+    "adapter": "tynex-emmy",
+    "type": "emmylua_new",
+    "request": "launch",
+    "tynexMap": "$ZED_WORKTREE_ROOT/build/debug/modules/debug-map.json",
+    "host": "127.0.0.1",
+    "port": 9966,
+    "sourcePaths": [
+      "$ZED_WORKTREE_ROOT/build/debug/modules"
+    ],
+    "ext": [
+      ".lua"
+    ],
+    "ideConnectDebugger": true
+  },
+  {
+    "label": "Tynex: mapped module error",
+    "adapter": "tynex-emmy",
+    "type": "emmylua_new",
+    "request": "launch",
+    "tynexMap": "$ZED_WORKTREE_ROOT/build/debug/error/debug-map.json",
+    "host": "127.0.0.1",
+    "port": 9966,
+    "sourcePaths": [
+      "$ZED_WORKTREE_ROOT/build/debug/error"
+    ],
+    "ext": [
+      ".lua"
+    ],
+    "ideConnectDebugger": true
+  },
+  {
+    "label": "Tynex: import and try",
+    "adapter": "tynex-emmy",
+    "type": "emmylua_new",
+    "request": "launch",
+    "tynexMap": "$ZED_WORKTREE_ROOT/build/debug/imports/debug-map.json",
+    "host": "127.0.0.1",
+    "port": 9966,
+    "sourcePaths": [
+      "$ZED_WORKTREE_ROOT/build/debug/imports"
+    ],
+    "ext": [
+      ".lua"
+    ],
+    "ideConnectDebugger": true
+  }
+]

@@ -1,0 +1,8 @@
+--!typecheck strict
+local function add_score(score: number, amount: number): number
+   local total = score + amount
+   return total
+end
+
+local score = add_score(10, 5)
+print("LuaJIT score: " .. score)

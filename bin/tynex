@@ -1,0 +1,5 @@
+#!/bin/sh
+# Repository convenience wrapper. Distributed users run the Rust binary directly.
+set -eu
+TYNEX_REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec cargo run --quiet --locked --manifest-path "$TYNEX_REPO_ROOT/Cargo.toml" -p tynex-cli -- "$@"

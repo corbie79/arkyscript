@@ -1,0 +1,7 @@
+/* Adapt exported symbols while keeping the vendored Lua scanner untouched. */
+#define tree_sitter_lua_external_scanner_create tree_sitter_tynex_external_scanner_create
+#define tree_sitter_lua_external_scanner_destroy tree_sitter_tynex_external_scanner_destroy
+#define tree_sitter_lua_external_scanner_serialize tree_sitter_tynex_external_scanner_serialize
+#define tree_sitter_lua_external_scanner_deserialize tree_sitter_tynex_external_scanner_deserialize
+#define tree_sitter_lua_external_scanner_scan tree_sitter_tynex_external_scanner_scan
+#include "../vendor/lua/scanner.c"

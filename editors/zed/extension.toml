@@ -1,0 +1,13 @@
+id = "tynex"
+name = "Tynex"
+version = "0.1.0"
+schema_version = 1
+authors = ["Tynex contributors"]
+description = "Tynex syntax, types, and the independent Rust language server."
+[language_servers.tynex]
+name = "Tynex"
+languages = ["Tynex"]
+# The development installer adds a local grammar repository with a pinned revision.
+
+[debug_adapters.tynex-emmy]
+schema_path = "debug_adapter_schemas/tynex-emmy.json"

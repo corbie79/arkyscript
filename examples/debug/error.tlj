@@ -1,0 +1,2 @@
+local worker = require("worker")
+worker.fail()

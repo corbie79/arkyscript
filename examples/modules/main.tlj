@@ -1,0 +1,6 @@
+local scores = require('scores')
+print(scores.describe('Mina', {10, 20, 30}))
+
+local plugin_name = 'plugins.bonus'
+local plugin: any = require(plugin_name)
+print('Multiplier: ' .. plugin.multiplier)

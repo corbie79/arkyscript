@@ -1,0 +1,207 @@
+{
+  "name": "Tynex",
+  "scopeName": "source.tynex",
+  "patterns": [
+    {
+      "name": "comment.block.lua",
+      "begin": "--\\[(=*)\\[",
+      "end": "\\]\\1\\]"
+    },
+    {
+      "name": "comment.line.double-dash.lua",
+      "begin": "--",
+      "end": "$"
+    },
+    {
+      "name": "string.quoted.other.multiline.lua",
+      "begin": "\\[(=*)\\[",
+      "end": "\\]\\1\\]"
+    },
+    {
+      "name": "string.quoted.lua",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lua",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.lua",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lua",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "begin": "(\\bfunction\\b)\\s*(?:([A-Za-z_]\\w*(?:[.:][A-Za-z_]\\w*)*)\\s*)?(\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.lua"
+        },
+        "2": {
+          "name": "entity.name.function.lua"
+        },
+        "3": {
+          "name": "punctuation.section.parameters.begin.lua"
+        }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.parameters.end.lua"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#annotation"
+        },
+        {
+          "name": "variable.parameter.lua",
+          "match": "\\b[A-Za-z_]\\w*\\b|\\.\\.\\."
+        }
+      ]
+    },
+    {
+      "include": "#annotation"
+    },
+    {
+      "name": "keyword.control.lua",
+      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except)\\b"
+    },
+    {
+      "name": "entity.name.function.lua",
+      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*\\()"
+    },
+    {
+      "name": "keyword.other.tynex",
+      "match": "^\\s*export(?=\\s*:)"
+    },
+    {
+      "name": "constant.language.lua",
+      "match": "\\b(true|false|nil)\\b"
+    },
+    {
+      "name": "constant.numeric.lua",
+      "match": "\\b0[xX][\\da-fA-F]+(?:\\.[\\da-fA-F]*)?(?:[pP][+-]?\\d+)?|\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?"
+    },
+    {
+      "name": "keyword.operator.lua",
+      "match": "\\.\\.\\.?|==|~=|<=|>=|[+*/%^#<>=?:-]"
+    },
+    {
+      "name": "punctuation.section.lua",
+      "match": "[{}\\[\\]()]"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.lua",
+          "begin": "--\\[(=*)\\[",
+          "end": "\\]\\1\\]"
+        },
+        {
+          "name": "comment.line.double-dash.lua",
+          "begin": "--",
+          "end": "$"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.tynex",
+          "match": "\\b(?:number|string|boolean|nil|any)\\b"
+        },
+        {
+          "name": "keyword.control.lua",
+          "match": "\\bfunction\\b"
+        },
+        {
+          "begin": "\\{",
+          "end": "\\}",
+          "name": "meta.type.record.tynex",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "match": "([A-Za-z_]\\w*)(\\s*)(:)",
+              "captures": {
+                "1": {
+                  "name": "variable.other.property.tynex"
+                },
+                "3": {
+                  "name": "punctuation.separator.type.tynex"
+                }
+              }
+            },
+            {
+              "include": "#types"
+            }
+          ]
+        },
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "name": "meta.type.parameters.tynex",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#types"
+            }
+          ]
+        },
+        {
+          "begin": "\\[",
+          "end": "\\]",
+          "name": "meta.type.index.tynex",
+          "patterns": [
+            {
+              "include": "#types"
+            }
+          ]
+        },
+        {
+          "name": "keyword.operator.type.tynex",
+          "match": "\\?|\\.\\.\\."
+        },
+        {
+          "name": "punctuation.separator.type.tynex",
+          "match": "[:,]"
+        }
+      ]
+    },
+    "annotation": {
+      "name": "meta.type.annotation.tynex",
+      "begin": ":(?=\\s*(?:(?:number|string|boolean|nil|any)\\b(?!\\s*\\()|function\\b|[\\{(]))",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.separator.type.tynex"
+        }
+      },
+      "end": "(?=[=,;)\\r\\n]|$|\\b(?:return|end|local|if|then|else|do|import|from|declare|try|except)\\b)",
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#types"
+        }
+      ]
+    }
+  }
+}

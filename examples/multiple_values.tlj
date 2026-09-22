@@ -1,0 +1,21 @@
+--!typecheck strict
+function totals(...: number): (number, number)
+   local sum = 0
+   local values: {number} = {...}
+   for _, value in ipairs(values) do
+      sum = sum + value
+   end
+   return sum, select('#', ...)
+end
+
+local counter = {total = 0}
+function counter:add(...: number): (number, number)
+   local amount, count = totals(...)
+   self.total = self.total + amount
+   return self.total, count
+end
+
+local sum, count = counter:add(10, 20, 30)
+print(sum, count)
+local first: number, second: nil = (totals(2, 3))
+print(first, second)

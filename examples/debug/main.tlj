@@ -1,0 +1,5 @@
+local worker = require("worker")
+local total: number = worker.add(10, 5)
+print("first total: " .. total)
+local doubled: number = worker.add(total, total)
+print("second total: " .. doubled)

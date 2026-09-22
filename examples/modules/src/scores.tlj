@@ -1,0 +1,10 @@
+local numbers = require('util.numbers')
+local formatter = require('formatter')
+local scores = {}
+
+function scores.describe(name: string, values: {number}): string
+   local total = numbers.sum(values)
+   return formatter.label(name, total)
+end
+
+return scores

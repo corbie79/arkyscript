@@ -1,0 +1,109 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Tynex: build Rust CLI",
+      "type": "process",
+      "command": "cargo",
+      "args": [
+        "build",
+        "--locked",
+        "-p",
+        "tynex-cli"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "label": "Tynex: check example",
+      "type": "process",
+      "command": "cargo",
+      "args": [
+        "run",
+        "--quiet",
+        "--locked",
+        "-p",
+        "tynex-cli",
+        "--",
+        "check",
+        "examples/main.tlj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": {
+        "owner": "tynex",
+        "fileLocation": "absolute",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
+    },
+    {
+      "label": "Tynex: run example",
+      "type": "process",
+      "command": "cargo",
+      "args": [
+        "run",
+        "--quiet",
+        "--locked",
+        "-p",
+        "tynex-cli",
+        "--",
+        "run",
+        "examples/main.tlj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": {
+        "owner": "tynex",
+        "fileLocation": "absolute",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
+    },
+    {
+      "label": "Tynex: prepare debug bundle",
+      "type": "process",
+      "command": "cargo",
+      "args": [
+        "run",
+        "--quiet",
+        "--locked",
+        "-p",
+        "tynex-cli",
+        "--",
+        "bundle",
+        "examples/debug/main.tlj",
+        "--out",
+        "build/debug/modules"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$rustc"
+      ]
+    }
+  ]
+}
