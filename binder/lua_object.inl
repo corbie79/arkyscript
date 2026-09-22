@@ -2,7 +2,7 @@
 
 #include "lua_object.h"
 
-namespace next2::detail {
+namespace next2::luax::detail {
 inline registry_reference::~registry_reference() {
     if (lifetime->alive && lua_checkstack(state, 2)) {
         luaL_unref(state, LUA_REGISTRYINDEX, value);
@@ -20,15 +20,15 @@ inline int object_set_field(lua_State* L) {
     lua_settable(L, 1);
     return 0;
 }
-inline next2::object value_traits<next2::object>::read(lua_State* L, int index) {
-    return next2::object(L, index);
+inline next2::luax::object value_traits<next2::luax::object>::read(lua_State* L, int index) {
+    return next2::luax::object(L, index);
 }
-inline void value_traits<next2::object>::push(lua_State* L, const next2::object& value) {
+inline void value_traits<next2::luax::object>::push(lua_State* L, const next2::luax::object& value) {
     value.push(L);
 }
-} // namespace next2::detail
+} // namespace next2::luax::detail
 
-namespace next2 {
+namespace next2::luax {
 inline object::object(lua_State* L, int index) {
     if (!L) throw error("object requires a live Lua state");
     detail::stack_guard stack(L);
@@ -125,4 +125,4 @@ template<class R, class... A> R object::invoke(A&&... args) const {
     detail::check_status(L, lua_pcall(L, sizeof...(A), std::is_void_v<R> ? 0 : 1, 0));
     if constexpr (!std::is_void_v<R>) return detail::read<R>(L, -1);
 }
-} // namespace next2
+} // namespace next2::luax

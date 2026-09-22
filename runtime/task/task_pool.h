@@ -17,7 +17,7 @@
 #include <variant>
 #include <vector>
 
-namespace next2 {
+namespace next2::luax {
 
 class task_cancelled : public std::runtime_error {
 public:
@@ -240,4 +240,4 @@ public:
         return task<R>(std::move(work));
     }
 };
-} // namespace next2
+} // namespace next2::luax

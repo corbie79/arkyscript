@@ -10,15 +10,15 @@ struct Counter {
 
 int main() {
     try {
-        next2::state vm;
-        next2::binder lua(vm);
+        next2::luax::state vm;
+        next2::luax::binder lua(vm);
         lua.reg_func("greet", [](const std::string& name) { return "Hello, " + name; });
         lua.reg_class<Counter>("Counter")
             .reg_con<int>()
             .reg_func("add", &Counter::add)
             .reg_var("value", &Counter::value)
             .reg_prop("total", &Counter::get);
-        using next2::value;
+        using next2::luax::value;
         lua.set_var("settings", value::table{
             {"name", "demo"}, {"enabled", true}, {"scores", value::array{20, 22}}
         });
@@ -33,7 +33,7 @@ int main() {
         const int answer = lua.call<int>("answer");
         std::cout << lua.call<std::string>("greet", "LuaJIT") << ": " << answer << '\n';
         return answer == 42 ? 0 : 1;
-    } catch (const next2::error& error) {
+    } catch (const next2::luax::error& error) {
         std::cerr << error.what() << '\n';
         return 1;
     }

@@ -3,9 +3,9 @@
 #include "binder/lua_class.h"
 #include <iostream>
 
-using next2::object;
-using next2::state;
-using next2::error;
+using next2::luax::object;
+using next2::luax::state;
+using next2::luax::error;
 
 namespace {
 int checks = 0;
@@ -19,7 +19,7 @@ template<class F> void fails(F&& action, std::string_view expected) {
         check(std::string_view(exception.what()).find(expected) != std::string_view::npos, exception.what());
         return;
     }
-    throw std::runtime_error("expected next2::error");
+    throw std::runtime_error("expected next2::luax::error");
 }
 void execute(lua_State* L, const char* source) {
     if (luaL_dostring(L, source) != 0) {
@@ -118,7 +118,7 @@ void table_access_and_calls() {
 void native_class_handles() {
     state vm;
     auto* L = vm.get();
-    next2::cpp_class<Counter>(L, "Counter").reg_con<int>()
+    next2::luax::cpp_class<Counter>(L, "Counter").reg_con<int>()
         .reg_func("get", &Counter::get).reg_func("add", &Counter::add)
         .reg_var("value", &Counter::value).reg_prop("readonly", &Counter::get);
     check(lua_gettop(L) == 0, "standalone class registration stack balance");

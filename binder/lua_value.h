@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <variant>
 
-namespace next2 {
+namespace next2::luax {
 struct value {
     using key = std::variant<std::int64_t, std::string, bool>;
     using array = std::vector<value>;
@@ -37,9 +37,9 @@ private:
         else return static_cast<std::uint64_t>(v);
     }
 };
-} // namespace next2
+} // namespace next2::luax
 
-namespace next2::detail {
+namespace next2::luax::detail {
 struct retain_lua_reference {};
 struct value_budget {
     static constexpr unsigned max_depth = 64;
@@ -101,7 +101,7 @@ inline value read_value(lua_State* L, int index, value_reader& reader, unsigned 
         }
         return entries; // Empty Lua tables have no array/map type information.
     }
-    default: return next2::object(L, index);
+    default: return next2::luax::object(L, index);
     }
 }
 inline void push_value(lua_State* L, const value& item, value_budget& budget, unsigned depth);
@@ -143,7 +143,7 @@ template<> struct value_traits<value> {
         try {
             return read_value(L, index, reader, 0);
         } catch (const retain_lua_reference&) {
-            return next2::object(L, index);
+            return next2::luax::object(L, index);
         }
     }
     static void push(lua_State* L, const value& item) {
@@ -177,4 +177,4 @@ template<> struct value_traits<value::table> {
         ++stack.top;
     }
 };
-} // namespace next2::detail
+} // namespace next2::luax::detail

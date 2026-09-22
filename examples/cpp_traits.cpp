@@ -29,7 +29,7 @@ template<class T> concept Named = requires(const T& value) {
     { value.describe() } -> std::same_as<std::string>;
 };
 
-template<Named T> void bind_named(next2::cpp_class<T>& type) {
+template<Named T> void bind_named(next2::luax::cpp_class<T>& type) {
     type.reg_func("label", &T::label)
         .reg_func("describe", &T::describe);
 }
@@ -40,8 +40,8 @@ static_assert(!Named<MissingLabel>);
 
 int main() {
     try {
-        next2::state vm;
-        next2::binder lua(vm);
+        next2::luax::state vm;
+        next2::luax::binder lua(vm);
 
         auto user = lua.reg_class<User>("User");
         user.reg_con<std::string>().reg_var("name", &User::name);
@@ -71,7 +71,7 @@ int main() {
         const auto summary = lua.call<std::string>("summary");
         std::cout << summary << '\n';
         return summary == "name: Joon / name: device-7" ? 0 : 1;
-    } catch (const next2::error& error) {
+    } catch (const next2::luax::error& error) {
         std::cerr << error.what() << '\n';
         return 1;
     }

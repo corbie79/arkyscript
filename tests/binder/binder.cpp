@@ -2,9 +2,9 @@
 #include <cstdint>
 #include <iostream>
 
-using next2::binder;
-using next2::error;
-using next2::state;
+using next2::luax::binder;
+using next2::luax::error;
+using next2::luax::state;
 
 namespace {
 int checks = 0;
@@ -18,7 +18,7 @@ template<class F> void fails(F&& action, std::string_view expected) {
         check(std::string_view(exception.what()).find(expected) != std::string_view::npos, exception.what());
         return;
     }
-    throw std::runtime_error("expected next2::error");
+    throw std::runtime_error("expected next2::luax::error");
 }
 struct Counter {
     static inline int live = 0;
@@ -59,7 +59,7 @@ void functions_and_values(binder& lua) {
     lua.reg_func("view_length", [](std::string_view value) { return value.size(); });
     lua.reg_func("bool_id", [](bool value) { return value; });
     lua.reg_func("optional", [](std::optional<int> value) { return value.value_or(8); });
-    lua.reg_func("object_echo", [](next2::object value) { return value; });
+    lua.reg_func("object_echo", [](next2::luax::object value) { return value; });
     lua.reg_func("many", [](int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) {
         return a + b + c + d + e + f + g + h + i + j;
     });
@@ -106,14 +106,14 @@ void functions_and_values(binder& lua) {
     )");
     check(lua.call<int>("script_add", 20, 22) == 42, "Lua function");
     lua.dostring("object_data = { value = 42, nested = { name = 'kept' } }");
-    auto object = lua.get_var<next2::object>("object_data");
+    auto object = lua.get_var<next2::luax::object>("object_data");
     lua.set_var("object_copy", object);
-    auto returned = lua.call<next2::object>("object_echo", object);
+    auto returned = lua.call<next2::luax::object>("object_echo", object);
     check(returned.get_var<int>("value") == 42, "object argument/result through binder");
     lua.dostring("assert(rawequal(object_data, object_copy)); object_data = nil; object_copy = nil; collectgarbage('collect')");
     check(object["nested"].get_var<std::string>("name") == "kept", "object retains nested table through binder");
     lua.dostring("object_array = {{value = 1}, {value = 2}}");
-    auto objects = lua.get_var<std::vector<next2::object>>("object_array");
+    auto objects = lua.get_var<std::vector<next2::luax::object>>("object_array");
     lua.dostring("object_array = nil; collectgarbage('collect')");
     check(objects[0].get_var<int>("value") == 1 && objects[1].get_var<int>("value") == 2, "array of Lua object handles");
 }

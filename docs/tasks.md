@@ -48,7 +48,7 @@ Task마다 OS 스레드를 만들지 않는다. 대기 Task는 함수 바이트�
 
 ## C++ API와 빌드
 
-`runtime/task/task_pool.h`는 Lua에 의존하지 않는 C++20 헤더다. `task_pool::submit`에는 `next2::cancellation_token`을 받는 함수를 전달한다. `task<R>::get()`은 값 또는 void를 반환하며 실패 시 예외를 다시 던진다. 결과는 복사 가능한 값이어야 하며, 호출 객체는 move-only여도 된다. `submit`·핸들의 상태/취소/get은 여러 호출 스레드에서 사용할 수 있다. 풀 생성·shutdown·파괴는 소유자가 외부에서 직렬화한다. worker가 자기 풀의 미완료 Task를 기다리거나 shutdown하면 교착을 막기 위해 오류를 낸다. C++ 작업이 Lua 핸들을 캡처해 다른 스레드에서 사용해도 된다는 뜻은 아니다.
+`runtime/task/task_pool.h`는 Lua에 의존하지 않는 C++20 헤더다. `task_pool::submit`에는 `next2::luax::cancellation_token`을 받는 함수를 전달한다. `task<R>::get()`은 값 또는 void를 반환하며 실패 시 예외를 다시 던진다. 결과는 복사 가능한 값이어야 하며, 호출 객체는 move-only여도 된다. `submit`·핸들의 상태/취소/get은 여러 호출 스레드에서 사용할 수 있다. 풀 생성·shutdown·파괴는 소유자가 외부에서 직렬화한다. worker가 자기 풀의 미완료 Task를 기다리거나 shutdown하면 교착을 막기 위해 오류를 낸다. C++ 작업이 Lua 핸들을 캡처해 다른 스레드에서 사용해도 된다는 뜻은 아니다.
 
 ```sh
 make setup                 # 공식 엔진 + Task 공유 모듈 + Rust 도구
