@@ -42,6 +42,23 @@ const onig = require('vscode-oniguruma');
     [1,'try','keyword'], [3,'except','keyword'], [3,'then','keyword'], [5,'else','keyword'],
     [8,'declare','keyword'], [8,'function','keyword'], [8,'number','storage.type']]);
   check('-- import try except declare\nlocal s="try except import"', [[0,'try','comment'],[1,'try','string']]);
+  check('trait Named\n  label: function(Self): string\n  function describe(): string\n    return self:label()\n  end\nend\nclass Player is Named, api.Serializable\n  name: string\n  score: number = 0\n  peer: api.Player?\n  active = true\n  function identity(): Self\n    return self\n  end\nend', [
+    [0,'trait','keyword'], [0,'Named','entity.name.type'], [1,'label','entity.name.function'],
+    [1,'Self','entity.name.type'], [1,'string','storage.type'], [2,'describe','entity.name.function'],
+    [3,'self','variable.language'], [3,'label','entity.name.function'], [6,'class','keyword'],
+    [6,'Player','entity.name.type'], [6,'is','keyword'], [6,'Named','entity.name.type'],
+    [6,'api.Serializable','entity.name.type'], [7,'string','storage.type'], [8,'number','storage.type'],
+    [9,'api.Player','entity.name.type'], [9,'?','keyword.operator.type'], [10,'true','constant.language'],
+    [11,'Self','entity.name.type'], [12,'self','variable.language']]);
+  check('local player: Player = Player {name = "Mina"}\nlocal maybe: api.Player? = nil\nlocal values: {Player} = {player}\nlocal find: function({[string]: Player}): Player? = lookup', [
+    [0,'Player','entity.name.type'], [0,'Mina','string'], [1,'api.Player','entity.name.type'],
+    [1,'nil','constant.language'], [2,'Player','entity.name.type'], [3,'string','storage.type'],
+    [3,'Player','entity.name.type']]);
+  check('obj:Player()\nobj:Named {}\nobj:label "name"\n-- class Player is Named\nlocal text = "trait Named Self"\nlocal function f(value: api.Player?): Self return value end', [
+    [0,'Player','entity.name.function'], [0,'Player','entity.name.type',true],
+    [1,'Named','entity.name.type',true], [2,'label','entity.name.type',true],
+    [3,'Player','comment'], [4,'Named','string'], [5,'api.Player','entity.name.type'],
+    [5,'Self','entity.name.type'], [5,'return','keyword'], [5,'value end','entity.name.type',true]]);
   registry.dispose();
-  console.log('TextMate highlighting: 9 fixtures passed');
+  console.log('TextMate highlighting: 12 fixtures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

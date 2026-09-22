@@ -99,3 +99,37 @@ fn retired_teal_and_invalid_legacy_selection_are_explicit_errors() {
             .success()
     );
 }
+
+#[test]
+fn bundled_class_maps_and_runtime_manifest_share_helper_offsets() {
+    let dir = TempDir::new().unwrap();
+    let source =
+        "class Item\n function fail(): ()\n  error('method failure')\n end\nend\nItem {}:fail()\n";
+    file(&dir, "main.tlj", source);
+    let result = Command::new(env!("CARGO_BIN_EXE_tynex"))
+        .current_dir(dir.path())
+        .args(["bundle", "main.tlj", "--out", "bundle"])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let directory = dir.path().join("bundle");
+    let map: serde_json::Value =
+        serde_json::from_slice(&fs::read(directory.join("debug-map.json")).unwrap()).unwrap();
+    let positions = map["files"][0]["lines"].as_array().unwrap();
+    assert!(positions[..3].iter().all(serde_json::Value::is_null));
+    assert_eq!(positions[3]["line"], 1);
+    assert_eq!(positions[5]["line"], 3);
+    let generated = fs::read_to_string(directory.join("module-0.lua")).unwrap();
+    assert_eq!(
+        generated.lines().nth(5).unwrap(),
+        "  error('method failure')"
+    );
+    let manifest = fs::read_to_string(directory.join("manifest.lua")).unwrap();
+    assert!(manifest.contains("[4]=1,"));
+    assert!(manifest.contains("[6]=3,"));
+    assert!(!manifest.contains("[3]=1,"));
+}

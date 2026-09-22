@@ -121,7 +121,7 @@ fn malformed_or_unimplemented_syntax_is_never_silently_accepted() {
     for source in [
         "local a, = 1, 2",
         "local function f(..., x) return x end",
-        "class User end",
+        "class User name: end",
         "async function f() end",
         "local a=1 (a)=2",
         "local a = 1e+",

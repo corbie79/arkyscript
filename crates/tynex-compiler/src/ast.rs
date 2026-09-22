@@ -6,6 +6,10 @@ use std::{
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
+    Named(String),
+    Instance(u64, String),
+    Definition(u64, String),
+    AbstractSelf(u64, String),
     Number,
     String,
     Boolean,
@@ -28,6 +32,18 @@ pub enum Type {
 pub struct TableType {
     pub fields: BTreeMap<Vec<u8>, Type>,
     pub index: Option<(Box<Type>, Box<Type>)>,
+}
+
+/// Nominal references use IDs so recursive class contracts remain finite.
+#[derive(Clone, Debug)]
+pub struct NominalType {
+    pub name: String,
+    pub is_trait: bool,
+    pub fields: BTreeMap<Vec<u8>, Type>,
+    pub methods: BTreeMap<Vec<u8>, Type>,
+    pub required_fields: HashSet<Vec<u8>>,
+    pub defaults: HashSet<Vec<u8>>,
+    pub traits: Vec<u64>,
 }
 
 /// A Lua value list, not a tuple value. Only its last expression can expand.
@@ -180,6 +196,9 @@ impl Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Named(name) | Self::Instance(_, name) => f.write_str(name),
+            Self::AbstractSelf(_, name) => write!(f, "Self ({name})"),
+            Self::Definition(_, name) => write!(f, "type {name}"),
             Self::Optional(t) => write!(f, "{t}?"),
             Self::Receiver(t) => write!(f, "self {t}"),
             Self::Union(types) => {
@@ -268,6 +287,8 @@ pub struct Function {
 }
 #[derive(Debug)]
 pub enum Stmt {
+    Class(ClassDecl),
+    Trait(TraitDecl),
     Import(Binding, String),
     Try(Box<TryStatement>),
     Local(Vec<Binding>, Vec<Expr>),
@@ -283,6 +304,30 @@ pub enum Stmt {
     NumericFor(Box<NumericFor>),
     GenericFor(Vec<Binding>, Expr, Vec<Stmt>),
     Break,
+}
+
+#[derive(Debug)]
+pub struct ClassDecl {
+    pub name: Binding,
+    pub traits: Vec<Binding>,
+    pub fields: Vec<ClassField>,
+    pub methods: Vec<Method>,
+}
+#[derive(Debug)]
+pub struct ClassField {
+    pub binding: Binding,
+    pub default: Option<Expr>,
+}
+#[derive(Debug)]
+pub struct Method {
+    pub name: Binding,
+    pub function: Function,
+}
+#[derive(Debug)]
+pub struct TraitDecl {
+    pub name: Binding,
+    pub required: Vec<Binding>,
+    pub methods: Vec<Method>,
 }
 
 #[derive(Debug)]

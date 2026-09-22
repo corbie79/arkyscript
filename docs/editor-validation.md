@@ -17,6 +17,6 @@ VS Code 1.138.0에서 `tynex-local.tynex` 확장 ID로 `.tlj` 언어 등록, 미
 
 Zed의 `tynex` 확장·언어 서버 및 `tynex-emmy` 디버그 어댑터는 설정 검사와 WASM 빌드로 검증했다. 현재 구성의 Zed GUI 세션과 Windows 실제 실행은 별도 검증 항목이다.
 
-EmmyLua의 오류 자동 정지는 제공하지 않아 오류 발생 행에 명시적 중단점을 사용한다. try 처리에는 보호 호출 프레임·내부 변수가 보일 수 있다. class·match·async 변환과 async 논리 스택은 아직 구현되지 않았다.
+EmmyLua의 오류 자동 정지는 제공하지 않아 오류 발생 행에 명시적 중단점을 사용한다. try 처리에는 보호 호출 프레임·내부 변수가 보일 수 있다. class·trait 변환은 이후 구현하여 문법·LSP·원본 행·self 디버그 훅을 자동 검증했다. 새 class·trait 기능의 에디터 GUI 디버깅은 아직 재검증하지 않았다. match·async 변환과 async 논리 스택은 아직 구현되지 않았다.
 
 `make test`, `make editor-test`, `make binder-test`, `make binder-sanitize`, `make binder-windows`로 해당 검사를 실행할 수 있다. VS Code 실제 세션은 `npm --prefix editors/vscode run test:editor`, Zed 준비는 `make zed-extension`을 사용한다.

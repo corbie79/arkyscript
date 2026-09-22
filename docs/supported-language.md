@@ -66,7 +66,7 @@ print(result)
 
 현재 새 함수 멤버는 정적인 이름/점 경로에 추가하고, 기존 필드의 계약을 바꾸는 재정의는 거절한다. 조건문·루프 안에서 새 비지역 함수/멤버를 처음 선언하는 것은 `T011`로 진단한다. 먼저 선언한 함수의 동일 타입 재정의는 가능하다. 새 멤버를 선언 이전에 만든 모든 별칭에 전파하지 않으므로 멤버 정의를 마친 뒤 별칭을 만든다. 함수 안에서 생성한 전역 멤버가 호출 뒤 존재한다고 추론하지도 않는다.
 
-`self`의 스냅샷에는 현재 정의 중인 메서드와 나중에 추가하는 메서드가 없다. 따라서 strict의 `self:동일메서드()` 재귀·전방 메서드 참조는 후속 작업이며, 정적 경로의 `module.fn()` 재귀는 반환형을 명시해 사용할 수 있다. class·trait·명명 타입은 아직 없고, 이번 메서드는 Lua 테이블 함수다.
+`self`의 스냅샷에는 현재 정의 중인 메서드와 나중에 추가하는 메서드가 없다. 따라서 strict의 `self:동일메서드()` 재귀·전방 메서드 참조는 후속 작업이며, 정적 경로의 `module.fn()` 재귀는 반환형을 명시해 사용할 수 있다. 이 제한은 일반 Lua 테이블 함수에 적용한다. 별도로 구현한 class·trait 메서드는 전체 계약을 먼저 등록하므로 반환형을 명시한 self 재귀·전방 호출을 지원한다. [class·trait 안내](classes-traits.md)를 참고한다.
 
 ## 타입과 테이블
 
@@ -74,6 +74,7 @@ print(result)
 | --- | --- |
 | `number`, `string`, `boolean`, `nil` | 기본 값 |
 | `any` | 명시적인 동적 경계 |
+| `Player`, `Named`, `models.Player`, `Self` | 선언한 class·trait, import한 명명 타입, 현재 구현 타입 |
 | `T?` | T 또는 nil |
 | `{name: string, score: number?}` | 고정 필드가 있는 레코드 |
 | `{number}` | 숫자 키로 접근하는 배열 |
@@ -128,7 +129,7 @@ end
 
 내장 타입은 `print`, `tostring`, `tonumber`, `require`, `error`, `type`, `pairs`, `ipairs`, `select`, `unpack`, `math.abs/floor/ceil/sqrt/min/max/pi/huge`, `string.len/upper/lower/sub`에 제공한다. 인자·반환형을 검사하는 초기 시그니처이며 모든 라이브러리나 값 범위·런타임 예외를 모델링하지 않는다. CLI에서 정적 require의 결과는 typed 모듈의 공개 타입 또는 legacy `.d.tlj`에서 얻는다. 선언 없는 legacy·외부·동적 require는 unknown이며 strict에서는 명시적 `any` 경계가 필요하다. [혼합 모듈 안내](modules.md)
 
-아직 지원하지 않는 typed 문법은 일반 iterator 목록, goto/label, 명명 타입·제네릭·class·trait·enum·match·async/await다. 정적 혼합 모듈 로더·레거시 선언 파일·프로젝트 전체 검사와 진단 LSP를 구현했다.
+아직 지원하지 않는 typed 문법은 일반 iterator 목록, goto/label, 타입 별칭·제네릭·enum·match·async/await다. 정적 혼합 모듈 로더·레거시 선언 파일·프로젝트 전체 검사와 진단 LSP를 구현했다.
 
 파일당 4096 토큰과 중첩 128의 초기 제한이 있다. 한계를 넘거나 미지원 문법을 사용하면 검사 성공으로 처리하지 않고 진단한다. 큰 기존 프로젝트는 `.lua` legacy 경로를 유지하며 지원 범위에 맞는 파일부터 전환할 수 있다.
 

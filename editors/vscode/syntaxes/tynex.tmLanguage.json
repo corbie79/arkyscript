@@ -72,11 +72,41 @@
       ]
     },
     {
+      "match": "\\b(class|trait)\\b\\s+([A-Za-z_]\\w*)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.tynex"
+        },
+        "2": {
+          "name": "entity.name.type.tynex"
+        }
+      }
+    },
+    {
+      "match": "\\b(is)\\b\\s+([A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*(?:\\s*,\\s*[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*)*)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.tynex"
+        },
+        "2": {
+          "name": "entity.name.type.tynex"
+        }
+      }
+    },
+    {
+      "name": "entity.name.function.lua",
+      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*:\\s*function\\b)"
+    },
+    {
+      "name": "variable.language.lua",
+      "match": "\\bself\\b"
+    },
+    {
       "include": "#annotation"
     },
     {
       "name": "keyword.control.lua",
-      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except)\\b"
+      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except|class|trait|is)\\b"
     },
     {
       "name": "entity.name.function.lua",
@@ -182,18 +212,22 @@
         {
           "name": "punctuation.separator.type.tynex",
           "match": "[:,]"
+        },
+        {
+          "name": "entity.name.type.tynex",
+          "match": "\\b[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*\\b"
         }
       ]
     },
     "annotation": {
       "name": "meta.type.annotation.tynex",
-      "begin": ":(?=\\s*(?:(?:number|string|boolean|nil|any)\\b(?!\\s*\\()|function\\b|[\\{(]))",
+      "begin": ":(?!:)(?=\\s*(?:function\\b|[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*\\b(?![\\w.]|\\s*[(\\\"\\'{])|[\\{(]))",
       "beginCaptures": {
         "0": {
           "name": "punctuation.separator.type.tynex"
         }
       },
-      "end": "(?=[=,;)\\r\\n]|$|\\b(?:return|end|local|if|then|else|do|import|from|declare|try|except)\\b)",
+      "end": "(?=[=,;)\\r\\n]|$|\\b(?:return|end|local|if|then|else|do|import|from|declare|try|except|class|trait|is)\\b)",
       "patterns": [
         {
           "include": "#comments"

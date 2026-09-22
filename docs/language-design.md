@@ -1,6 +1,6 @@
 # Lua 문법을 유지하는 타입 확장 초안
 
-상태: **이 문서의 class·trait·enum·match·async 문법은 설계 제안이며 아직 구현되지 않았다.** 현재 독립 Rust 컴파일러는 `.tlj`의 기본 타입·함수·테이블·제어 흐름·다중 값·가변 인수·Lua 메서드를 지원한다. 아래 전체 예시를 현재 CLI로 실행할 수는 없다.
+상태: **class·trait는 구현했다. enum·match·async 문법은 아직 설계 제안이다.** 현재 독립 Rust 컴파일러는 `.tlj`의 기본 타입·함수·테이블·제어 흐름·다중 값·가변 인수·Lua 메서드를 지원한다. 아래 전체 예시를 현재 CLI로 실행할 수는 없다.
 
 목표는 스크립트의 간결함을 유지하면서 `class`, trait, 데이터를 담는 enum, `match`, `async/await`를 제공하는 것이다. `local`, `function`, `end`, `obj:method()` 같은 Lua 문법은 유지한다. 메모리는 LuaJIT GC가 관리한다. 공식 LuaJIT 소스는 수정하지 않고 독립 Rust 프런트엔드·프로젝트 런타임에서 구현한다. Teal을 중간 단계나 타입 검사기로 사용하지 않는다.
 
@@ -24,7 +24,7 @@
 
 class는 상태를 소유하고 trait은 동작을 정의한다. 첫 구현은 trait 조합을 중심으로 하고 클래스 상속은 후속 검토 항목으로 둔다.
 
-독립된 [class 예제](../examples/design/class.md)와 [여러 trait 조합 예제](../examples/design/traits.md)에서 생성·필드·공통 동작을 확인할 수 있다. 두 문서 모두 설계 예제이며 현재 실행할 수 없다. 현재 실행 가능한 C++ 바인딩 예제는 [예제 목록](../examples/README.md)에 있다.
+독립된 [class 실행 예제](../examples/class.tlj)와 [여러 trait 조합 예제](../examples/traits.tlj)에서 생성·필드·공통 동작을 확인할 수 있다. 구현 규칙과 제한은 [class·trait 안내](classes-traits.md), C++ 바인딩 예제는 [예제 목록](../examples/README.md)에 있다.
 
 ```text
 trait Named

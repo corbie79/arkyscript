@@ -16,12 +16,14 @@ pub(crate) struct Parsed {
     pub edits: Vec<Edit>,
     pub imports: bool,
     pub exceptions: bool,
+    pub classes: bool,
 }
 struct Parser {
     tokens: Vec<Token>,
     index: usize,
     erased: Vec<Range<usize>>,
     typed: bool,
+    declarations_only: bool,
     depth: usize,
     loops: usize,
     variadic: bool,
@@ -29,6 +31,7 @@ struct Parser {
     edits: Vec<Edit>,
     imports: bool,
     exceptions: usize,
+    classes: bool,
 }
 pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
     let mut p = Parser {
@@ -36,6 +39,7 @@ pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
         index: 0,
         erased: Vec::new(),
         typed,
+        declarations_only: false,
         depth: 0,
         loops: 0,
         variadic: true,
@@ -43,6 +47,7 @@ pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
         edits: vec![],
         imports: false,
         exceptions: 0,
+        classes: false,
     };
     let body = p.block(&[])?;
     Ok(Parsed {
@@ -51,6 +56,7 @@ pub fn parse(tokens: Vec<Token>, typed: bool) -> Result<Parsed, Diagnostic> {
         edits: p.edits,
         imports: p.imports,
         exceptions: p.exceptions > 0,
+        classes: p.classes,
     })
 }
 pub fn declaration(tokens: Vec<Token>) -> Result<Type, Diagnostic> {
@@ -59,6 +65,7 @@ pub fn declaration(tokens: Vec<Token>) -> Result<Type, Diagnostic> {
         index: 0,
         erased: vec![],
         typed: true,
+        declarations_only: true,
         depth: 0,
         loops: 0,
         variadic: false,
@@ -66,6 +73,7 @@ pub fn declaration(tokens: Vec<Token>) -> Result<Type, Diagnostic> {
         edits: vec![],
         imports: false,
         exceptions: 0,
+        classes: false,
     };
     if p.take("export") {
         p.expect(":")?;
@@ -227,9 +235,22 @@ impl Parser {
                 "nil" => Type::Nil,
                 "any" => Type::Any,
                 _ => {
-                    return Err(
-                        self.fail("expected a primitive type, T?, {T}, {[K]: V}, or {field: T}")
-                    );
+                    if self.declarations_only {
+                        return Err(self.fail(
+                            "named types in declaration files require a class or trait definition; use a structural contract",
+                        ));
+                    }
+                    let mut name = self.name()?.text;
+                    while self.take(".") {
+                        name.push('.');
+                        name.push_str(&self.name()?.text);
+                    }
+                    if self.take("?") {
+                        self.depth -= 1;
+                        return Ok(Type::Named(name).optional());
+                    }
+                    self.depth -= 1;
+                    return Ok(Type::Named(name));
                 }
             };
             self.index += 1;
@@ -389,6 +410,10 @@ impl Parser {
                 Stmt::Import(binding, name)
             } else if self.typed && self.take("try") {
                 self.try_statement(start)?
+            } else if self.typed && self.take("class") {
+                self.class_statement(start)?
+            } else if self.typed && self.take("trait") {
+                self.trait_statement(start)?
             } else if self.take("local") {
                 if self.take("function") {
                     let t = self.name()?;
@@ -570,6 +595,168 @@ impl Parser {
     }
     fn edit(&mut self, span: Range<usize>, text: String) {
         self.edits.push(Edit { span, text });
+    }
+    fn declaration_name(&mut self) -> Result<Binding, Diagnostic> {
+        let token = self.name()?;
+        Ok(Binding {
+            name: token.text,
+            annotation: None,
+            span: token.span,
+        })
+    }
+    fn method(&mut self, start: usize) -> Result<Method, Diagnostic> {
+        let name = self.declaration_name()?;
+        let opening = self.tok().span.end;
+        let function = self.function(start)?;
+        if let Some(parameter) = function.params.iter().find(|p| p.name == "self") {
+            return Err(Diagnostic::new(
+                "P001",
+                "class and trait methods receive self implicitly",
+                parameter.span.clone(),
+            ));
+        }
+        self.edit(name.span.clone(), format!("__tynex_methods.{}", name.name));
+        self.edit(
+            opening..opening,
+            if function.params.is_empty() && function.variadic.is_none() {
+                "self"
+            } else {
+                "self, "
+            }
+            .into(),
+        );
+        Ok(Method { name, function })
+    }
+    fn class_statement(&mut self, start: usize) -> Result<Stmt, Diagnostic> {
+        self.classes = true;
+        self.edit(start..self.tokens[self.index - 1].span.end, "local".into());
+        let name = self.declaration_name()?;
+        let mut traits = vec![];
+        if self.take("is") {
+            self.edit(self.tokens[self.index - 1].span.clone(), String::new());
+            loop {
+                let mut binding = self.declaration_name()?;
+                while self.take(".") {
+                    let part = self.name()?;
+                    binding.name.push('.');
+                    binding.name.push_str(&part.text);
+                    binding.span.end = part.span.end;
+                }
+                traits.push(binding);
+                if !self.take(",") {
+                    break;
+                }
+            }
+        }
+        let header_end = self.tokens[self.index - 1].span.end;
+        let builder = "function(__tynex_fields, __tynex_defaults, __tynex_methods) ";
+        if traits.is_empty() {
+            self.edit(
+                name.span.clone(),
+                format!("{0}; {0} = __tynex_class({0:?}, {{", name.name),
+            );
+            self.edit(header_end..header_end, format!("}}, {builder}"));
+        } else {
+            // A local's initializer still sees the outer binding of its name.
+            // Capture the trait list there before the class shadows that name,
+            // then reuse the local for the constructor. Method/default closures
+            // capture this new binding; neither body executes while building it.
+            self.edit(name.span.clone(), format!("{} = {{", name.name));
+            self.edit(
+                header_end..header_end,
+                format!("}}; {0} = __tynex_class({0:?}, {0}, {builder}", name.name),
+            );
+        }
+        let mut fields = vec![];
+        let mut methods = vec![];
+        while !self.at("end") && self.tok().kind != Kind::Eof {
+            if self.take(";") {
+                continue;
+            }
+            let member_start = self.tok().span.start;
+            if self.take("function") {
+                methods.push(self.method(member_start)?);
+            } else {
+                let binding = self.binding()?;
+                let nullable = matches!(
+                    binding.annotation,
+                    None | Some(Type::Any | Type::Unknown | Type::Nil | Type::Optional(_))
+                );
+                self.edit(
+                    binding.span.clone(),
+                    format!(
+                        "__tynex_fields[#__tynex_fields + 1] = {{{:?}, {nullable}}};",
+                        binding.name
+                    ),
+                );
+                let default = if self.take("=") {
+                    let equals = self.tokens[self.index - 1].span.clone();
+                    self.edit(
+                        equals,
+                        format!("__tynex_defaults[{:?}] = function() return ", binding.name),
+                    );
+                    // A default is evaluated once per construction, inside a new
+                    // zero-argument closure. It captures lexical locals but not
+                    // the containing function's varargs or protected return tag.
+                    let previous_variadic = self.variadic;
+                    let previous_protected = std::mem::take(&mut self.protected);
+                    self.variadic = false;
+                    let value = self.expr(0)?;
+                    self.variadic = previous_variadic;
+                    self.protected = previous_protected;
+                    self.edit(value.span.end..value.span.end, " end;".into());
+                    Some(value)
+                } else {
+                    None
+                };
+                fields.push(ClassField { binding, default });
+            }
+        }
+        let end = self.tok().span.clone();
+        self.expect("end")?;
+        self.edit(end, "end);".into());
+        Ok(Stmt::Class(ClassDecl {
+            name,
+            traits,
+            fields,
+            methods,
+        }))
+    }
+    fn trait_statement(&mut self, start: usize) -> Result<Stmt, Diagnostic> {
+        self.edit(start..self.tokens[self.index - 1].span.end, "local".into());
+        let name = self.declaration_name()?;
+        self.edit(
+            name.span.clone(),
+            format!("{0} = {{}}; do local __tynex_methods = {0};", name.name),
+        );
+        let mut required = vec![];
+        let mut methods = vec![];
+        while !self.at("end") && self.tok().kind != Kind::Eof {
+            if self.take(";") {
+                continue;
+            }
+            let member_start = self.tok().span.start;
+            if self.take("function") {
+                methods.push(self.method(member_start)?);
+            } else {
+                let binding = self.binding()?;
+                if !matches!(binding.annotation, Some(Type::Function(..))) {
+                    return Err(Diagnostic::new(
+                        "P001",
+                        "trait requirements must have a function type",
+                        binding.span,
+                    ));
+                }
+                self.edit(binding.span.clone(), String::new());
+                required.push(binding);
+            }
+        }
+        self.expect("end")?;
+        Ok(Stmt::Trait(TraitDecl {
+            name,
+            required,
+            methods,
+        }))
     }
     fn try_statement(&mut self, start: usize) -> Result<Stmt, Diagnostic> {
         self.exceptions += 1;

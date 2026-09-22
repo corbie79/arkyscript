@@ -53,7 +53,7 @@ TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex debug examples/main.tlj
 ./bin/tynex exec-bundle build/debug/modules
 ```
 
-번들은 생성 Lua, 표준 v3 `.lua.map`, `debug-map.json`, Lua 로더/manifest를 포함한다. 생성 파일은 원래 생성 경로로 로드한다. 파일명을 원본으로 바꾸고 잘못된 행을 표시하지 않는다. 생성 헤더 두 행은 원본 위치가 없고, 나머지 행은 원본으로 연결한다. Rust emitter는 한 원본 위치가 여러 생성 줄로 확장되는 경우와 매핑 없는 helper도 처리한다. 현재 실행 검증은 헤더로 행이 이동하는 변환이며 class/match/async 변환 자체는 아직 없다.
+번들은 생성 Lua, 표준 v3 `.lua.map`, `debug-map.json`, Lua 로더/manifest를 포함한다. 생성 파일은 원래 생성 경로로 로드한다. 파일명을 원본으로 바꾸고 잘못된 행을 표시하지 않는다. 생성 헤더와 내부 helper 행에는 원본 위치를 붙이지 않고, 사용자 코드의 행은 원본으로 연결한다. Rust emitter는 한 원본 위치가 여러 생성 줄로 확장되는 경우와 매핑 없는 helper도 처리한다. class·trait의 생성 코드에도 원본 매핑을 연결한다. 메서드·필드 기본값 오류와 번들의 원본 행을 회귀 검사한다. match/async 변환은 아직 없다.
 
 소스 맵은 0부터 시작하는 UTF-16 위치를 사용한다. DAP bridge는 디버거의 행 단위 위치와 0/1 기반 옵션을 변환한다. 원본 중단점/조건·스택/범위·breakpoint event·source 요청·출력 위치를 처리하며 변수와 식은 upstream 디버거가 평가한다. 아직 생성 변수 이름 변환, async 논리 스택, helper 자동 건너뛰기는 제공하지 않는다.
 

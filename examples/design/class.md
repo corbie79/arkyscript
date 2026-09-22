@@ -1,8 +1,8 @@
-# class 설계 예제
+# class 예제
 
-**실행 불가: 현재 컴파일러에 아직 구현되지 않은 제안 문법입니다.** C++ 클래스의 실행 가능한 예제는 [cpp_class.cpp](../cpp_class.cpp)에 있습니다.
+**구현 완료.** 실행 가능한 원본은 [class.tlj](../class.tlj)이며 `./bin/tynex run examples/class.tlj`로 실행합니다.
 
-```text
+```lua
 class Player
    name: string
    score: number = 0
@@ -31,7 +31,7 @@ same:add_score(1)
 assert(mina.score == 43)       -- 대입은 인스턴스 참조를 공유
 ```
 
-제안하는 규칙:
+구현 규칙:
 
 - 기본값이 없는 `name`은 생성 시 필수입니다. `Player {}`는 초기화 오류입니다.
 - `score`에 문자열을 넣거나 선언하지 않은 필드를 전달하면 오류입니다.
@@ -40,4 +40,4 @@ assert(mina.score == 43)       -- 대입은 인스턴스 참조를 공유
 - 같은 필드가 있어도 클래스 이름이 다르면 서로 다른 타입입니다.
 - 메모리는 Lua GC가 관리하며 대입에 Rust의 move·borrow 규칙을 적용하지 않습니다.
 
-필드 초기화와 타입 불일치는 gradual·strict 모두 검사한다는 설계입니다. `.lua` legacy 코드에 이 키워드를 적용하지 않습니다. 전체 규칙은 [언어 설계](../../docs/language-design.md#class와-trait)를 참고하세요.
+필드 초기화와 타입 불일치는 gradual·strict 모두 검사합니다. `.lua` legacy 코드에 이 키워드를 적용하지 않습니다. 전체 규칙은 [class·trait 규칙](../../docs/classes-traits.md)를 참고하세요.

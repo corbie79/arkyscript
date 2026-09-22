@@ -10,8 +10,8 @@
 | try / except / else | [exceptions.tlj](exceptions.tlj) | 성공·실패 경로 실행 가능 |
 | 실제 스레드 병렬 Task | [tasks/](tasks/README.md), [cpp_tasks.cpp](cpp_tasks.cpp) | 실행 가능: 풀·격리·취소·결과; wait는 블로킹 |
 | C++20 class·객체·동적 값 연결 | 아래 C++ 예제와 [Binder API](../binder/README.md) | 실행 가능 |
-| 스크립트 class | [설계 예제](design/class.md) | 미구현 |
-| 스크립트 trait·기본 동작 조합 | [설계 예제](design/traits.md) | 미구현; C++ concept 예제는 실행 가능 |
+| 스크립트 class | [class.tlj](class.tlj), [안내](design/class.md) | 실행 가능: 필수 필드·기본값·메서드·명명 타입 |
+| 스크립트 trait·기본 동작 조합 | [traits.tlj](traits.tlj), [안내](design/traits.md) | 실행 가능: 필수·기본 메서드·복수 trait·충돌 검사 |
 | 값을 담는 enum·Result/Option·match | [설계 예제](design/enum-match.md) | 미구현 |
 | async / await | [설계 예제](design/async-await.md) | 미구현; 네이티브 Task API와 구분 |
 | VS Code·Zed 하이라이트·디버깅 | [debug/](debug/), [에디터](../docs/editors.md), [디버깅](../docs/debugging.md) | 현재 문법 지원; Task worker 디버깅은 미구현 |
@@ -48,6 +48,8 @@ make binder-examples
 ./bin/tynex run examples/main.tlj
 ./bin/tynex run examples/control_flow.tlj
 ./bin/tynex run examples/multiple_values.tlj
+./bin/tynex run examples/class.tlj
+./bin/tynex run examples/traits.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/exceptions.tlj
 ./bin/tynex run examples/modules/main.tlj
@@ -57,12 +59,12 @@ make binder-examples
 
 `multiple_values.tlj`는 현재 지원되는 Lua 테이블 메서드와 다중 반환을, `imports/`는 정적 import·선언 파일·try/except/else를 보여줍니다. 오류 진단 확인용 `type_error.tlj`는 의도적으로 타입 검사가 실패합니다.
 
+`class.tlj`는 필수 필드·기본값·참조 공유를, `traits.tlj`는 필수 메서드·기본 구현·여러 trait 조합·trait 타입 인자를 보여줍니다. 자세한 규칙은 [class·trait](../docs/classes-traits.md)에 있습니다.
+
 ## 확장 문법 — 설계 예제
 
-**스크립트의 `class`·`trait` 키워드와 명명 타입은 아직 구현되지 않았습니다.** 아래 문서는 제안 문법을 보여주며 현재 CLI로 실행할 수 없습니다. 실행 예제와 구별되도록 Markdown 파일로 제공합니다.
+아래 문서는 아직 구현되지 않은 제안 문법이며 현재 CLI로 실행할 수 없습니다.
 
-- [class](design/class.md): 필수 필드, 기본값, 생성, 메서드, 인스턴스별 상태
-- [trait](design/traits.md): 필수 메서드, 기본 구현, 여러 trait 조합, trait 타입 인자
 - [payload enum·match](design/enum-match.md): 경우별 데이터, Result/Option, 완전성 검사 제안
 - [async/await](design/async-await.md): 실제 worker Task를 기다리는 비동기 문법 제안
 

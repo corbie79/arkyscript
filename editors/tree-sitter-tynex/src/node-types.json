@@ -4,6 +4,10 @@
     "named": true,
     "subtypes": [
       {
+        "type": "class_declaration",
+        "named": true
+      },
+      {
         "type": "declare_statement",
         "named": true
       },
@@ -17,6 +21,10 @@
       },
       {
         "type": "implicit_variable_declaration",
+        "named": true
+      },
+      {
+        "type": "trait_declaration",
         "named": true
       },
       {
@@ -415,6 +423,80 @@
         },
         {
           "type": "statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "class_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "class_field",
+          "named": true
+        },
+        {
+          "type": "empty_statement",
+          "named": true
+        },
+        {
+          "type": "method_declaration",
+          "named": true
+        },
+        {
+          "type": "trait_list",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "class_field",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "type_annotation",
           "named": true
         }
       ]
@@ -1048,6 +1130,52 @@
     }
   },
   {
+    "type": "method_declaration",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "parameters": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "parameters",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "return_annotation",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "method_index_expression",
     "named": true,
     "fields": {
@@ -1079,6 +1207,21 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "named_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1343,6 +1486,81 @@
     }
   },
   {
+    "type": "trait_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "empty_statement",
+          "named": true
+        },
+        {
+          "type": "method_declaration",
+          "named": true
+        },
+        {
+          "type": "trait_requirement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "trait_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "named_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "trait_requirement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type_annotation",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "try_statement",
     "named": true,
     "fields": {
@@ -1398,6 +1616,10 @@
       "types": [
         {
           "type": "function_type",
+          "named": true
+        },
+        {
+          "type": "named_type",
           "named": true
         },
         {
@@ -1753,6 +1975,10 @@
     "named": true
   },
   {
+    "type": "class",
+    "named": false
+  },
+  {
     "type": "comment_content",
     "named": true
   },
@@ -1833,6 +2059,10 @@
     "named": false
   },
   {
+    "type": "is",
+    "named": false
+  },
+  {
     "type": "local",
     "named": false
   },
@@ -1870,6 +2100,10 @@
   },
   {
     "type": "then",
+    "named": false
+  },
+  {
+    "type": "trait",
     "named": false
   },
   {

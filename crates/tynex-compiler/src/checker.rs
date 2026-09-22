@@ -1,7 +1,8 @@
 use crate::{Diagnostic, Import, Interface, Mode, ast::*};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     ops::Range,
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 #[derive(Clone)]
@@ -39,6 +40,8 @@ struct Checker<'a> {
     depth: usize,
     varargs: Option<Type>,
     conditional: usize,
+    nominals: BTreeMap<u64, NominalType>,
+    self_type: Option<Type>,
 }
 
 fn function(args: Vec<Type>, result: Type) -> Type {
@@ -66,6 +69,8 @@ pub fn check(body: &[Stmt], mode: Mode, modules: &BTreeMap<String, Interface>) -
         depth: 0,
         varargs: Some(Type::Any),
         conditional: 0,
+        nominals: modules.values().flat_map(|m| m.nominals.clone()).collect(),
+        self_type: None,
     };
     let values = vec![
         (
@@ -157,7 +162,10 @@ pub fn check(body: &[Stmt], mode: Mode, modules: &BTreeMap<String, Interface>) -
     Analysis {
         errors: c.errors,
         imports: c.imports,
-        interface: Interface { value },
+        interface: Interface {
+            value,
+            nominals: c.nominals,
+        },
     }
 }
 fn module_value(ty: Type) -> Type {
@@ -171,7 +179,494 @@ fn module_value(ty: Type) -> Type {
         other => other,
     }
 }
+fn substitute_self(ty: &Type, id: u64, replacement: &Type) -> Type {
+    match ty {
+        Type::AbstractSelf(found, _) if *found == id => replacement.clone(),
+        Type::Optional(t) => substitute_self(t, id, replacement).optional(),
+        Type::Receiver(t) => Type::Receiver(Box::new(substitute_self(t, id, replacement))),
+        Type::Union(ts) => Type::Union(
+            ts.iter()
+                .map(|t| substitute_self(t, id, replacement))
+                .collect(),
+        ),
+        Type::Table(t) => Type::Table(
+            TableType {
+                fields: t
+                    .fields
+                    .iter()
+                    .map(|(k, v)| (k.clone(), substitute_self(v, id, replacement)))
+                    .collect(),
+                index: t.index.as_ref().map(|(k, v)| {
+                    (
+                        Box::new(substitute_self(k, id, replacement)),
+                        Box::new(substitute_self(v, id, replacement)),
+                    )
+                }),
+            }
+            .into(),
+        ),
+        Type::Function(args, result, tail) => Type::Function(
+            args.iter()
+                .map(|t| substitute_self(t, id, replacement))
+                .collect(),
+            Box::new(Pack {
+                values: result
+                    .values
+                    .iter()
+                    .map(|t| substitute_self(t, id, replacement))
+                    .collect(),
+                tail: result
+                    .tail
+                    .as_ref()
+                    .map(|t| Box::new(substitute_self(t, id, replacement))),
+                minimum: result.minimum,
+            }),
+            tail.as_ref()
+                .map(|t| Box::new(substitute_self(t, id, replacement))),
+        ),
+        other => other.clone(),
+    }
+}
+fn mentions_self(ty: &Type, id: u64) -> bool {
+    substitute_self(ty, id, &Type::Never) != *ty
+}
+// Direct Self results can be hidden behind a trait. Mutable containers and
+// callbacks retain invariance/parameter obligations and must keep concrete Self.
+fn safe_abstract_result(ty: &Type, id: u64) -> bool {
+    match ty {
+        Type::AbstractSelf(found, _) if *found == id => true,
+        Type::Optional(inner) => safe_abstract_result(inner, id),
+        Type::Union(types) => types.iter().all(|t| safe_abstract_result(t, id)),
+        other => !mentions_self(other, id),
+    }
+}
 impl Checker<'_> {
+    fn named_value(&self, name: &str) -> Option<Type> {
+        let mut parts = name.split('.');
+        let mut value = self.lookup(parts.next()?)?.declared.clone();
+        for part in parts {
+            let Type::Table(table) = value else {
+                return None;
+            };
+            value = table.fields.get(part.as_bytes())?.clone();
+        }
+        Some(value)
+    }
+    fn resolve(&mut self, ty: &Type, span: Range<usize>) -> Type {
+        match ty {
+            Type::Named(name) if name == "Self" => self.self_type.clone().unwrap_or_else(|| {
+                self.error("T013", "Self is only valid inside a class or trait", span);
+                Type::Unknown
+            }),
+            Type::Named(name) => match self.named_value(name) {
+                Some(Type::Definition(id, label)) => Type::Instance(id, label),
+                _ => {
+                    self.error(
+                        "T013",
+                        format!("unknown class or trait type '{name}'"),
+                        span,
+                    );
+                    Type::Unknown
+                }
+            },
+            Type::Optional(inner) => self.resolve(inner, span).optional(),
+            Type::Receiver(inner) => Type::Receiver(Box::new(self.resolve(inner, span))),
+            Type::Union(types) => Type::Union(
+                types
+                    .iter()
+                    .map(|t| self.resolve(t, span.clone()))
+                    .collect(),
+            ),
+            Type::Table(table) => Type::Table(
+                TableType {
+                    fields: table
+                        .fields
+                        .iter()
+                        .map(|(k, v)| (k.clone(), self.resolve(v, span.clone())))
+                        .collect(),
+                    index: table.index.as_ref().map(|(k, v)| {
+                        (
+                            Box::new(self.resolve(k, span.clone())),
+                            Box::new(self.resolve(v, span.clone())),
+                        )
+                    }),
+                }
+                .into(),
+            ),
+            Type::Function(args, result, tail) => Type::Function(
+                args.iter().map(|t| self.resolve(t, span.clone())).collect(),
+                Box::new(self.resolve_pack(result, span.clone())),
+                tail.as_ref().map(|t| Box::new(self.resolve(t, span))),
+            ),
+            other => other.clone(),
+        }
+    }
+    fn resolve_pack(&mut self, pack: &Pack, span: Range<usize>) -> Pack {
+        Pack {
+            values: pack
+                .values
+                .iter()
+                .map(|t| self.resolve(t, span.clone()))
+                .collect(),
+            tail: pack
+                .tail
+                .as_ref()
+                .map(|t| Box::new(self.resolve(t, span.clone()))),
+            minimum: pack.minimum,
+        }
+    }
+    fn nominal(&mut self, binding: &Binding, is_trait: bool) -> u64 {
+        if matches!(
+            binding.name.as_str(),
+            "number" | "string" | "boolean" | "any" | "Self"
+        ) {
+            self.error(
+                "T014",
+                format!(
+                    "'{}' is reserved in class and trait type declarations",
+                    binding.name
+                ),
+                binding.span.clone(),
+            );
+        }
+        static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+        let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+        self.check_redeclaration(binding);
+        let value = Type::Definition(id, binding.name.clone());
+        self.insert(&binding.name, value.clone(), value);
+        self.lookup_mut(&binding.name).unwrap().readonly = true;
+        self.nominals.insert(
+            id,
+            NominalType {
+                name: binding.name.clone(),
+                is_trait,
+                fields: BTreeMap::new(),
+                methods: BTreeMap::new(),
+                required_fields: HashSet::new(),
+                defaults: HashSet::new(),
+                traits: vec![],
+            },
+        );
+        id
+    }
+    fn class(&mut self, declaration: &ClassDecl) {
+        // Resolve implemented traits before introducing the class's local name.
+        let mut traits = vec![];
+        for binding in &declaration.traits {
+            match self.named_value(&binding.name) {
+                Some(Type::Definition(id, _))
+                    if self.nominals.get(&id).is_some_and(|t| t.is_trait) =>
+                {
+                    if traits.contains(&id) {
+                        self.error("T014", "duplicate implemented trait", binding.span.clone());
+                    } else {
+                        traits.push(id);
+                    }
+                }
+                _ => self.error(
+                    "T014",
+                    format!("'{}' is not a declared trait", binding.name),
+                    binding.span.clone(),
+                ),
+            }
+        }
+        let id = self.nominal(&declaration.name, false);
+        let instance = Type::Instance(id, declaration.name.name.clone());
+        let previous_self = self.self_type.replace(instance.clone());
+        self.nominals.get_mut(&id).unwrap().traits = traits.clone();
+        let mut names = HashSet::new();
+        let mut declarations = Vec::new();
+        // Publish the entire constructor contract before checking deferred
+        // closures that may construct this same class recursively.
+        for field in &declaration.fields {
+            let binding = &field.binding;
+            let key = binding.name.as_bytes().to_vec();
+            if !names.insert(key.clone()) {
+                self.error("T014", "duplicate class member", binding.span.clone());
+            }
+            let declared = binding
+                .annotation
+                .as_ref()
+                .map(|t| self.resolve(t, binding.span.clone()));
+            let ty = declared.clone().unwrap_or(Type::Unknown);
+            let required = field.default.is_none() && !self.accepts(&ty, &Type::Nil);
+            let nominal = self.nominals.get_mut(&id).unwrap();
+            nominal.fields.insert(key.clone(), ty);
+            if required {
+                nominal.required_fields.insert(key);
+            }
+            declarations.push(declared);
+        }
+        // Seed every signature before checking bodies so self recursion and
+        // calls to later methods see the same class identity.
+        for method in &declaration.methods {
+            let key = method.name.name.as_bytes().to_vec();
+            if !names.insert(key.clone()) {
+                self.error("T014", "duplicate class member", method.name.span.clone());
+            }
+            let ty = self.signature(&method.function, Some(&instance));
+            self.nominals.get_mut(&id).unwrap().methods.insert(key, ty);
+        }
+        let own: HashSet<_> = declaration
+            .methods
+            .iter()
+            .map(|m| m.name.name.as_bytes().to_vec())
+            .collect();
+        let mut inherited = HashSet::new();
+        for trait_id in &traits {
+            let contract = self.nominals[trait_id].clone();
+            for key in &contract.defaults {
+                if own.contains(key) {
+                    continue;
+                }
+                if self.nominals[&id].fields.contains_key(key) {
+                    self.error(
+                        "T014",
+                        format!(
+                            "field '{}' conflicts with a trait method",
+                            String::from_utf8_lossy(key)
+                        ),
+                        declaration.name.span.clone(),
+                    );
+                }
+                if !inherited.insert(key.clone()) {
+                    self.error(
+                        "T014",
+                        format!(
+                            "conflicting trait defaults for '{}'; implement it in the class",
+                            String::from_utf8_lossy(key)
+                        ),
+                        declaration.name.span.clone(),
+                    );
+                }
+                let ty = substitute_self(&contract.methods[key], *trait_id, &instance);
+                self.nominals
+                    .get_mut(&id)
+                    .unwrap()
+                    .methods
+                    .insert(key.clone(), ty);
+            }
+        }
+        for (field, declared) in declaration.fields.iter().zip(declarations) {
+            let binding = &field.binding;
+            let saved = self.scopes.clone();
+            // Defaults run after captured locals may have changed, so they
+            // cannot depend on declaration-time flow refinements.
+            self.reset();
+            let actual = field
+                .default
+                .as_ref()
+                .map(|e| self.expr_expected(e, declared.as_ref()));
+            self.scopes = saved;
+            if let (Some(declared), Some(actual)) = (&declared, &actual) {
+                self.expect(declared, actual, binding.span.clone());
+            }
+            let ty = declared.or(actual).unwrap_or(Type::Unknown);
+            if ty.has_unknown() && self.mode == Mode::Strict {
+                self.error(
+                    "T002",
+                    format!(
+                        "cannot infer field '{}'; add a type or default",
+                        binding.name
+                    ),
+                    binding.span.clone(),
+                );
+            }
+            self.nominals
+                .get_mut(&id)
+                .unwrap()
+                .fields
+                .insert(binding.name.as_bytes().to_vec(), ty);
+        }
+        for method in &declaration.methods {
+            let ty = self.function(&method.function, None, Some(&instance));
+            self.nominals
+                .get_mut(&id)
+                .unwrap()
+                .methods
+                .insert(method.name.name.as_bytes().to_vec(), ty);
+        }
+        for trait_id in traits {
+            let contract = self.nominals[&trait_id].clone();
+            for (key, expected) in contract.methods {
+                let expected = substitute_self(&expected, trait_id, &instance);
+                match self.nominals[&id].methods.get(&key).cloned() {
+                    Some(actual) if self.method_accepts(&expected, &actual) => {}
+                    Some(_) => self.error(
+                        "T014",
+                        format!(
+                            "method '{}' does not satisfy trait '{}'",
+                            String::from_utf8_lossy(&key),
+                            contract.name
+                        ),
+                        declaration.name.span.clone(),
+                    ),
+                    None => self.error(
+                        "T014",
+                        format!(
+                            "missing method '{}' required by trait '{}'",
+                            String::from_utf8_lossy(&key),
+                            contract.name
+                        ),
+                        declaration.name.span.clone(),
+                    ),
+                }
+            }
+        }
+        self.self_type = previous_self;
+    }
+    fn trait_declaration(&mut self, declaration: &TraitDecl) {
+        let id = self.nominal(&declaration.name, true);
+        let receiver = Type::AbstractSelf(id, declaration.name.name.clone());
+        let previous_self = self.self_type.replace(receiver.clone());
+        let mut names = HashSet::new();
+        for binding in &declaration.required {
+            let key = binding.name.as_bytes().to_vec();
+            if !names.insert(key.clone()) {
+                self.error("T014", "duplicate trait member", binding.span.clone());
+            }
+            let ty = self.resolve(
+                binding.annotation.as_ref().unwrap_or(&Type::Unknown),
+                binding.span.clone(),
+            );
+            if !matches!(&ty,Type::Function(args,_,_) if args.first() == Some(&receiver)) {
+                self.error(
+                    "T014",
+                    "trait requirements must be functions with Self as their first parameter",
+                    binding.span.clone(),
+                );
+            }
+            self.nominals.get_mut(&id).unwrap().methods.insert(key, ty);
+        }
+        for method in &declaration.methods {
+            let key = method.name.name.as_bytes().to_vec();
+            if !names.insert(key.clone()) {
+                self.error("T014", "duplicate trait member", method.name.span.clone());
+            }
+            let ty = self.signature(&method.function, Some(&receiver));
+            let nominal = self.nominals.get_mut(&id).unwrap();
+            nominal.methods.insert(key.clone(), ty);
+            nominal.defaults.insert(key);
+        }
+        for method in &declaration.methods {
+            let ty = self.function(&method.function, None, Some(&receiver));
+            self.nominals
+                .get_mut(&id)
+                .unwrap()
+                .methods
+                .insert(method.name.name.as_bytes().to_vec(), ty);
+        }
+        self.self_type = previous_self;
+    }
+    fn method_accepts(&self, expected: &Type, actual: &Type) -> bool {
+        let (Type::Function(want, wr, wt), Type::Function(got, gr, gt)) = (expected, actual) else {
+            return false;
+        };
+        let unwrap = |t: &Type| {
+            if let Type::Receiver(inner) = t {
+                (**inner).clone()
+            } else {
+                t.clone()
+            }
+        };
+        want.len() == got.len()
+            && wt == gt
+            && want.iter().zip(got).all(|(a, b)| {
+                self.accepts(&unwrap(a), &unwrap(b)) && self.accepts(&unwrap(b), &unwrap(a))
+            })
+            && wr.values.len() == gr.values.len()
+            && wr.tail == gr.tail
+            && wr
+                .values
+                .iter()
+                .zip(&gr.values)
+                .all(|(a, b)| self.accepts(a, b))
+    }
+    fn construct(
+        &mut self,
+        id: u64,
+        arguments: &[Expr],
+        receiver: Option<Type>,
+        span: Range<usize>,
+    ) -> Pack {
+        let nominal = self.nominals[&id].clone();
+        if nominal.is_trait {
+            self.expressions(arguments, &[], None);
+            self.error("T014", "traits cannot be constructed", span);
+            return Pack::one(Type::Unknown);
+        }
+        let initializer = TableType {
+            fields: nominal
+                .fields
+                .iter()
+                .map(|(key, ty)| {
+                    (
+                        key.clone(),
+                        if nominal.required_fields.contains(key) {
+                            ty.clone()
+                        } else {
+                            ty.clone().optional()
+                        },
+                    )
+                })
+                .collect(),
+            index: None,
+        };
+        let expected = Type::Table(initializer.clone().into());
+        let actual = self.expressions(arguments, &[Some(expected)], None);
+        let dynamic = actual.tail.as_ref().is_some_and(|t| {
+            **t == Type::Any || **t == Type::Unknown && self.mode == Mode::Gradual
+        });
+        if receiver.is_some()
+            || actual.values.len() > 1
+            || !dynamic
+                && (actual.minimum != 1 || actual.values.len() != 1 || actual.tail.is_some())
+        {
+            self.error("T006","class construction requires exactly one initializer table after Lua argument expansion",span.clone());
+        }
+        match actual.at(0) {
+            Type::Table(table) => {
+                for (key, ty) in &table.fields {
+                    if let Some(expected) = initializer.fields.get(key) {
+                        self.expect(expected, ty, span.clone());
+                    } else {
+                        self.error(
+                            "T014",
+                            format!(
+                                "unknown initializer field '{}'",
+                                String::from_utf8_lossy(key)
+                            ),
+                            span.clone(),
+                        );
+                    }
+                }
+                for key in &nominal.required_fields {
+                    if !table.fields.contains_key(key) {
+                        self.error(
+                            "T014",
+                            format!("missing required field '{}'", String::from_utf8_lossy(key)),
+                            span.clone(),
+                        );
+                    }
+                }
+                if table.index.is_some() {
+                    self.error(
+                        "T014",
+                        "class initializers require named, statically known fields",
+                        span.clone(),
+                    );
+                }
+            }
+            Type::Any => {}
+            Type::Unknown if self.mode == Mode::Gradual => {}
+            _ => self.error(
+                "T014",
+                "class construction requires an initializer table",
+                span,
+            ),
+        }
+        Pack::one(Type::Instance(id, nominal.name))
+    }
     fn error(&mut self, code: &'static str, message: impl Into<String>, span: Range<usize>) {
         self.errors.push(Diagnostic::new(code, message, span));
     }
@@ -221,6 +716,20 @@ impl Checker<'_> {
             }
             return *actual == Type::Nil || self.accepts(inner, actual);
         }
+        if let Type::Instance(expected_id, _) = expected {
+            let actual_id = match actual {
+                Type::Instance(id, _) | Type::AbstractSelf(id, _) => Some(*id),
+                _ => None,
+            };
+            if let Some(actual_id) = actual_id {
+                return *expected_id == actual_id
+                    || self.nominals.get(expected_id).is_some_and(|t| t.is_trait)
+                        && self
+                            .nominals
+                            .get(&actual_id)
+                            .is_some_and(|t| t.traits.contains(expected_id));
+            }
+        }
         if let Type::Receiver(required) = expected {
             if let (Type::Table(required), Type::Table(actual)) = (required.as_ref(), actual) {
                 return required
@@ -241,7 +750,11 @@ impl Checker<'_> {
         }
     }
     fn bind(&mut self, binding: &Binding, actual: Type) {
-        let declared = binding.annotation.clone().unwrap_or_else(|| actual.clone());
+        let declared = binding
+            .annotation
+            .as_ref()
+            .map(|t| self.resolve(t, binding.span.clone()))
+            .unwrap_or_else(|| actual.clone());
         if binding.annotation.is_some() {
             self.expect(&declared, &actual, binding.span.clone());
         } else if actual.has_unknown() && self.mode == Mode::Strict {
@@ -295,6 +808,8 @@ impl Checker<'_> {
             self.conditional += 1;
         }
         match stmt {
+            Stmt::Class(declaration) => self.class(declaration),
+            Stmt::Trait(declaration) => self.trait_declaration(declaration),
             Stmt::Import(binding, name) => {
                 self.imports.push(Import {
                     name: Some(name.clone()),
@@ -359,7 +874,14 @@ impl Checker<'_> {
                 }
             }
             Stmt::Local(bindings, expressions) => {
-                let expected: Vec<_> = bindings.iter().map(|b| b.annotation.clone()).collect();
+                let expected: Vec<_> = bindings
+                    .iter()
+                    .map(|b| {
+                        b.annotation
+                            .as_ref()
+                            .map(|t| self.resolve(t, b.span.clone()))
+                    })
+                    .collect();
                 let values = self.expressions(expressions, &expected, None);
                 // All RHS expressions see the old scope, including shadowed names.
                 for (i, binding) in bindings.iter().enumerate() {
@@ -541,11 +1063,16 @@ impl Checker<'_> {
         }
         flow
     }
-    fn signature(&self, function: &Function, receiver: Option<&Type>) -> Type {
+    fn signature(&mut self, function: &Function, receiver: Option<&Type>) -> Type {
         let mut params: Vec<_> = function
             .params
             .iter()
-            .map(|p| p.annotation.clone().unwrap_or(Type::Unknown))
+            .map(|p| {
+                p.annotation
+                    .as_ref()
+                    .map(|t| self.resolve(t, p.span.clone()))
+                    .unwrap_or(Type::Unknown)
+            })
             .collect();
         if let Some(receiver) = receiver {
             params.insert(0, Type::Receiver(Box::new(receiver.clone())));
@@ -555,13 +1082,18 @@ impl Checker<'_> {
             Box::new(
                 function
                     .returns
-                    .clone()
+                    .as_ref()
+                    .map(|p| self.resolve_pack(p, function.span.clone()))
                     .unwrap_or_else(|| Pack::variadic(Type::Unknown)),
             ),
-            function
-                .variadic
-                .as_ref()
-                .map(|b| Box::new(b.annotation.clone().unwrap_or(Type::Unknown))),
+            function.variadic.as_ref().map(|b| {
+                Box::new(
+                    b.annotation
+                        .as_ref()
+                        .map(|t| self.resolve(t, b.span.clone()))
+                        .unwrap_or(Type::Unknown),
+                )
+            }),
         )
     }
     fn function(
@@ -570,9 +1102,14 @@ impl Checker<'_> {
         recursive: Option<&str>,
         receiver: Option<&Type>,
     ) -> Type {
-        let Type::Function(params, _, variadic) = self.signature(function, receiver) else {
+        let Type::Function(params, signature_returns, variadic) =
+            self.signature(function, receiver)
+        else {
             unreachable!()
         };
+        // Resolve the complete signature in its declaration scope before any
+        // parameter can shadow a class/trait name used by another annotation.
+        let contract = function.returns.as_ref().map(|_| *signature_returns);
         let saved = self.scopes.clone();
         let old_varargs = self.varargs.clone();
         let old_conditional = self.conditional;
@@ -587,8 +1124,17 @@ impl Checker<'_> {
         if let Some(receiver) = receiver {
             self.insert("self", receiver.clone(), receiver.clone());
         }
-        for param in function.params.iter().chain(function.variadic.iter()) {
-            let ty = param.annotation.clone().unwrap_or(Type::Unknown);
+        let parameter_types = params
+            .iter()
+            .skip(usize::from(receiver.is_some()))
+            .cloned()
+            .chain(variadic.as_deref().cloned());
+        for (param, ty) in function
+            .params
+            .iter()
+            .chain(function.variadic.iter())
+            .zip(parameter_types)
+        {
             if ty == Type::Unknown && self.mode == Mode::Strict {
                 self.error(
                     "T002",
@@ -601,13 +1147,13 @@ impl Checker<'_> {
             }
             self.insert(&param.name, ty.clone(), ty);
         }
-        let flow = self.body(&function.body, function.returns.as_ref());
+        let flow = self.body(&function.body, contract.as_ref());
         let mut result = flow
             .returns
             .into_iter()
             .fold(Pack::one(Type::Never), Pack::join);
         if flow.falls {
-            if let Some(expected) = &function.returns {
+            if let Some(expected) = &contract {
                 self.expect_returns(expected, &Pack::default(), function.span.clone());
             }
             result = result.join(Pack::default());
@@ -619,7 +1165,7 @@ impl Checker<'_> {
                 function.span.clone(),
             );
         }
-        if let Some(contract) = &function.returns {
+        if let Some(contract) = &contract {
             if result.tail.is_some() && contract.tail.is_none() {
                 result = contract.clone();
             }
@@ -1009,11 +1555,12 @@ impl Checker<'_> {
                     let library = self.scopes[0]["string"].declared.clone();
                     self.access(&library, &Type::String, Some(key), false, expr.span.clone())
                 } else {
-                    self.access(
+                    self.access_member(
                         &receiver,
                         &Type::String,
                         Some(key),
                         false,
+                        true,
                         expr.span.clone(),
                     )
                 };
@@ -1033,6 +1580,7 @@ impl Checker<'_> {
     ) -> Pack {
         let offset = usize::from(receiver.is_some());
         let result = match ty {
+            Type::Definition(id, _) => self.construct(*id, arguments, receiver, span),
             Type::Function(params, returns, variadic) => {
                 let expected: Vec<_> = params.iter().skip(offset).cloned().map(Some).collect();
                 let mut actual = self.expressions(arguments, &expected, variadic.as_deref());
@@ -1201,7 +1749,7 @@ impl Checker<'_> {
             self.error(
                 "T012",
                 format!(
-                    "cannot redeclare imported binding '{}' in the same scope",
+                    "cannot redeclare immutable binding '{}' in the same scope",
                     binding.name
                 ),
                 binding.span.clone(),
@@ -1214,7 +1762,7 @@ impl Checker<'_> {
         {
             self.error(
                 "T012",
-                format!("cannot assign to imported binding '{name}'"),
+                format!("cannot assign to immutable binding '{name}'"),
                 target.span.clone(),
             );
         }
@@ -1260,10 +1808,78 @@ impl Checker<'_> {
         write: bool,
         span: Range<usize>,
     ) -> Type {
+        self.access_member(ty, key, name, write, false, span)
+    }
+    fn access_member(
+        &mut self,
+        ty: &Type,
+        key: &Type,
+        name: Option<&[u8]>,
+        write: bool,
+        method_call: bool,
+        span: Range<usize>,
+    ) -> Type {
         if *ty == Type::Any {
             return Type::Any;
         }
         if *ty == Type::Unknown && self.mode == Mode::Gradual {
+            return Type::Unknown;
+        }
+        if let Type::Instance(id, _) | Type::AbstractSelf(id, _) | Type::Definition(id, _) = ty {
+            let nominal = self.nominals[id].clone();
+            if matches!(ty, Type::Definition(..)) {
+                self.error(
+                    "T014",
+                    "class and trait methods must be accessed through an instance",
+                    span,
+                );
+                return Type::Unknown;
+            }
+            if let Some(name) = name {
+                if !matches!(ty, Type::Definition(..))
+                    && let Some(value) = nominal.fields.get(name)
+                {
+                    return value.clone();
+                }
+                if let Some(value) = nominal.methods.get(name) {
+                    if write {
+                        self.error(
+                            "T014",
+                            "class and trait methods are immutable",
+                            span.clone(),
+                        );
+                    }
+                    if nominal.is_trait && matches!(ty, Type::Instance(..)) {
+                        if !method_call {
+                            self.error("T015","trait methods require colon dispatch; extracting a method loses its concrete receiver",span);
+                            return Type::Unknown;
+                        }
+                        if let Type::Function(args, result, tail) = value
+                            && (args.iter().skip(1).any(|t| mentions_self(t, *id))
+                                || tail.as_ref().is_some_and(|t| mentions_self(t, *id))
+                                || result
+                                    .values
+                                    .iter()
+                                    .chain(result.tail.as_deref())
+                                    .any(|t| !safe_abstract_result(t, *id)))
+                        {
+                            self.error(
+                                "T015",
+                                "this Self contract requires a concrete class receiver",
+                                span,
+                            );
+                            return Type::Unknown;
+                        }
+                        return substitute_self(value, *id, ty);
+                    }
+                    return value.clone();
+                }
+            }
+            self.error(
+                "T014",
+                format!("unknown or inaccessible member of '{}'", nominal.name),
+                span,
+            );
             return Type::Unknown;
         }
         let Type::Table(table) = ty else {

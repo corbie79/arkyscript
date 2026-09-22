@@ -1,6 +1,6 @@
 # 독립 Rust 컴파일러 구현 계획
 
-상태: **두 에디터의 전용 구문 강조·최소 LSP, 일반 소스 맵 생성기·번들·DAP 중계를 구현했다. VS Code와 실제 EmmyLua 프로토콜에서 행 이동·모듈·조건부 중단점·오류·재연결 검증을 통과했다. Zed GUI에서도 전용 강조·LSP·mapped 디버거를 검증했다. 정적 import·named declare·try/except/else도 구현했다.** 전체 Lua 정적 지원에는 아직 제한이 있다. 원본 LuaJIT은 그대로 유지한다. 현재 사용 가능한 문법·명령은 [README](../README.md)를 기준으로 하고 class·trait·enum·async 설계는 [언어 설계](language-design.md)를 따른다.
+상태: **두 에디터의 전용 구문 강조·최소 LSP, 일반 소스 맵 생성기·번들·DAP 중계를 구현했다. VS Code와 실제 EmmyLua 프로토콜에서 행 이동·모듈·조건부 중단점·오류·재연결 검증을 통과했다. Zed GUI에서도 전용 강조·LSP·mapped 디버거를 검증했다. 정적 import·named declare·try/except/else와 class·trait도 구현했다.** 전체 Lua 정적 지원에는 아직 제한이 있다. 원본 LuaJIT은 그대로 유지한다. 현재 사용 가능한 문법·명령은 [README](../README.md)를 기준으로 하고 class·trait 규칙과 enum·async 설계는 [언어 설계](language-design.md)를 따른다.
 
 ## 확정한 구조
 
@@ -20,6 +20,7 @@ Rust는 공통 소스·Cargo 테스트·타입이 있는 내부 AST에 적합하
 - 일반/테이블 함수 선언·메서드 선언과 호출, self 필드·인자 검사, 정적 경로의 재귀 함수와 기본 문자열 메서드.
 - 익명 함수·함수 값, 레코드·배열·사전의 생성/읽기/대입, if/elseif/else·do·while·repeat·숫자 for·pairs/ipairs·break.
 - 지역 변수 nil 좁히기·조기 반환·분기별 반환형 추론·반환 누락 검사, 가변 테이블 별칭의 타입 계약, 일부 math/string 함수 시그니처.
+- class·trait의 명명 타입, 필드 초기화·인스턴스별 기본값, self 메서드, 필수·기본 메서드·충돌 검사, 모듈 공개 계약. [구현 규칙](classes-traits.md).
 - legacy/gradual/strict, CLI·파일 지시문·프로젝트 TOML·경로별 override. 의존 모듈도 각자의 모드로 검사하며 CLI 모드는 진입 파일에만 적용.
 - 정적 require 그래프·공개 타입 전달·문자열/주석/가려진 require 구분·순환/모호성 진단, module_paths·dynamic_modules·external_modules.
 - `.d.tlj` 레거시 export 계약과 함수 타입 표기, include/exclude 기반 프로젝트 전체 check, 모듈별 JSON 진단·검사 목록.
@@ -30,7 +31,7 @@ Rust는 공통 소스·Cargo 테스트·타입이 있는 내부 AST에 적합하
 - `tynex lsp`: 미저장 문서·모듈·선언 파일, UTF-16 진단, 버전/닫기, 파일 감시, legacy 구문 검사. VS Code 로컬 VSIX·TextMate 문법과 Zed 전용 Tree-sitter grammar·WASM 확장 제공.
 - UTF-16 소스 맵 emitter, v3 sidecar·원본/생성 위치 DAP 변환, 독립 bundle/exec-bundle, 긴 파일명을 포함한 원본 오류 traceback.
 
-현재 구현은 전체 Lua 정적 검사기가 아니다. 사용자 iterator·조건부 새 멤버와 별칭 전파·순환 모듈의 타입 해석·사용자 정의 타입은 추가해야 한다. legacy 본문 내부 의존 분석과 실행 중 typed 컴파일도 하지 않는다. 기존 `.lua` 프로젝트는 legacy 경로를 유지하며 typed 동적 의존은 미리 등록한다. 미구현 문법을 any로 덮어 통과시키지 않는다.
+현재 구현은 전체 Lua 정적 검사기가 아니다. 사용자 iterator·조건부 새 멤버와 별칭 전파·순환 모듈의 타입 해석·타입 별칭·제네릭은 추가해야 한다. legacy 본문 내부 의존 분석과 실행 중 typed 컴파일도 하지 않는다. 기존 `.lua` 프로젝트는 legacy 경로를 유지하며 typed 동적 의존은 미리 등록한다. 미구현 문법을 any로 덮어 통과시키지 않는다.
 
 ## 타입 정책
 
@@ -55,7 +56,7 @@ strict에서도 `local n = 1` 같은 코드에 표기를 강제하지 않는다.
 | 3. 두 에디터와 원본 매핑 — 구현·프로토콜 검증 | 전용 강조·LSP·일반 emitter·v3/DAP 매핑·모듈 Step Into/Over·조건부 중단점·오류·재연결 구현 및 검사 | VS Code 확장 호스트와 네이티브 EmmyLua에서 생성 행 +2 검증. Zed 전용 확장 GUI의 강조·LSP·원본 위치·조건부 중단점·오류 종료 확인 |
 | 3a. 모듈·예외 문법 — 구현 | 전용 로더의 정적 import·불변 바인딩·named declare·try/except/else | 캐시 교체 내성·레거시 호환·중첩 return/break·다중 값·LSP·강조·원본 디버깅 회귀 |
 | 4. payload enum·match | 기본 제네릭, Option/Result, payload 추론, 분기 누락·중복 검사 | 서로 다른 enum 구분, 잘못된 payload 차단, 분기 내부 원본 디버깅 |
-| 5. class·trait | 생성자·필드·메서드, 필수/기본 메서드, 충돌 검사 | 초기화와 호출 검사, 인스턴스별 가변 기본값 분리, self 조회 |
+| 5. class·trait — 구현 | 생성자·필드·메서드, 필수/기본 메서드, 충돌 검사 | 초기화와 호출 검사, 인스턴스별 가변 기본값 분리, self 조회 |
 | 6. async·await | Task 상태·코루틴 스케줄러·오류·협력적 취소·원본 await 위치 | 가짜 시계로 완료/실패/취소/이중 완료 검증, await 전후 정지·변수·오류 스택 |
 | 7. 플랫폼 임베딩·배포 | Rust C ABI, Android/iOS 앱 연결, Linux/Windows 패키징, 호스트 이벤트 루프 | 실제 기기 실행·모듈 로딩·취소·디버깅; iOS는 JIT 없이 검증 |
 

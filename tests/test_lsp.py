@@ -64,3 +64,18 @@ class LspRuntimeTests(unittest.TestCase):
         self.assertEqual(self.check_buffer('host.d.tlj','declare n: number'),[])
         errors=self.check_buffer('host.d.tlj','declare n: number = 1')
         self.assertEqual(errors[0]['code'],'P001')
+
+    def test_class_and_trait_diagnostics_in_unsaved_buffer(self):
+        source = ('--!typecheck strict\n'
+                  'trait Named label:function(Self):string end\n'
+                  'class User is Named\n'
+                  '  name:string\n'
+                  '  function label():string return self.name end\n'
+                  'end\n'
+                  'local user=User {name="Mina"}\n'
+                  'user.name=42\n')
+        errors = self.check_buffer('classes.tlj', source)
+        self.assertTrue(errors)
+        self.assertEqual(errors[0]['code'], 'T001')
+        self.assertEqual(errors[0]['range']['start']['line'], 7)
+        self.assertEqual(self.check_buffer('classes.tlj', source.replace('user.name=42', 'user.name="Joon"')), [])

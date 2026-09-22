@@ -254,7 +254,9 @@ end
         self.assertIn(str(main) + ':11:', result.stderr)
         mapping=json.loads((bundle/'debug-map.json').read_text())
         entry=next(f for f in mapping['files'] if f['original']==str(main))
-        self.assertEqual(entry['lines'][12]['line'],11)
+        generated_lines = (bundle / entry['generated']).read_text().splitlines()
+        error_line = next(i for i, line in enumerate(generated_lines) if "error('EXPECTED', 0)" in line)
+        self.assertEqual(entry['lines'][error_line]['line'], 11)
 
     def test_failed_static_initialization_can_retry_without_poisoning_private_cache(self):
         self.file('api.tlj', "local globals:any=_G if globals.ready ~= true then error('retry',0) end return {n=42}")

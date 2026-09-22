@@ -1,0 +1,25 @@
+--!typecheck strict
+class Player
+   name: string
+   score: number = 0
+   tags: {string} = {}
+
+   function add_score(amount: number): ()
+      self.score = self.score + amount
+   end
+
+   function label(): string
+      return self.name
+   end
+end
+
+local mina: Player = Player { name = "Mina" }
+local joon = Player { name = "Joon", score = 5 }
+mina:add_score(42)
+mina.tags[1] = "leader"
+if joon.tags[1] ~= nil then error("default table was shared") end
+
+local same = mina
+same:add_score(1)
+print(mina:label(), mina.score)
+print(joon:label(), joon.score)

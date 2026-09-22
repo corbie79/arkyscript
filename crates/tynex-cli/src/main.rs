@@ -348,9 +348,10 @@ fn write_manifest(
     manifest.push_str("},locations={");
     if mapped {
         for (index, (path, unit)) in project.units.iter().enumerate() {
-            let Some(map) = &unit.source_map else {
+            let (Some(lua), Some(map)) = (&unit.lua, &unit.source_map) else {
                 continue;
             };
+            let emitted = bundle::emit(lua, map);
             let generated = directory.join(format!("module-{index}.lua"));
             manifest.push_str(&format!(
                 "[{}]={{source={},lines={{",
@@ -358,10 +359,10 @@ fn write_manifest(
                 lua_path(path)?
             ));
             let mut lines = std::collections::BTreeMap::new();
-            for mapping in &map.mappings {
+            for mapping in &emitted.map.mappings {
                 if let Some(original) = mapping.original {
                     lines
-                        .entry(mapping.generated.line + 3)
+                        .entry(mapping.generated.line + 1)
                         .or_insert(original.line + 1);
                 }
             }

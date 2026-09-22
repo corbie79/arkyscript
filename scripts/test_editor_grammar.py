@@ -19,9 +19,23 @@ def run(*args):
 
 def main():
     examples = sorted((ROOT / 'examples').rglob('*.tlj'))
-    run('parse', '--quiet', *examples)
+    fixtures = sorted((GRAMMAR / 'test/fixtures').rglob('*.tlj'))
+    sources = examples + fixtures
+    run('parse', '--quiet', *sources)
     for query in QUERIES.glob('*.scm'):
-        run('query', '--quiet', query, *examples)
+        run('query', '--quiet', query, *sources)
+    classes = GRAMMAR / 'test/fixtures/class-trait.tlj'
+    captures = run('query', '--captures', QUERIES / 'highlights.scm', classes)
+    for kind, text in [('keyword', 'class'), ('keyword', 'trait'), ('keyword', 'is'),
+                       ('type', 'Player'), ('type', 'Self'), ('type', 'api.Player'),
+                       ('type', 'api.Serializable'), ('property', 'score'), ('property', 'active'),
+                       ('property', 'legacy_value'),
+                       ('function.method', 'label'), ('function.method', 'describe'),
+                       ('variable.parameter', 'amount')]:
+        assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in captures.splitlines()), (kind, captures)
+    outline = run('query', '--captures', QUERIES / 'outline.scm', classes)
+    for name in ['Player', 'Named', 'Scorable', 'label', 'describe', 'score', 'active']:
+        assert any(' - name,' in line and f'text: `{name}`' in line for line in outline.splitlines()), (name, outline)
     with tempfile.TemporaryDirectory() as directory:
         source = Path(directory) / 'capture.tlj'
         source.write_text('local function add(score: number, amount: number?): number\n'
@@ -38,7 +52,11 @@ def main():
         source.write_text('local broken: =\nlocal next: string = "still highlighted"\n')
         captures = run('query', '--captures', QUERIES / 'highlights.scm', source)
         assert any('type.builtin' in line and 'text: `string`' in line for line in captures.splitlines()), captures
-    print(f'Tree-sitter highlighting: {len(examples)} examples, all queries, captures and recovery passed')
+        source.write_text('class Broken\n  field: =\nend\ntrait Recovery\n  label: function(Self): string\nend\n')
+        captures = run('query', '--captures', QUERIES / 'highlights.scm', source)
+        for word in ['Recovery', 'Self']:
+            assert any(' - type,' in line and f'text: `{word}`' in line for line in captures.splitlines()), captures
+    print(f'Tree-sitter highlighting: {len(examples)} examples, {len(fixtures)} editor fixtures, all queries, captures and recovery passed')
 
 
 if __name__ == '__main__':

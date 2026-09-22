@@ -1,0 +1,48 @@
+--!typecheck strict
+trait Named
+   label: function(Self): string
+
+   function describe(): string
+      return "name: " .. self:label()
+   end
+end
+
+trait Scorable
+   add_score: function(Self, number): ()
+   score: function(Self): number
+end
+
+class Player is Named, Scorable
+   name: string
+   points: number = 0
+
+   function label(): string
+      return self.name
+   end
+
+   function add_score(amount: number): ()
+      self.points = self.points + amount
+   end
+
+   function score(): number
+      return self.points
+   end
+end
+
+class Device is Named
+   name: string
+
+   function label(): string
+      return "device: " .. self.name
+   end
+end
+
+local function print_name(value: Named): ()
+   print(value:describe())
+end
+
+local player = Player { name = "Mina" }
+player:add_score(42)
+print_name(player)
+print_name(Device { name = "sensor-7" })
+print(player:score())

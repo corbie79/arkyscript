@@ -67,11 +67,13 @@ impl Diagnostic {
 #[derive(Clone, Debug)]
 pub struct Interface {
     pub(crate) value: ast::Type,
+    pub(crate) nominals: BTreeMap<u64, ast::NominalType>,
 }
 impl Interface {
     pub fn unknown() -> Self {
         Self {
             value: ast::Type::Unknown,
+            nominals: BTreeMap::new(),
         }
     }
 }
@@ -94,6 +96,7 @@ pub struct Prepared {
     edits: Vec<parser::Edit>,
     imports: bool,
     exceptions: bool,
+    classes: bool,
 }
 /// Parse once; discovery never executes code and does not suppress final errors.
 pub fn prepare(source: &str, typed_syntax: bool) -> Result<Prepared, Vec<Diagnostic>> {
@@ -120,12 +123,16 @@ pub fn prepare(source: &str, typed_syntax: bool) -> Result<Prepared, Vec<Diagnos
         edits: parsed.edits,
         imports: parsed.imports,
         exceptions: parsed.exceptions,
+        classes: parsed.classes,
     })
 }
 pub fn declaration(source: &str) -> Result<Interface, Vec<Diagnostic>> {
     let tokens = lexer::lex(source).map_err(|e| vec![e])?;
     parser::declaration(tokens)
-        .map(|value| Interface { value })
+        .map(|value| Interface {
+            value,
+            nominals: BTreeMap::new(),
+        })
         .map_err(|e| vec![e])
 }
 impl Prepared {
@@ -172,6 +179,12 @@ impl Prepared {
         if self.exceptions {
             emitter.helper("local __tynex_pcall, __tynex_unpack, __tynex_select = pcall, unpack, select; local function __tynex_pack(...) return {n=__tynex_select('#', ...), ...} end; ");
         }
+        if self.classes {
+            // Direct Lua execution also uses original source line numbers.
+            // Keep the helper on the first line, just like import/try helpers.
+            emitter.helper(&CLASS_RUNTIME.replace('\n', " "));
+            emitter.helper("; ");
+        }
         let mut edits: Vec<_> = self
             .edits
             .iter()
@@ -201,6 +214,50 @@ impl Prepared {
         })
     }
 }
+
+// Capturing the builtins before executing user code keeps lowered constructors
+// independent of later local declarations or global reassignment. Helper code
+// stays unmapped; field defaults and methods retain their original source spans.
+const CLASS_RUNTIME: &str = r#"local __tynex_class = (function(type, next, rawget, setmetatable, error, select)
+return function(name, traits, build)
+    local fields, defaults, methods, allowed = {}, {}, {}, {}
+    build(fields, defaults, methods)
+    for i = 1, #fields do allowed[fields[i][1]] = true end
+    local explicit = {}
+    for key in next, methods do explicit[key] = true end
+    for i = 1, #traits do
+        for key, value in next, traits[i] do
+            if not explicit[key] then
+                if methods[key] ~= nil then error('conflicting trait default in ' .. name .. ': ' .. key, 2) end
+                methods[key] = value
+            end
+        end
+    end
+    local instance_meta = {__index = methods}
+    return setmetatable({}, {__call = function(_, initial, ...)
+        if type(initial) ~= 'table' or select('#', ...) ~= 0 then
+            error(name .. ' constructor expects exactly one table', 2)
+        end
+        for key in next, initial do
+            if not allowed[key] then error('unknown initializer field in ' .. name, 2) end
+        end
+        local instance = {}
+        for i = 1, #fields do
+            local field = fields[i]
+            local key = field[1]
+            local value = rawget(initial, key)
+            if value == nil then
+                local default = defaults[key]
+                if default then value = default()
+                elseif not field[2] then error('missing required field ' .. name .. '.' .. key, 2) end
+            end
+            instance[key] = value
+        end
+        return setmetatable(instance, instance_meta)
+    end})
+end
+end)(type, next, rawget, setmetatable, error, select)
+"#;
 
 #[derive(Debug)]
 pub struct Output {

@@ -1,0 +1,42 @@
+import api from "api"
+
+trait Named
+   label: function(Self): string
+
+   function describe(): string
+      return "name: " .. self:label()
+   end
+end
+
+trait Scorable
+   add: function(Self, number): ()
+end
+
+class Player is Named, Scorable, api.Serializable
+   name: string
+   score: number = 0
+   tags: {string} = {}
+   friend: Player?
+   peer: api.Player?
+   active = true
+   legacy_value
+
+   function label(): string
+      return self.name
+   end
+
+   function add(amount: number): ()
+      self.score = self.score + amount
+   end
+
+   function identity(): Self
+      return self
+   end
+end
+
+local player: Player = Player {name = "Mina"}
+local maybe: api.Player? = nil
+local values: {Player} = {player}
+local find: function({[string]: Player}): Player? = lookup
+player:add(42)
+print(player:describe())

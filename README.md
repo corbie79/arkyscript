@@ -11,7 +11,7 @@
 .lua → legacy 원본 로딩 ────────────────────────────────┘
 ```
 
-현재는 기본 타입·함수·테이블·제어 흐름·다중 값과 **정적 import·선언 파일·try/except/else·`.lua/.tlj` 혼합 모듈 검사·실행**을 지원합니다. VS Code·Zed 전용 구문 강조, 최소 진단 LSP, 소스 맵을 사용하는 디버깅 번들도 제공합니다. 전체 Lua 문법의 정적 검사와 class·trait·payload enum·async/await는 아직 구현 전입니다. 지원하지 않는 typed 문법을 검사 완료로 통과시키지 않습니다. 기존 `.lua`는 legacy에서 전체 LuaJIT 문법을 실행할 수 있습니다.
+현재는 기본 타입·함수·테이블·제어 흐름·다중 값과 **정적 import·선언 파일·try/except/else·`.lua/.tlj` 혼합 모듈 검사·실행**을 지원합니다. VS Code·Zed 전용 구문 강조, 최소 진단 LSP, 소스 맵을 사용하는 디버깅 번들도 제공합니다. 스크립트의 **class·trait**도 지원하며 필드 초기화, 메서드, 필수·기본 동작과 충돌을 검사합니다. 전체 Lua 문법의 정적 검사와 payload enum·async/await는 아직 구현 전입니다. 지원하지 않는 typed 문법을 검사 완료로 통과시키지 않습니다. 기존 `.lua`는 legacy에서 전체 LuaJIT 문법을 실행할 수 있습니다.
 
 ## 시작하기
 
@@ -23,6 +23,8 @@ make setup
 ./bin/tynex run examples/main.tlj
 ./bin/tynex run examples/control_flow.tlj
 ./bin/tynex run examples/multiple_values.tlj
+./bin/tynex run examples/class.tlj
+./bin/tynex run examples/traits.tlj
 ./bin/tynex run examples/modules/main.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/tasks/main.tlj
@@ -50,7 +52,7 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 `make setup` 후 C++20 컴파일러로 `make binder-test`, `make binder-sanitize`를 실행합니다. Windows x64는 `make windows` 후 `make binder-windows`로 xwin 크로스 빌드를 확인합니다. LuaJIT 업데이트 검증에도 바인더의 네이티브 테스트와 Windows 빌드를 포함합니다. [바인딩 API 안내](binder/README.md), [실행 예제](examples/cpp_binder.cpp)를 참고하세요.
 
-`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 4개를 실행합니다. 여기에는 실제 OS 스레드 풀을 사용하는 [Task 예제](examples/cpp_tasks.cpp)도 포함됩니다. [예제 목록](examples/README.md)에는 실행 명령·출력과 스크립트 `class`·`trait`의 설계 예제를 정리했습니다. 스크립트용 새 키워드는 아직 미구현입니다.
+`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 4개를 실행합니다. 여기에는 실제 OS 스레드 풀을 사용하는 [Task 예제](examples/cpp_tasks.cpp)도 포함됩니다. [예제 목록](examples/README.md)에는 C++ 및 스크립트 `class`·`trait`의 실행 명령과 출력을 정리했습니다.
 
 ## 실제 병렬 Task
 
@@ -89,7 +91,9 @@ end
 
 여러 반환형은 `: (number, string)`, 반환값 없음은 `: ()`, 가변 인수는 `...: number`로 씁니다. 반환 목록의 마지막에는 `...number`를 둘 수 있습니다. `local a, b = f()`는 여러 값을 받지만 `(f())`는 한 값으로 줄어듭니다. 실행 가능한 [다중 반환·메서드 예제](examples/multiple_values.tlj)를 제공합니다.
 
-초기 제한: 제네릭·사용자 정의 타입, 사용자 iterator의 정적 분석은 미구현입니다. 조건문·루프 안에서 새 비지역 함수나 메서드를 처음 정의하는 것도 현재는 진단하며, 미리 선언한 함수의 같은 타입 재정의는 가능합니다. 파일당 4096 토큰, 중첩 128 제한을 진단합니다. 표준 API 타입은 일부 기본 함수와 `math`·`string` 함수만 제공하며, 모든 LuaJIT API를 검사하지는 않습니다. 기존 Lua 모듈에는 선언 파일 또는 명시적 `any` 경계를 사용할 수 있습니다. **레거시 선언 파일·`any`·동적 경계에는 런타임 타입 보장이 없으며, 완전한 타입 안전성을 제공하는 단계는 아닙니다.**
+스크립트 `class Player is Named`는 필드와 메서드, trait 계약을 정의합니다. `Player {name="Mina"}`로 만들고 `player:method()`로 호출합니다. 기본값은 생성할 때마다 평가하며 클래스는 이름으로 구분합니다. [class·trait 규칙](docs/classes-traits.md), [클래스 예제](examples/class.tlj), [trait 예제](examples/traits.tlj)를 참고하세요.
+
+초기 제한: 타입 별칭·제네릭, 사용자 iterator의 정적 분석은 미구현입니다. 조건문·루프 안에서 새 비지역 함수나 메서드를 처음 정의하는 것도 현재는 진단하며, 미리 선언한 함수의 같은 타입 재정의는 가능합니다. 파일당 4096 토큰, 중첩 128 제한을 진단합니다. 표준 API 타입은 일부 기본 함수와 `math`·`string` 함수만 제공하며, 모든 LuaJIT API를 검사하지는 않습니다. 기존 Lua 모듈에는 선언 파일 또는 명시적 `any` 경계를 사용할 수 있습니다. **레거시 선언 파일·`any`·동적 경계에는 런타임 타입 보장이 없으며, 완전한 타입 안전성을 제공하는 단계는 아닙니다.**
 
 `import worker from "worker"`는 검사된 프로젝트 모듈을 전용 로더로 가져오며 가져온 이름의 재대입을 막습니다. `.d.tlj`에는 `declare label: function(string): string`으로 공개 계약을 작성할 수 있습니다. `try … except err then … else … end`는 오류 처리와 성공 경로를 나누고 return·break·다중 반환을 보존합니다. [새 문법과 동작 규칙](docs/imports-exceptions.md), [실행 예제](examples/imports/main.tlj)를 참고하세요.
 

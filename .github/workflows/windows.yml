@@ -106,5 +106,5 @@ jobs:
           $env:TYNEX_LUAJIT = $exe[0].FullName
           cargo test --workspace --locked
           if ($LASTEXITCODE -ne 0) { throw "Rust frontend tests failed" }
-          python -m unittest -v test_cli test_source_maps test_dap test_language_extensions test_tasks
+          python -m unittest -v test_cli test_source_maps test_dap test_language_extensions test_classes test_tasks
           if ($LASTEXITCODE -ne 0) { throw "Frontend, debugging or Task runtime tests failed" }
