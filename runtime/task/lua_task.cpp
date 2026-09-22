@@ -22,7 +22,7 @@ struct handle_box {
     const void* tag = &box_tag<handle_box>;
     std::optional<handle> value;
 };
-thread_local const std::stop_token* worker_stop = nullptr;
+thread_local const tynex::cancellation_token* worker_stop = nullptr;
 
 template<class T> T& checked_box(lua_State* L, int index, const char* type) {
     // Non-raising Lua checks avoid foreign unwinds through the C++ boundary.
@@ -89,11 +89,11 @@ int cancelled(lua_State* L) {
 }
 
 struct stop_scope {
-    explicit stop_scope(const std::stop_token& token) { worker_stop = &token; }
+    explicit stop_scope(const tynex::cancellation_token& token) { worker_stop = &token; }
     ~stop_scope() { worker_stop = nullptr; }
 };
 
-tynex::value execute(const std::string& code, const tynex::value& input, std::stop_token stop) {
+tynex::value execute(const std::string& code, const tynex::value& input, tynex::cancellation_token stop) {
     if (stop.stop_requested()) throw tynex::task_cancelled();
     stop_scope context(stop);
     tynex::state vm;
@@ -156,7 +156,7 @@ int spawn(lua_State* L) {
     luaL_getmetatable(L, handle_type);
     lua_setmetatable(L, -2);
     if (!owner.pool) owner.pool = std::make_unique<tynex::task_pool>(owner.workers, owner.capacity);
-    box->value.emplace(owner.pool->submit([code = std::move(code), input = std::move(input)](std::stop_token stop) {
+    box->value.emplace(owner.pool->submit([code = std::move(code), input = std::move(input)](tynex::cancellation_token stop) {
         return execute(code, input, stop);
     }));
     return 1;

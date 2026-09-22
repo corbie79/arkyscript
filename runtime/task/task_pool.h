@@ -2,6 +2,7 @@
 
 // Fixed OS workers, bounded queue, cooperative cancellation. No Lua dependency.
 #include <algorithm>
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <exception>
@@ -10,7 +11,6 @@
 #include <mutex>
 #include <optional>
 #include <stdexcept>
-#include <stop_token>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -22,6 +22,19 @@ namespace tynex {
 class task_cancelled : public std::runtime_error {
 public:
     task_cancelled() : std::runtime_error("task cancelled") {}
+};
+
+namespace task_detail { struct job; }
+
+// A read-only, shared cancellation flag. Polling is all this runtime needs;
+// this also works with C++20 libraries that have no std::stop_token yet.
+class cancellation_token {
+    std::shared_ptr<std::atomic<bool>> requested_;
+    friend struct task_detail::job;
+    explicit cancellation_token(std::shared_ptr<std::atomic<bool>> flag) : requested_(std::move(flag)) {}
+public:
+    cancellation_token() = default;
+    bool stop_requested() const noexcept { return requested_ && requested_->load(std::memory_order_acquire); }
 };
 
 enum class task_status { queued, running, cancelling, succeeded, failed, cancelled };
@@ -47,7 +60,7 @@ inline bool finished(task_status status) noexcept {
 struct job {
     mutable std::mutex mutex;
     std::condition_variable changed;
-    std::stop_source stop;
+    cancellation_token token{std::make_shared<std::atomic<bool>>(false)};
     task_status status = task_status::queued;
     std::exception_ptr failure;
     const void* owner = nullptr;
@@ -59,9 +72,8 @@ struct job {
             std::lock_guard lock(mutex);
             if (finished(status) || status == task_status::cancelling) return false;
             status = status == task_status::queued ? task_status::cancelled : task_status::cancelling;
+            token.requested_->store(true, std::memory_order_release);
         }
-        // stop callbacks may invoke arbitrary user code; never hold our locks here.
-        stop.request_stop();
         changed.notify_all();
         return true;
     }
@@ -77,7 +89,7 @@ struct job {
 template<class R> struct result_job final : job {
     using stored_type = std::conditional_t<std::is_void_v<R>, std::monostate, R>;
     std::optional<stored_type> result;
-    std::function<R(std::stop_token)> function;
+    std::function<R(cancellation_token)> function;
 
     void execute() noexcept override {
         {
@@ -87,8 +99,8 @@ template<class R> struct result_job final : job {
         }
         try {
             auto value = [&]() -> stored_type {
-                if constexpr (std::is_void_v<R>) { function(stop.get_token()); return {}; }
-                else return function(stop.get_token());
+                if constexpr (std::is_void_v<R>) { function(token); return {}; }
+                else return function(token);
             }();
             std::lock_guard lock(mutex);
             if (status == task_status::cancelling) status = task_status::cancelled;
@@ -207,12 +219,12 @@ public:
     std::size_t worker_count() const noexcept { return threads_.size(); }
 
     template<class F> auto submit(F&& function) {
-        using R = std::invoke_result_t<std::decay_t<F>&, std::stop_token>;
+        using R = std::invoke_result_t<std::decay_t<F>&, cancellation_token>;
         static_assert(std::is_void_v<R> || (std::is_copy_constructible_v<R> && !std::is_reference_v<R>),
                       "Task results must be copyable values (or void)");
         auto work = std::make_shared<task_detail::result_job<R>>();
         auto callable = std::make_shared<std::decay_t<F>>(std::forward<F>(function));
-        work->function = [callable](std::stop_token stop) -> R { return std::invoke(*callable, stop); };
+        work->function = [callable](cancellation_token stop) -> R { return std::invoke(*callable, stop); };
         work->owner = state_.get();
         {
             std::lock_guard lock(state_->mutex);
