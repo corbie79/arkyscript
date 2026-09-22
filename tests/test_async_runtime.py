@@ -20,6 +20,136 @@ class AsyncRuntimeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
+    def io_contract(self, source):
+        # A trusted injected adapter lets these tests control readiness exactly.
+        # Native userdata validation and actual I/O have separate integration tests.
+        return self.lua(r"""
+            local requests=setmetatable({}, {__mode='k'})
+            local sockets=setmetatable({}, {__mode='k'})
+            local waits,cancels,sleeps,collected=0,0,0,0
+            local latest
+            local function request(value)
+                local handle=newproxy(true)
+                requests[handle]={ready=false,value=value}
+                latest=handle
+                return handle
+            end
+            local native={}
+            function native._async_ready(handle) return assert(requests[handle],'foreign request').ready end
+            function native._async_wait(handle)
+                local state=assert(requests[handle],'foreign request')
+                assert(state.ready,'wait blocked')
+                waits=waits+1
+                return state.value
+            end
+            function native._async_cancel(handle)
+                local state=assert(requests[handle],'foreign request')
+                cancels=cancels+1
+                state.cancelled=true
+                return true
+            end
+            function native._async_sleep(milliseconds)
+                assert(milliseconds == 1)
+                sleeps=sleeps+1
+                for _,state in pairs(requests) do state.ready=true end
+            end
+            function native.read_file(path,max_bytes,timeout_ms)
+                assert(path == 'data.bin' and max_bytes == 100 and timeout_ms == 10)
+                return request('a\0b')
+            end
+            function native.connect(host,port,timeout_ms)
+                assert(host == 'localhost' and port == 1234 and timeout_ms == 10)
+                local socket=newproxy(true)
+                sockets[socket]={closed=false}
+                getmetatable(socket).__gc=function() collected=collected+1 end
+                return request(socket)
+            end
+            function native.read(socket,max_bytes,timeout_ms)
+                assert(sockets[socket] and not sockets[socket].closed)
+                assert(max_bytes == 100 and timeout_ms == 10)
+                return request(nil)
+            end
+            function native.write(socket,data,timeout_ms)
+                assert(sockets[socket] and not sockets[socket].closed)
+                assert(data == 'payload' and timeout_ms == 10)
+                return request(#data)
+            end
+            function native.close(socket)
+                local state=assert(sockets[socket],'foreign socket')
+                if state.closed then return false end
+                state.closed=true
+                return true
+            end
+            local isolated=assert(loadfile('runtime/async.lua'))(
+                function() error('no worker library') end, function() return native end)
+        """ + textwrap.dedent(source))
+
+    def test_io_adapter_capture_eof_pending_cancel_and_private_socket_receivers(self):
+        self.io_contract("""
+            local fs,net=isolated.fs,isolated.net
+            local file=fs.read_file('data.bin',100,10)
+            assert(isolated.step() and waits == 0)
+            assert(file:cancel() and cancels == 1 and not file:cancel())
+            local cancelled=requests[latest]
+            assert(cancelled.cancelled and isolated.pending() == 0)
+            -- Later native module table mutation cannot redirect captured methods.
+            for name in pairs(native) do native[name]=function() error('mutated native method') end end
+            local data=isolated.run(fs.read_file('data.bin',100,10))
+            assert(data == 'a\\0b' and sleeps >= 1 and waits == 1)
+            local connected=net.connect('localhost',1234,10)
+            local socket=isolated.run(connected)
+            assert(connected:result() == socket and getmetatable(socket) == 'Tynex Socket')
+            assert(not pcall(function() socket.read=function() end end))
+            assert(not pcall(function() fs.read_file=function() end end))
+            assert(not pcall(function() net.connect=function() end end))
+            assert(not pcall(socket.read,{},100,10))
+            assert(not pcall(socket.write,{},'payload',10))
+            assert(not pcall(socket.close,{}))
+            local eof=socket:read(100,10)
+            assert(select('#',isolated.run(eof)) == 1 and eof:result() == nil)
+            assert(isolated.run(socket:write('payload',10)) == 7)
+            assert(socket:close() and not socket:close())
+            assert(not pcall(socket.read,socket,100,10))
+            assert(waits == 4 and isolated.pending() == 0)
+            assert(not isolated.step() and waits == 4)
+        """)
+
+    def test_io_waiter_cancellation_keeps_shared_request_and_socket_graphs_collect(self):
+        self.io_contract("""
+            local dependency=isolated.fs.read_file('data.bin',100,10)
+            local wait=isolated.create(function() return isolated.await(dependency) end)
+            local first,second=wait(),wait()
+            assert(isolated.step() and first:status() == 'waiting' and second:status() == 'waiting')
+            assert(first:cancel() and cancels == 0)
+            assert(isolated.run(second) == 'a\\0b' and cancels == 0 and waits == 1)
+            local weak=setmetatable({}, {__mode='v'})
+            do
+                local socket=isolated.run(isolated.net.connect('localhost',1234,10))
+                weak[1]=socket
+                collectgarbage() collectgarbage()
+                assert(weak[1] and collected == 0)
+                local holder=isolated.create(function() return socket end)()
+                isolated.run(holder)
+                weak[2]=holder
+                -- An arbitrary user cycle must not root the native socket.
+                rawset(socket,'cycle',holder)
+            end
+            latest=nil
+            for i=1,4 do collectgarbage() end
+            assert(weak[1] == nil and weak[2] == nil and collected == 1)
+        """)
+
+    def test_missing_io_module_does_not_affect_coroutines(self):
+        self.lua("""
+            local absent=function() error('not installed') end
+            local isolated=assert(loadfile('runtime/async.lua'))(absent,absent)
+            assert(isolated.run(isolated.create(function() return 42 end)()) == 42)
+            local ok,err=pcall(isolated.fs.read_file,'data.bin')
+            assert(not ok and err:find('I/O adapter is unavailable',1,true))
+            ok,err=pcall(isolated.net.connect,'localhost',1234)
+            assert(not ok and err:find('I/O adapter is unavailable',1,true))
+        """)
+
     def test_scheduling_is_lazy_fifo_and_step_budget_is_bounded(self):
         self.assertEqual(self.lua("""
             local calls = {}

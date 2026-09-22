@@ -1,0 +1,9 @@
+local pending: Task<Socket> = net.connect("localhost", 8765)
+local file: Task<string> = fs.read_file("data.bin")
+local async function exchange(socket: Socket): string?
+   local count: number = await socket:write("hello")
+   local response: string? = await socket:read(4096)
+   socket:close()
+   return response
+end
+local optional: Socket? = nil

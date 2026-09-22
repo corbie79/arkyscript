@@ -231,12 +231,14 @@ class AsyncAwaitTests(unittest.TestCase):
                 result=self.cli('run',path)
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn(path.name+':2:',result.stderr)
+                self.assertIn(path.name+':5:',result.stderr)
                 bundle=self.directory/('bundle'+str(len(newline)))
                 result=self.cli('bundle',path,'--out',str(bundle))
                 self.assertEqual(result.returncode,0,result.stderr)
                 result=self.cli('exec-bundle',bundle)
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn(str(path)+':2:',result.stderr)
+                self.assertIn(str(path)+':5:',result.stderr)
 
     def test_legacy_async_and_await_identifiers_still_work(self):
         path=self.file('legacy.lua','local async,await=20,22; print(async+await)')

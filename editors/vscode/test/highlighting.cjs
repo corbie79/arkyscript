@@ -91,6 +91,12 @@ const onig = require('vscode-oniguruma');
     [1,'fetch','entity.name.function'], [1,'async','keyword'], [1,'Self','entity.name.type'],
     [4,'async','keyword'], [4,'fetch','entity.name.function'], [5,'await','keyword'],
     [8,'Task','storage.type'], [9,'number','storage.type'], [11,'string','storage.type']]);
+  check('local pending: Task<Socket> = net.connect("localhost", 8765)\nlocal async function exchange(socket: Socket): string?\n  local count: number = await socket:write("hello")\n  return await socket:read(4096)\nend\nlocal optional: Socket? = nil\nlocal Socket = "Socket"\n-- Socket Task<Socket>', [
+    [0,'Task','storage.type'], [0,'Socket','storage.type'], [0,'net','meta.type.annotation',true],
+    [1,'Socket','storage.type'], [1,'string','storage.type'], [2,'await','keyword'],
+    [2,'write','entity.name.function'], [3,'read','entity.name.function'],
+    [5,'Socket','storage.type'], [5,'?','keyword.operator.type'],
+    [6,'Socket','storage.type',true], [7,'Socket','comment']]);
   registry.dispose();
-  console.log('TextMate highlighting: 17 fixtures passed');
+  console.log('TextMate highlighting: 18 fixtures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

@@ -64,6 +64,8 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 `local async function f(): number`를 호출하면 `Task<number>`를 반환합니다. `await`는 async 본문에서 사용하며 새 스레드를 만들지 않습니다. CLI는 `scheduler.run(main())`, 게임 호스트는 매 프레임 `scheduler.step()`으로 진행합니다. [async 규칙·호스트 연결](docs/async-await.md), [기본 예제](examples/async.tlj), [worker await 예제](examples/tasks/async.tlj)를 제공합니다.
 
+`fs.read_file()`과 `net.connect()`, Socket의 `read()`·`write()`도 `Task`를 반환합니다. 파일·DNS는 제한된 작업 풀에서, TCP는 논블로킹 방식으로 진행해 대기 중에도 호스트 루프를 계속 실행할 수 있습니다. [파일·TCP API와 제한](docs/io.md), [동시 읽기·echo 예제](examples/io/README.md)를 제공합니다.
+
 ## 현재 문법
 
 ```lua

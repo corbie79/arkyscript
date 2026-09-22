@@ -4,13 +4,14 @@ macOS ARM64와 고정 LuaJIT `c6ffc141a8762b41703f9287d63d93622a13dd8f`에서 �
 
 | 대상 | 검증 범위 | 결과 |
 | --- | --- | --- |
-| Rust 컴파일러·CLI | 타입 검사, 모듈, 설정, LSP, 소스 맵 | 187개 테스트 통과 |
-| Python 통합 테스트 | 공식 LuaJIT 실행, class·trait·선택적 호출·async·worker, LSP·DAP, 빌드 도구 | 138개 테스트 통과 |
+| Rust 컴파일러·CLI | 타입 검사, 모듈, 설정, LSP, 소스 맵 | 202개 테스트 통과 |
+| Python 통합 테스트 | 공식 LuaJIT 실행, class·trait·선택적 호출·async·worker·파일/TCP, LSP·DAP, 빌드 도구 | 157개 테스트 통과 |
 | C++20 바인딩 | 인자, 클래스, 객체 수명, 동적 값, 오류 처리 | 1,321개 검사 및 ASan/UBSan 통과 |
 | Windows x64 C++ | xwin·clang-cl 컴파일, 정적 링크, PE 검사 | 로컬 크로스 빌드 통과 |
 | Task native·async 연결 | worker 대기·취소·수명, ASan/UBSan, Windows x64 Task DLL | 네이티브 실행·sanitizer·크로스 빌드 통과 |
-| TextMate | 타입·함수·주석·문자열·불완전 문법·선택적 호출·async | 17개 fixture 통과 |
-| Tree-sitter | 파싱, 모든 Zed query, capture, 오류 회복 | 26개 예제·3개 전용 fixture 통과 |
+| 비동기 I/O | 바이너리 파일·TCP·IPv4/IPv6·취소·EOF·GC·원본 await 행 | 통합 16개 및 native ASan/UBSan·Windows DLL 크로스 빌드 통과 |
+| TextMate | 타입·함수·주석·문자열·불완전 문법·선택적 호출·async·Socket | 18개 fixture 통과 |
+| Tree-sitter | 파싱, 모든 Zed query, capture, 오류 회복 | 29개 예제·4개 전용 fixture 통과 |
 | VS Code | 실제 extension host, VSIX 패키징 | 통과 |
 | Zed | 확장 Rust 테스트, WASM 빌드, 개발 확장 준비 | 통과 |
 

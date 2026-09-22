@@ -51,6 +51,13 @@ def main():
     for kind, text in [('keyword', 'async'), ('keyword', 'await'), ('type.builtin', 'Task'),
                        ('function', 'pair'), ('function.method', 'fetch'), ('variable.parameter', 'value')]:
         assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in captures.splitlines()), (kind, text, captures)
+    io_fixture = GRAMMAR / 'test/fixtures/async-io.tlj'
+    captures = run('query', '--captures', QUERIES / 'highlights.scm', io_fixture)
+    for kind, text in [('type.builtin', 'Socket'), ('type.builtin', 'Task'),
+                       ('keyword', 'await'), ('function', 'exchange'),
+                       ('variable.parameter', 'socket'), ('function.method', 'read'),
+                       ('function.method', 'write'), ('function.method', 'close')]:
+        assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in captures.splitlines()), (kind, text, captures)
     with tempfile.TemporaryDirectory() as directory:
         shape_query = Path(directory) / 'optional-shapes.scm'
         shape_query.write_text('''

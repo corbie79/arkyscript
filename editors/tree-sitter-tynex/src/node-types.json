@@ -2292,6 +2292,10 @@
     "named": false
   },
   {
+    "type": "Socket",
+    "named": false
+  },
+  {
     "type": "Task",
     "named": false
   },

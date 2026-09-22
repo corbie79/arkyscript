@@ -57,21 +57,23 @@ end
 -- Load the scheduler from the checked bundle, and capture its native bridge
 -- before user modules run. Neither lookup uses mutable require/preload state.
 local native_loadlib, native_paths = package.loadlib, package.cpath
-local function load_worker_adapter()
+local function load_native_adapter(name)
    local errors = {}
    for template in native_paths:gmatch("[^;]+") do
-      local path = template:gsub("%?", "tynex_task")
+      local path = template:gsub("%?", name)
       local file = io.open(path, "rb")
       if file then
          file:close()
-         local open, message = native_loadlib(path, "luaopen_tynex_task")
+         local open, message = native_loadlib(path, "luaopen_" .. name)
          if open then return open() end
          errors[#errors+1] = message
       end
    end
-   error("native task adapter unavailable: " .. table.concat(errors, "; "), 0)
+   error(name .. " adapter unavailable: " .. table.concat(errors, "; "), 0)
 end
-local async_runtime = assert(loadfile(manifest.async_runtime))(load_worker_adapter)
+local async_runtime = assert(loadfile(manifest.async_runtime))(
+   function() return load_native_adapter("tynex_task") end,
+   function() return load_native_adapter("tynex_io") end)
 local async_traceback = async_runtime.__traceback
 local public_scheduler = setmetatable({}, {__index=async_runtime, __metatable="Tynex scheduler",
    __newindex=function() error("scheduler methods are read-only", 2) end})
@@ -110,7 +112,8 @@ local function typed_require(name)
    return raw_require(name)
 end
 local typed_environment = setmetatable({require=typed_require, __tynex_import=static_import,
-   __tynex_async_runtime=async_runtime, scheduler=public_scheduler}, {__index=_G, __newindex=_G})
+   __tynex_async_runtime=async_runtime, scheduler=public_scheduler,
+   fs=async_runtime.fs, net=async_runtime.net}, {__index=_G, __newindex=_G})
 load_unit = function(unit)
    local chunk, err
    if unit.generated then

@@ -1,6 +1,6 @@
 -- One scheduler belongs to one Lua VM and must be pumped on its owner thread.
--- Hosts may pass a trusted native-module loader when loading this chunk.
-local worker_loader = ...
+-- Hosts may pass trusted task and I/O module loaders when loading this chunk.
+local worker_loader, io_loader = ...
 local raw_require, protected_call, raise = require, pcall, error
 local lua_type, set_meta, lua_pairs, lua_next, raw_equal = type, setmetatable, pairs, next, rawequal
 local unpack_values, count_values = unpack, select
@@ -17,21 +17,36 @@ end
 -- Capture the native adapter before user modules can replace require, loaders,
 -- package.loaded, or the native module table. A missing worker library is fine
 -- for programs which use only coroutine tasks.
-local native_ok, native = protected_call(worker_loader or function() return raw_require("tynex_task") end)
-local native_ready, native_wait, native_cancel, native_sleep
-if native_ok and lua_type(native) == "table" then
-   native_ready, native_wait = native._async_ready, native._async_wait
-   native_cancel, native_sleep = native._async_cancel, native._async_sleep
+local function capture_adapter(loader, name)
+   local ok, native = protected_call(loader or function() return raw_require(name) end)
+   if not ok or lua_type(native) ~= "table" then return end
+   local adapter = {ready=native._async_ready, wait=native._async_wait,
+      cancel=native._async_cancel, sleep=native._async_sleep}
+   for _, fn in lua_pairs(adapter) do
+      if lua_type(fn) ~= "function" then return end
+   end
+   if not adapter.ready or not adapter.wait or not adapter.cancel or not adapter.sleep then return end
+   return adapter, native
 end
-local native_available = lua_type(native_ready) == "function" and lua_type(native_wait) == "function"
-   and lua_type(native_cancel) == "function" and lua_type(native_sleep) == "function"
-native = nil
+local worker_adapter = capture_adapter(worker_loader, "tynex_task")
+local io_adapter, io_native = capture_adapter(io_loader, "tynex_io")
+local io_read_file, io_connect, io_read, io_write, io_close
+if io_adapter then
+   io_read_file, io_connect, io_read, io_write, io_close = io_native.read_file, io_native.connect,
+      io_native.read, io_native.write, io_native.close
+   if lua_type(io_read_file) ~= "function" or lua_type(io_connect) ~= "function"
+      or lua_type(io_read) ~= "function" or lua_type(io_write) ~= "function" or lua_type(io_close) ~= "function" then
+      io_adapter = nil
+   end
+end
+io_native = nil
+local sleep = worker_adapter and worker_adapter.sleep or io_adapter and io_adapter.sleep
 
 -- Lua 5.1 weak-key tables are not ephemerons: storing a state which contains
 -- its own Task result would otherwise keep that entire result graph alive.
 local states = set_meta({}, {__mode="kv"})
 local worker_tasks = set_meta({}, {__mode="kv"})
-local workers = {}
+local requests = {}
 local queue, first, last = {}, 1, 0
 local active, current, pumping = 0, nil, false
 local yield_marker = {}
@@ -80,8 +95,8 @@ local function settle(state, status, values, failure, trace)
    if finished(state) then return false end
    detach_waiter(state)
    state.status, state.values, state.failure, state.trace = status, values, failure, trace
-   state.thread, state.arguments, state.worker = nil, nil, nil
-   workers[state] = nil
+   state.thread, state.arguments, state.request, state.adapter, state.transform = nil, nil, nil, nil, nil
+   requests[state] = nil
    active = active - 1
    local waiters = state.waiters
    state.waiters = {}
@@ -108,10 +123,10 @@ function methods:result() return result(record(self)) end
 function methods:cancel()
    local state = record(self)
    if finished(state) then return false end
-   if state.worker then
+   if state.request then
       -- Cancellation belongs to this explicit wrapper, never to an awaited
       -- dependency merely because one of its waiters was cancelled.
-      local ok, failure = protected_call(native_cancel, state.worker)
+      local ok, failure = protected_call(state.adapter.cancel, state.request)
       if not ok then
          settle(state, "failed", nil, failure, traceback(text(failure), 2))
          return false
@@ -143,27 +158,80 @@ function scheduler.await(task)
    coroutine_yield(yield_marker, dependency)
    return result(dependency)
 end
-function scheduler.from_worker(handle)
-   if not native_available then raise("native task adapter is unavailable; rebuild tynex_task", 2) end
+local function wrap_request(handle, adapter, transform)
    -- The C adapter checks exact userdata storage, metatable, and private tag.
    -- Never invoke arbitrary ready/wait/cancel methods supplied by the caller.
-   local ok, ready = protected_call(native_ready, handle)
+   local ok, ready = protected_call(adapter.ready, handle)
+   if not ok then raise(ready, 2) end
+   local state = {status="waiting", request=handle, adapter=adapter, transform=transform}
+   local task = new_task(state)
+   requests[state] = true
+   return task
+end
+function scheduler.from_worker(handle)
+   if not worker_adapter then raise("native task adapter is unavailable; rebuild tynex_task", 2) end
+   -- Validate cached handles too: host code may explicitly release userdata.
+   local ok, ready = protected_call(worker_adapter.ready, handle)
    if not ok then raise(ready, 2) end
    local previous = worker_tasks[handle]
    if previous then return previous end
-   local state = {status="waiting", worker=handle}
-   local task = new_task(state)
+   local task = wrap_request(handle, worker_adapter)
    worker_tasks[handle] = task
-   workers[state] = true
    return task
 end
-local function poll_workers()
-   for state in lua_pairs(workers) do
-      local ok, ready = protected_call(native_ready, state.worker)
+local socket_states = set_meta({}, {__mode="kv"})
+local socket_methods = {}
+local function socket_record(socket)
+   local state = socket_states[socket]
+   if not state then raise("expected a managed Socket", 3) end
+   return state
+end
+local function wrap_socket(handle)
+   if lua_type(handle) ~= "userdata" then raise("native connect returned an invalid socket", 2) end
+   local state = {handle=handle, methods=socket_methods}
+   local socket = set_meta({}, {__index=function(_, key) return state.methods[key] end,
+      __metatable="Tynex Socket", __newindex=function() raise("Socket objects are read-only", 2) end})
+   socket_states[socket] = state
+   return socket
+end
+function socket_methods:read(max_bytes, timeout_ms)
+   local handle = socket_record(self).handle
+   return wrap_request(io_read(handle, max_bytes, timeout_ms), io_adapter)
+end
+function socket_methods:write(data, timeout_ms)
+   local handle = socket_record(self).handle
+   return wrap_request(io_write(handle, data, timeout_ms), io_adapter)
+end
+function socket_methods:close()
+   return io_close(socket_record(self).handle)
+end
+local fs, net = {}, {}
+local function require_io()
+   if not io_adapter then raise("native I/O adapter is unavailable; rebuild tynex_io", 3) end
+end
+function fs.read_file(path, max_bytes, timeout_ms)
+   require_io()
+   return wrap_request(io_read_file(path, max_bytes, timeout_ms), io_adapter)
+end
+function net.connect(host, port, timeout_ms)
+   require_io()
+   return wrap_request(io_connect(host, port, timeout_ms), io_adapter, wrap_socket)
+end
+local function readonly_api(api, name)
+   return set_meta({}, {__index=api, __metatable="Tynex " .. name,
+      __newindex=function() raise(name .. " methods are read-only", 2) end})
+end
+scheduler.fs, scheduler.net = readonly_api(fs, "fs"), readonly_api(net, "net")
+local function poll_requests()
+   for state in lua_pairs(requests) do
+      local ok, ready = protected_call(state.adapter.ready, state.request)
       if not ok then
          settle(state, "failed", nil, ready, traceback(text(ready), 2))
       elseif ready then
-         local values = pack(protected_call(native_wait, state.worker))
+         local values = pack(protected_call(state.adapter.wait, state.request))
+         if values[1] and state.transform then
+            values = pack(protected_call(state.transform, unpack_values(values, 2, values.n)))
+         end
          if values[1] then
             local returns = {n=values.n-1}
             for i=2,values.n do returns[i-1] = values[i] end
@@ -213,7 +281,7 @@ local function step(max_resumes)
       raise("scheduler.step expects an integer budget from 1 to 1000000", 2)
    end
    pumping = true
-   poll_workers()
+   poll_requests()
    local resumed = 0
    while first <= last and resumed < max_resumes do
       local state = queue[first]
@@ -236,7 +304,7 @@ function scheduler.run(task)
    while not finished(state) do
       step()
       if not finished(state) and first > last then
-         if lua_next(workers) then native_sleep(1)
+         if lua_next(requests) then sleep(1)
          else raise("async scheduler deadlock: no runnable task or pending native job", 2) end
       end
    end

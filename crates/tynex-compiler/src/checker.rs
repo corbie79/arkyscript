@@ -134,6 +134,8 @@ pub fn check(body: &[Stmt], mode: Mode, modules: &BTreeMap<String, Interface>) -
                 ),
             ]),
         ),
+        ("fs", Type::FileSystem),
+        ("net", Type::Network),
         (
             "math",
             library(vec![
@@ -375,7 +377,7 @@ impl Checker<'_> {
     fn nominal(&mut self, binding: &Binding, is_trait: bool) -> u64 {
         if matches!(
             binding.name.as_str(),
-            "number" | "string" | "boolean" | "any" | "Self" | "Task"
+            "number" | "string" | "boolean" | "any" | "Self" | "Task" | "Socket"
         ) {
             self.error(
                 "T014",
@@ -2100,6 +2102,62 @@ impl Checker<'_> {
             return Type::Any;
         }
         if *ty == Type::Unknown && self.mode == Mode::Gradual {
+            return Type::Unknown;
+        }
+        if matches!(ty, Type::FileSystem | Type::Network) {
+            if write {
+                self.error("T017", format!("{ty} members are immutable"), span.clone());
+            }
+            let signature = match (ty, name) {
+                (Type::FileSystem, Some(b"read_file")) => Some(function(
+                    vec![
+                        Type::String,
+                        Type::Number.optional(),
+                        Type::Number.optional(),
+                    ],
+                    Type::Task(Box::new(Pack::one(Type::String))),
+                )),
+                (Type::Network, Some(b"connect")) => Some(function(
+                    vec![Type::String, Type::Number, Type::Number.optional()],
+                    Type::Task(Box::new(Pack::one(Type::Socket))),
+                )),
+                _ => None,
+            };
+            if let Some(signature) = signature {
+                return signature;
+            }
+            self.error("T017", format!("unknown {ty} member"), span);
+            return Type::Unknown;
+        }
+        if *ty == Type::Socket {
+            if write {
+                self.error(
+                    "T017",
+                    "Socket methods and state are immutable",
+                    span.clone(),
+                );
+            }
+            let signature = match name {
+                Some(b"read") => Some((
+                    vec![Type::Number, Type::Number.optional()],
+                    Type::Task(Box::new(Pack::one(Type::String.optional()))),
+                )),
+                Some(b"write") => Some((
+                    vec![Type::String, Type::Number.optional()],
+                    Type::Task(Box::new(Pack::one(Type::Number))),
+                )),
+                Some(b"close") => Some((vec![], Type::Boolean)),
+                _ => None,
+            };
+            if let Some((mut args, result)) = signature {
+                args.insert(0, Type::Receiver(Box::new(Type::Socket)));
+                return function(args, result);
+            }
+            self.error(
+                "T017",
+                "unknown Socket member; supported methods are read, write, and close",
+                span,
+            );
             return Type::Unknown;
         }
         if let Type::Task(result) = ty {

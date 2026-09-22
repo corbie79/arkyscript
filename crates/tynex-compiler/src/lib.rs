@@ -188,7 +188,7 @@ impl Prepared {
             emitter.helper("; ");
         }
         if self.async_runtime {
-            emitter.helper("local __tynex_async_runtime = assert(__tynex_async_runtime, 'async requires the Tynex async runtime'); ");
+            emitter.helper("local __tynex_async_runtime = assert(__tynex_async_runtime, 'async requires the Tynex async runtime'); local function __tynex_async_values(...) return ... end; ");
         }
         let mut edits: Vec<_> = self
             .edits

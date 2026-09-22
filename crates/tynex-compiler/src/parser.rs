@@ -269,6 +269,7 @@ impl Parser {
                 "number" => Type::Number,
                 "string" => Type::String,
                 "boolean" => Type::Boolean,
+                "Socket" => Type::Socket,
                 "nil" => Type::Nil,
                 "any" => Type::Any,
                 _ => {
@@ -1111,8 +1112,14 @@ impl Parser {
                 ));
             }
             let rhs = self.expr(7)?;
-            self.edit(t.span.clone(), "__tynex_async_runtime.await(".into());
-            self.edit(rhs.span.end..rhs.span.end, ")".into());
+            // A direct `return await task` becomes a Lua tail call and loses
+            // the suspended source frame. Evaluate await as a call argument;
+            // the identity helper retains all return slots without new lines.
+            self.edit(
+                t.span.clone(),
+                "__tynex_async_values(__tynex_async_runtime.await(".into(),
+            );
+            self.edit(rhs.span.end..rhs.span.end, "))".into());
             Expr {
                 span: t.span.start..rhs.span.end,
                 kind: ExprKind::Await(Box::new(rhs)),

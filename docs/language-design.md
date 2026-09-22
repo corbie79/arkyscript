@@ -106,7 +106,7 @@ enum 값은 논리적으로 타입 식별자·variant·payload로 구성된다. 
 
 ## async와 await
 
-**async/await·coroutine 스케줄러·내장 Task 결과 타입을 구현했다.** [현재 실행 규칙](async-await.md), [실행 예제](../examples/async.tlj), [worker 연결](../examples/tasks/async.tlj)을 따른다. 아래 HTTP·Result 예제는 아직 없는 I/O 어댑터·enum 기능을 포함한 후속 설계다.
+**async/await·coroutine 스케줄러·내장 Task 결과 타입을 구현했다.** [현재 실행 규칙](async-await.md), [실행 예제](../examples/async.tlj), [worker 연결](../examples/tasks/async.tlj)을 따른다. 파일 읽기·DNS·TCP 연결/송수신은 [I/O API](io.md)로 제공한다. 아래 HTTP·Result 예제는 아직 없는 HTTP/TLS·enum 기능을 포함한 후속 설계다.
 
 ```text
 -- User, Result, HttpClient, HttpResponse는 별도로 선언된 타입이다.

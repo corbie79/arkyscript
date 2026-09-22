@@ -57,7 +57,7 @@ strict에서도 `local n = 1` 같은 코드에 표기를 강제하지 않는다.
 | 3a. 모듈·예외 문법 — 구현 | 전용 로더의 정적 import·불변 바인딩·named declare·try/except/else | 캐시 교체 내성·레거시 호환·중첩 return/break·다중 값·LSP·강조·원본 디버깅 회귀 |
 | 4. payload enum·match | 기본 제네릭, Option/Result, payload 추론, 분기 누락·중복 검사 | 서로 다른 enum 구분, 잘못된 payload 차단, 분기 내부 원본 디버깅 |
 | 5. class·trait — 구현 | 생성자·필드·메서드, 필수/기본 메서드, 충돌 검사 | 초기화와 호출 검사, 인스턴스별 가변 기본값 분리, self 조회 |
-| 6. async·await — 핵심 구현 | Task 타입·coroutine FIFO·worker await·오류·취소·프레임 step | 실행·타입·다중 반환·취소·오류 원본 위치 자동 검증. 타이머·I/O·전체 논리 스택·실제 GUI 세션은 후속 |
+| 6. async·await — 핵심 구현 | Task 타입·coroutine FIFO·worker await·오류·취소·프레임 step | 실행·타입·다중 반환·취소·오류 원본 위치 자동 검증. 파일/TCP I/O도 구현. 타이머·전체 논리 스택·실제 GUI 세션은 후속 |
 | 7. 플랫폼 임베딩·배포 | Rust C ABI, Android/iOS 앱 연결, Linux/Windows 패키징, 호스트 이벤트 루프 | 실제 기기 실행·모듈 로딩·취소·디버깅; iOS는 JIT 없이 검증 |
 
 2단계의 검색 순서·중복 이름·preload/cache 경계는 [모듈 안내](modules.md)에 명세했다. 정적 import·리터럴 require와 등록한 dynamic_modules만 실행 전에 준비한다. 아직 준비되지 않은 typed 모듈은 실행 중 자동 컴파일하지 않으며, 이 오류 전에 생긴 부수 효과는 되돌리지 않는다. legacy 내부 require는 원래 로더에 맡기고 `.d.tlj`는 구현과 대조하지 않는 신뢰 계약이다.
@@ -82,4 +82,4 @@ async 단계에서는 Lua 코루틴 스택과 await 관계를 분리한다. Task
 
 실제 OS worker 풀과 Lua Task의 제출·상태·wait·협력적 취소는 [Task 런타임](tasks.md)에 구현했다. 입력/결과는 복사하며 실행 작업마다 독립 VM을 사용한다. `wait`는 블로킹 API이고 async/await 구현을 의미하지 않는다.
 
-구현한 coroutine 스케줄러는 Lua 상태의 소유 스레드에서 동작한다. [async 실행 규칙](async-await.md)을 따른다. 작업 스레드의 완료 상태를 확인해 메인 VM의 resume 큐에 연결하고, async 안의 블로킹 함수가 자동 비동기가 되지 않음을 유지한다. 첫 I/O 어댑터는 타이머와 호스트 완료 콜백으로 검증한 뒤 확장한다.
+구현한 coroutine 스케줄러는 Lua 상태의 소유 스레드에서 동작한다. [async 실행 규칙](async-await.md)을 따른다. 작업 스레드의 완료 상태를 확인해 메인 VM의 resume 큐에 연결하고, async 안의 블로킹 함수가 자동 비동기가 되지 않음을 유지한다. 파일 읽기·DNS 작업 풀과 논블로킹 TCP 어댑터를 구현했고 실제 파일·루프백 송수신으로 검증한다. [I/O API](io.md)를 따른다. 타이머와 호스트 완료 콜백은 후속 작업이다.

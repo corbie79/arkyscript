@@ -15,6 +15,7 @@
 | 스크립트 trait·기본 동작 조합 | [traits.tlj](traits.tlj), [안내](design/traits.md) | 실행 가능: 필수·기본 메서드·복수 trait·충돌 검사 |
 | 값을 담는 enum·Result/Option·match | [설계 예제](design/enum-match.md) | 미구현 |
 | async / await | [async.tlj](async.tlj), [tasks/async.tlj](tasks/async.tlj) | 실행 가능: coroutine·Task 타입·worker 연결·오류·취소·프레임 step |
+| 비동기 파일·TCP I/O | [io/](io/README.md), [files.tlj](io/files.tlj), [tcp.tlj](io/tcp.tlj) | 실행 가능: 파일 동시 읽기·Socket·로컬 echo·EOF·연결 닫기 |
 | VS Code·Zed 하이라이트·디버깅 | [debug/](debug/), [에디터](../docs/editors.md), [디버깅](../docs/debugging.md) | 현재 문법 지원; Task worker 디버깅은 미구현 |
 | 공식 엔진 다운로드·업데이트, xwin | [업데이트/플랫폼 안내](../README.md#배포-플랫폼과-공식-소스), [Windows](../docs/windows-build.md) | 원본 수정 없이 빌드·검증 |
 | 64비트 Android/iOS/Linux/Windows | [구현 계획](../docs/implementation-plan.md) | 모바일 앱 임베딩·기기 검증은 미완료 |
@@ -53,6 +54,7 @@ make binder-examples
 ./bin/tynex run examples/traits.tlj
 ./bin/tynex run examples/optional_chaining.tlj
 ./bin/tynex run examples/async.tlj
+./bin/tynex run examples/io/files.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/exceptions.tlj
 ./bin/tynex run examples/modules/main.tlj
@@ -66,6 +68,8 @@ make binder-examples
 `class.tlj`는 필수 필드·기본값·참조 공유를, `traits.tlj`는 필수 메서드·기본 구현·여러 trait 조합·trait 타입 인자를 보여줍니다. 자세한 규칙은 [class·trait](../docs/classes-traits.md)에 있습니다.
 
 `optional_chaining.tlj`는 nil일 때 메서드·콜백 호출과 필드·사전 접근을 생략합니다. 출력은 `Mina 10`, `nil nil`, `done`, `42 nil`이며 값 사이는 탭입니다. [선택적 접근·호출](../docs/optional-chaining.md)에 평가·타입 규칙을 정리했습니다.
+
+`io/files.tlj`는 읽기 두 개를 시작한 뒤 결과를 받습니다. `io/tcp.tlj`는 별도 로컬 echo 서버와 연결하므로 [I/O 예제 안내](io/README.md)의 서버 실행 명령을 먼저 사용하세요.
 
 ## 확장 문법 — 설계 예제
 

@@ -177,7 +177,7 @@
         },
         {
           "name": "storage.type.tynex",
-          "match": "\\b(?:number|string|boolean|nil|any)\\b"
+          "match": "\\b(?:number|string|boolean|nil|any|Socket)\\b"
         },
         {
           "name": "keyword.control.lua",

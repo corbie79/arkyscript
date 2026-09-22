@@ -25,7 +25,7 @@ Linux에서는 배포판의 `clang`, `lld`, `llvm` 패키지와 `cargo install x
 
 결과는 `build/windows-x64/<전체 SHA>/`와 같은 상위 디렉터리의 `luajit-windows-x64-<전체 SHA>.zip`이다.
 
-`make windows`는 이어서 `scripts/build_task.py --windows`를 실행해 `tynex_task.dll`을 만들고 **엔진 + Task**를 `tynex-windows-x64-<전체 SHA>.zip`으로 묶는다. `task-build-info.json`에는 모듈·소스 해시와 엔진 SHA를 별도로 기록한다. Rust CLI는 두 ZIP 모두에 아직 포함하지 않는다. Ubuntu 24.04 CI는 `clang-19 clang-tools-19 lld-19 llvm-19`를 사용하며 `clang-cl` 제공 패키지인 `clang-tools-19`도 필요하다.
+`make windows`는 이어서 `scripts/build_task.py --windows`를 실행해 `tynex_task.dll`·`tynex_io.dll`을 만들고 **엔진 + Task + I/O**를 `tynex-windows-x64-<전체 SHA>.zip`으로 묶는다. `task-build-info.json`·`io-build-info.json`에는 모듈·소스 해시와 엔진 SHA를 별도로 기록한다. Rust CLI는 두 ZIP 모두에 아직 포함하지 않는다. Ubuntu 24.04 CI는 `clang-19 clang-tools-19 lld-19 llvm-19`를 사용하며 `clang-cl` 제공 패키지인 `clang-tools-19`도 필요하다.
 
 | 파일 | 용도 |
 | --- | --- |

@@ -11,4 +11,4 @@
 ./bin/tynex run examples/tasks/async.tlj
 ```
 
-HTTP·파일 비동기 I/O, 타이머, 실제 Cocos·모바일 호스트 통합, 디버거의 전체 async 논리 스택은 후속 작업입니다.
+파일 읽기·TCP 연결과 송수신은 [I/O 예제](../io/README.md)와 [API 안내](../../docs/io.md)에 구현되어 있습니다. HTTP/TLS, 타이머, 실제 Cocos·모바일 호스트 통합, 디버거의 전체 async 논리 스택은 후속 작업입니다.

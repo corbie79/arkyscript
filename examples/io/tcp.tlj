@@ -1,0 +1,26 @@
+--!typecheck strict
+import arguments from "args"
+local port = tonumber(arguments[1]) or 8765
+
+local async function main(): ()
+   local socket: Socket = await net.connect("127.0.0.1", port)
+   try
+      local payload = "hello from Tynex"
+      local sent = await socket:write(payload)
+      local response = ""
+      -- TCP can split one write across several reads.
+      while #response < #payload do
+         local chunk = await socket:read(4096)
+         if chunk == nil then error("echo server closed before the complete reply") end
+         response = response .. chunk
+      end
+      print("sent", sent)
+      print("echo", response)
+   except failure then
+      socket:close()
+      error(failure)
+   end
+   socket:close()
+end
+
+scheduler.run(main())

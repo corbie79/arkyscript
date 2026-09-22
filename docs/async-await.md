@@ -34,7 +34,7 @@ CLI는 `scheduler.run()`으로 결과를 기다린다. 게임·UI에서는 호�
 | --- | --- |
 | `scheduler.step(max_resumes?)` | 최대 지정 횟수만큼 coroutine 재개. 기본 64. 남은 작업이 있으면 true |
 | `scheduler.run(task)` | 해당 Task가 완료될 때까지 진행하고 결과 반환 |
-| `scheduler.pending()` | 미완료 managed Task 수. worker 변환 핸들도 포함 |
+| `scheduler.pending()` | 미완료 managed Task 수. worker·I/O 변환 핸들도 포함 |
 | `scheduler.from_worker(handle)` | 네이티브 worker 핸들을 `Task<any>`로 연결 |
 | `task:ready()` | 성공·실패·취소가 확정되었으면 true |
 | `task:status()` | queued / running / waiting / succeeded / failed / cancelled |
@@ -60,7 +60,8 @@ step은 native 작업 완료를 기다리며 블로킹하지 않는다. 현재 �
 ```lua
 local runtime = assert(loadfile("runtime/async.lua"))()
 local environment = setmetatable({
-   __tynex_async_runtime = runtime, scheduler = runtime
+   __tynex_async_runtime = runtime, scheduler = runtime,
+   fs = runtime.fs, net = runtime.net
 }, {__index = _G})
 local chunk = assert(loadfile("generated.lua"))
 setfenv(chunk, environment)
@@ -81,4 +82,4 @@ python3 -m unittest discover -s tests -p 'test_async*.py' -v
 
 VS Code·Zed 구문 강조, Task/await 진단, 원본 행·소스 맵을 지원한다. 런타임은 실패한 coroutine traceback을 보존하고 CLI 번들에서 원본 경로·행으로 매핑한다. 디버거의 전체 async 논리 스택·스케줄러 내부 프레임 숨김과 새 문법의 실제 GUI 세션은 후속 검증 대상이다.
 
-HTTP·파일 비동기 I/O, 타이머·호스트 완료 콜백용 Task 생성 API, 모바일 임베딩·기기 검증은 아직 없다.
+파일 읽기·DNS·TCP 연결/송수신도 Task로 기다릴 수 있다. [I/O API](io.md)와 [실행 예제](../examples/io/README.md)를 따른다. HTTP/TLS, 타이머·호스트 완료 콜백용 Task 생성 API, 모바일 임베딩·기기 검증은 아직 없다.

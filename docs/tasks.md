@@ -1,6 +1,6 @@
 # Task 런타임
 
-상태: **C++20 스레드 풀과 Lua/.tlj용 네이티브 Task API는 실행 가능**하다. `async/await`·내장 `Task<T>`·coroutine 스케줄러도 구현했다. [async 안내](async-await.md)를 따른다. 비동기 I/O API는 아직 없다. [Task 실행 예제](../examples/tasks/README.md), [C++ 예제](../examples/cpp_tasks.cpp), [worker await 예제](../examples/tasks/async.tlj)를 제공한다.
+상태: **C++20 스레드 풀과 Lua/.tlj용 네이티브 Task API는 실행 가능**하다. `async/await`·내장 `Task<T>`·coroutine 스케줄러도 구현했다. [async 안내](async-await.md)를 따른다. 파일 읽기·TCP에는 [비동기 I/O API](io.md)를 사용한다. 파일·DNS는 별도 작업 풀, 소켓은 논블로킹 방식으로 진행한다. [Task 실행 예제](../examples/tasks/README.md), [C++ 예제](../examples/cpp_tasks.cpp), [worker await 예제](../examples/tasks/async.tlj)를 제공한다.
 
 ## 실행 모델
 
@@ -51,15 +51,15 @@ Task마다 OS 스레드를 만들지 않는다. 대기 Task는 함수 바이트�
 `runtime/task/task_pool.h`는 Lua에 의존하지 않는 C++20 헤더다. `task_pool::submit`에는 `next2::luax::cancellation_token`을 받는 함수를 전달한다. `task<R>::get()`은 값 또는 void를 반환하며 실패 시 예외를 다시 던진다. 결과는 복사 가능한 값이어야 하며, 호출 객체는 move-only여도 된다. `submit`·핸들의 상태/취소/get은 여러 호출 스레드에서 사용할 수 있다. 풀 생성·shutdown·파괴는 소유자가 외부에서 직렬화한다. worker가 자기 풀의 미완료 Task를 기다리거나 shutdown하면 교착을 막기 위해 오류를 낸다. C++ 작업이 Lua 핸들을 캡처해 다른 스레드에서 사용해도 된다는 뜻은 아니다.
 
 ```sh
-make setup                 # 공식 엔진 + Task 공유 모듈 + Rust 도구
-make task                  # 기존 엔진 옆에 Task 공유 모듈만 빌드
+make setup                 # 공식 엔진 + Task/I/O 공유 모듈 + Rust 도구
+make task                  # 기존 엔진 옆에 Task/I/O 공유 모듈만 빌드
 make task-test             # C++ 동시성·VM 수명 + Lua/typed 예제 검증
 make binder-sanitize       # 기존 바인더와 Task ASan/UBSan
-make windows               # xwin 엔진 + Task DLL
+make windows               # xwin 엔진 + Task/I/O DLL
 make binder-windows        # Windows 테스트·예제 EXE 크로스 빌드
 ```
 
-`tynex_task.so`/`tynex_task.dll`을 사용하는 LuaJIT 실행 파일 옆에 둔다. Tynex 실행기는 그 경로를 `package.cpath`에 추가한다. 순수 LuaJIT 실행은 `LUA_CPATH`나 `package.cpath`로 모듈 경로를 설정한다. 네이티브 모듈은 **바로 그 LuaJIT 빌드**에 맞춰 빌드하며, Windows DLL은 `lua51.dll`과 함께 배포한다. `make windows`가 만드는 엔진 ZIP과 별도로 Task를 포함하는 `tynex-windows-x64-<SHA>.zip`을 제공한다.
+`tynex_task.so`/`tynex_task.dll`을 사용하는 LuaJIT 실행 파일 옆에 둔다. Tynex 실행기는 그 경로를 `package.cpath`에 추가한다. 순수 LuaJIT 실행은 `LUA_CPATH`나 `package.cpath`로 모듈 경로를 설정한다. 네이티브 모듈은 **바로 그 LuaJIT 빌드**에 맞춰 빌드하며, Windows DLL은 `lua51.dll`과 함께 배포한다. `make windows`가 만드는 엔진 ZIP과 별도로 Task·I/O 모듈을 포함하는 `tynex-windows-x64-<SHA>.zip`을 제공한다.
 
 공식 엔진 업데이트 검증에는 Task 네이티브 빌드·Windows 크로스 빌드·C++ 테스트·Lua 실행 검증을 포함한다. 실제 Windows 실행은 CI의 별도 Windows job에서 수행한다. 현재 Task 대상은 macOS 개발 호스트, Linux와 Windows x64 빌드/CI이며 Android·iOS의 임베딩/패키징 검증은 후속 작업이다.
 

@@ -81,7 +81,7 @@ export default grammar(lua, {
     task_type: $ => seq('Task', '<', optional(list(choice($.type, $.variadic_type))), '>'),
     parenthesized_type: $ => seq('(', $.type, ')'),
     named_type: $ => seq($.identifier, repeat(seq('.', $.identifier))),
-    primitive_type: _ => choice('number', 'string', 'boolean', 'nil', 'any'),
+    primitive_type: _ => choice('number', 'string', 'boolean', 'nil', 'any', 'Socket'),
     optional_type: $ => prec.left(3, seq($.type, '?')),
     function_type: $ => prec.right(1, seq(optional('async'), 'function', '(', optional(list(choice($.type, $.variadic_type))), ')', ':', $.return_type)),
     table_type: $ => seq('{', optional(choice($.type, seq(list($.type_field), optional(',')))), '}'),

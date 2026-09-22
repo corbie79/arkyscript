@@ -82,7 +82,7 @@ fn nested_wrappers_close_in_order_and_type_annotations_stop_before_assignment() 
     assert!(
         output
             .lua
-            .contains("__tynex_async_runtime.await( __tynex_async_runtime.await( task))")
+            .contains("__tynex_async_values(__tynex_async_runtime.await( __tynex_async_values(__tynex_async_runtime.await( task))))")
     );
     let source = "local async function value():number return 42 end local async function wrap():Task<number> return value() end local nested:Task<Task<number>>=wrap()";
     let output = compile(source, Mode::Strict, true).unwrap();

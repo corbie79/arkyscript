@@ -60,3 +60,4 @@ task-windows:
 task-test: task
 	python3 scripts/test_binder.py --tasks
 	python3 -m unittest discover -s tests -p 'test_tasks.py' -v
+	python3 -m unittest discover -s tests -p 'test_async*.py' -v

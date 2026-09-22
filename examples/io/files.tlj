@@ -1,0 +1,24 @@
+--!typecheck strict
+import arguments from "args"
+
+-- Resolve fixtures beside this source, regardless of the working directory.
+local source = arguments[0] or "examples/io/files.tlj"
+local directory = "./"
+for index = 1, #source do
+   local character = source:sub(index, index)
+   if character == "/" or character == "\\" then
+      directory = source:sub(1, index)
+   end
+end
+
+local async function main(): ()
+   -- Both native reads begin before either result is awaited.
+   local first: Task<string> = fs.read_file(directory .. "first.txt")
+   local second: Task<string> = fs.read_file(directory .. "second.txt")
+   local a = await first
+   local b = await second
+   print("first", #a)
+   print("second", #b)
+end
+
+scheduler.run(main())
