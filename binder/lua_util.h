@@ -10,7 +10,7 @@
 #include <string_view>
 #include <utility>
 
-namespace next {
+namespace next2 {
 class error : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;
@@ -154,4 +154,4 @@ private:
     std::shared_ptr<detail::vm_lifetime> lifetime_;
 };
 
-} // namespace next
+} // namespace next2

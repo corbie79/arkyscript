@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace next {
+namespace next2 {
 namespace detail {
 template<class> inline constexpr bool unsupported = false;
 template<class T> using plain = std::remove_cvref_t<T>;
@@ -280,4 +280,4 @@ template<class T> struct pusher {
 template<class T> struct result {
     static void push_im(lua_State* L, T value) { pusher<T>::push(L, std::forward<T>(value)); }
 };
-} // namespace next
+} // namespace next2

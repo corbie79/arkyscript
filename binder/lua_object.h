@@ -4,7 +4,7 @@
 // Author: eugene.choi.
 #include "lua_arg.h"
 
-namespace next::detail {
+namespace next2::detail {
 struct registry_reference {
     lua_State* state;
     std::shared_ptr<vm_lifetime> lifetime;
@@ -16,9 +16,9 @@ struct registry_reference {
     registry_reference(const registry_reference&) = delete;
     registry_reference& operator=(const registry_reference&) = delete;
 };
-} // namespace next::detail
+} // namespace next2::detail
 
-namespace next {
+namespace next2 {
 // Copies share one registry reference. A handle retains its value and originating
 // coroutine, but does not keep the VM alive. Use after VM closure throws error.
 class object {
@@ -45,14 +45,14 @@ private:
     template<class R, class... A> R call_field(bool self, std::string_view name, A&&... args) const;
     std::shared_ptr<detail::registry_reference> reference_;
 };
-} // namespace next
+} // namespace next2
 
-namespace next::detail {
-template<> struct value_traits<next::object> {
+namespace next2::detail {
+template<> struct value_traits<next2::object> {
     static constexpr bool enabled = true;
-    static next::object read(lua_State* L, int index);
-    static void push(lua_State* L, const next::object& value);
+    static next2::object read(lua_State* L, int index);
+    static void push(lua_State* L, const next2::object& value);
 };
-} // namespace next::detail
+} // namespace next2::detail
 
 #include "lua_object.inl"

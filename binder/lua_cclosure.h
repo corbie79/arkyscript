@@ -7,7 +7,7 @@
 #include <functional>
 #include <tuple>
 
-namespace next::detail {
+namespace next2::detail {
 // Leave the catch scope before raising a Lua error (also works with longjmp VMs).
 template<auto Function> int boundary(lua_State* L) {
     char message[1024];
@@ -80,4 +80,4 @@ template<class F> void push_function(lua_State* L, F&& function) {
     lua_pushcclosure(L, boundary<invoke<U>>, 1);
 }
 
-} // namespace next::detail
+} // namespace next2::detail
