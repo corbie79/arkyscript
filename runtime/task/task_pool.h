@@ -17,7 +17,7 @@
 #include <variant>
 #include <vector>
 
-namespace tynex {
+namespace next {
 
 class task_cancelled : public std::runtime_error {
 public:
@@ -240,4 +240,4 @@ public:
         return task<R>(std::move(work));
     }
 };
-} // namespace tynex
+} // namespace next

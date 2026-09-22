@@ -5,7 +5,7 @@
 #include "lua_class.h"
 #include "lua_value.h"
 
-namespace tynex {
+namespace next {
 
 class binder {
 public:
@@ -86,4 +86,4 @@ private:
     lua_State* L_;
     std::string namespace_;
 };
-} // namespace tynex
+} // namespace next

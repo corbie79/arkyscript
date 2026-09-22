@@ -2,11 +2,11 @@
 #include "binder/lua_binder.h"
 #include <iostream>
 
-using tynex::binder;
-using tynex::error;
-using tynex::object;
-using tynex::state;
-using tynex::value;
+using next::binder;
+using next::error;
+using next::object;
+using next::state;
+using next::value;
 
 namespace {
 struct Native {
@@ -25,7 +25,7 @@ template<class F> void fails(F&& action, std::string_view expected) {
         check(std::string_view(exception.what()).find(expected) != std::string_view::npos, exception.what());
         return;
     }
-    throw std::runtime_error("expected tynex::error");
+    throw std::runtime_error("expected next::error");
 }
 
 void standard_values(binder& lua) {

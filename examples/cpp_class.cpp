@@ -27,8 +27,8 @@ private:
 
 int main() {
     try {
-        tynex::state vm;
-        tynex::binder lua(vm);
+        next::state vm;
+        next::binder lua(vm);
         lua.reg_class<Player>("Player")
             .reg_con<std::string>()
             .reg_con<std::string, int>()
@@ -57,7 +57,7 @@ int main() {
         const auto summary = lua.call<std::string>("summary");
         std::cout << summary << '\n';
         return summary == "Mina Kim: 42" ? 0 : 1;
-    } catch (const tynex::error& error) {
+    } catch (const next::error& error) {
         std::cerr << error.what() << '\n';
         return 1;
     }

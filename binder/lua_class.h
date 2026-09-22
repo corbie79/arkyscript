@@ -4,7 +4,7 @@
 // Author: eugene.choi.
 #include "lua_cclosure.h"
 
-namespace tynex::detail {
+namespace next::detail {
 template<class T, class F, std::size_t... I> auto method(F function, std::index_sequence<I...>) {
     using traits = function_traits<F>;
     using self_type = std::conditional_t<traits::is_const, const T&, T&>;
@@ -85,9 +85,9 @@ template<class T> void create_class(lua_State* L) {
     lua_remove(L, meta); // leave only the public factory
 }
 
-} // namespace tynex::detail
+} // namespace next::detail
 
-namespace tynex {
+namespace next {
 template<class T> class cpp_class {
 public:
     cpp_class(lua_State* L, std::string_view name) : L_(L) {
@@ -174,4 +174,4 @@ private:
     lua_State* L_;
 };
 
-} // namespace tynex
+} // namespace next

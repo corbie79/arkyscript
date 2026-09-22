@@ -29,7 +29,7 @@ template<class T> concept Named = requires(const T& value) {
     { value.describe() } -> std::same_as<std::string>;
 };
 
-template<Named T> void bind_named(tynex::cpp_class<T>& type) {
+template<Named T> void bind_named(next::cpp_class<T>& type) {
     type.reg_func("label", &T::label)
         .reg_func("describe", &T::describe);
 }
@@ -40,8 +40,8 @@ static_assert(!Named<MissingLabel>);
 
 int main() {
     try {
-        tynex::state vm;
-        tynex::binder lua(vm);
+        next::state vm;
+        next::binder lua(vm);
 
         auto user = lua.reg_class<User>("User");
         user.reg_con<std::string>().reg_var("name", &User::name);
@@ -71,7 +71,7 @@ int main() {
         const auto summary = lua.call<std::string>("summary");
         std::cout << summary << '\n';
         return summary == "name: Joon / name: device-7" ? 0 : 1;
-    } catch (const tynex::error& error) {
+    } catch (const next::error& error) {
         std::cerr << error.what() << '\n';
         return 1;
     }

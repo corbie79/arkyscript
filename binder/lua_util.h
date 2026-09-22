@@ -10,7 +10,7 @@
 #include <string_view>
 #include <utility>
 
-namespace tynex {
+namespace next {
 class error : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;
@@ -154,4 +154,4 @@ private:
     std::shared_ptr<detail::vm_lifetime> lifetime_;
 };
 
-} // namespace tynex
+} // namespace next

@@ -10,15 +10,15 @@ struct Counter {
 
 int main() {
     try {
-        tynex::state vm;
-        tynex::binder lua(vm);
+        next::state vm;
+        next::binder lua(vm);
         lua.reg_func("greet", [](const std::string& name) { return "Hello, " + name; });
         lua.reg_class<Counter>("Counter")
             .reg_con<int>()
             .reg_func("add", &Counter::add)
             .reg_var("value", &Counter::value)
             .reg_prop("total", &Counter::get);
-        using tynex::value;
+        using next::value;
         lua.set_var("settings", value::table{
             {"name", "demo"}, {"enabled", true}, {"scores", value::array{20, 22}}
         });
@@ -33,7 +33,7 @@ int main() {
         const int answer = lua.call<int>("answer");
         std::cout << lua.call<std::string>("greet", "LuaJIT") << ": " << answer << '\n';
         return answer == 42 ? 0 : 1;
-    } catch (const tynex::error& error) {
+    } catch (const next::error& error) {
         std::cerr << error.what() << '\n';
         return 1;
     }

@@ -2,9 +2,9 @@
 #include "binder/lua_arg.h"
 #include <iostream>
 
-using tynex::carg;
-using tynex::pusher;
-using tynex::result;
+using next::carg;
+using next::pusher;
+using next::result;
 
 namespace {
 int checks = 0;
@@ -14,11 +14,11 @@ void check(bool condition, const char* message) {
 }
 template<class F> void fails(F&& action, std::string_view expected) {
     try { action(); }
-    catch (const tynex::error& exception) {
+    catch (const next::error& exception) {
         check(std::string_view(exception.what()).find(expected) != std::string_view::npos, exception.what());
         return;
     }
-    throw std::runtime_error("expected tynex::error");
+    throw std::runtime_error("expected next::error");
 }
 }
 

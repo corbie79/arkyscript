@@ -1,6 +1,6 @@
 # Tynex — Typed Lua Development Kit
 
-**Tynex = Type + Nexus.** 타입 지원, C++ 연결, 개발 도구를 함께 제공하는 Lua 개발 키트입니다. 독립 Rust 컴파일러, `tynex::` C++20 바인딩, VS Code·Zed의 구문 강조·LSP·디버깅 도구를 포함합니다. 저장소는 [corbie79/tynex](https://github.com/corbie79/tynex)입니다. 현재 실행·바인딩 검증 대상은 LuaJIT이며, 다른 Lua 버전 지원은 호환 계층과 별도 검증이 필요합니다.
+**Tynex = Type + Nexus.** 타입 지원, C++ 연결, 개발 도구를 함께 제공하는 Lua 개발 키트입니다. 독립 Rust 컴파일러, `next::` C++20 바인딩, VS Code·Zed의 구문 강조·LSP·디버깅 도구를 포함합니다. 저장소는 [corbie79/tynex](https://github.com/corbie79/tynex)입니다. 현재 실행·바인딩 검증 대상은 LuaJIT이며, 다른 Lua 버전 지원은 호환 계층과 별도 검증이 필요합니다.
 
 명령은 `tynex`, 프로젝트 설정은 `tynex.toml`, 환경 변수 접두사는 `TYNEX_`입니다. 스크립트는 `.tlj`, 선언 파일은 `.d.tlj` 확장자를 사용합니다.
 
@@ -37,13 +37,13 @@ make test
 
 ## C++20 호스트 바인딩
 
-`binder/`는 Tynex의 C++20 바인딩 모듈입니다. `binder/lua_binder.h`로 C++ 함수·람다·클래스·생성자·멤버·프로퍼티를 Lua에 등록하며, 공개 API는 `tynex::` 네임스페이스에 있습니다. 인자 변환, 클래스 등록, Lua 객체 참조, 동적 값을 각각의 헤더에서 제공합니다. `value`는 `std::variant`와 표준 컨테이너를 사용합니다. C++ 클래스 바인딩은 스크립트 언어의 `class` 문법과 별개의 호스트 기능입니다.
+`binder/`는 Tynex의 C++20 바인딩 모듈입니다. `binder/lua_binder.h`로 C++ 함수·람다·클래스·생성자·멤버·프로퍼티를 Lua에 등록하며, 공개 API는 `next::` 네임스페이스에 있습니다. 인자 변환, 클래스 등록, Lua 객체 참조, 동적 값을 각각의 헤더에서 제공합니다. `value`는 `std::variant`와 표준 컨테이너를 사용합니다. C++ 클래스 바인딩은 스크립트 언어의 `class` 문법과 별개의 호스트 기능입니다.
 
 ```cpp
 #include "binder/lua_binder.h"
 
-tynex::state vm;
-tynex::binder lua(vm);
+next::state vm;
+next::binder lua(vm);
 lua.reg_func("sum", [](int a, int b) { return a + b; });
 lua.dostring("assert(sum(20, 22) == 42)");
 ```
