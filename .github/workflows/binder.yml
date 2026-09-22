@@ -3,7 +3,7 @@ on:
   push:
     paths:
       - 'binder/**'
-      - 'examples/cpp_binder.cpp'
+      - 'examples/cpp_*.cpp'
       - 'tests/binder/**'
       - 'scripts/test_binder.py'
       - 'scripts/bootstrap.py'

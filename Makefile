@@ -36,7 +36,10 @@ zed-extension:
 	cargo build --locked -p tynex-cli
 	python3 scripts/prepare_zed.py
 
-.PHONY: binder-test binder-sanitize binder-windows
+.PHONY: binder-examples binder-test binder-sanitize binder-windows
+binder-examples:
+	python3 scripts/test_binder.py --examples
+
 binder-test:
 	python3 scripts/test_binder.py
 

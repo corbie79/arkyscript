@@ -24,6 +24,8 @@
 
 class는 상태를 소유하고 trait은 동작을 정의한다. 첫 구현은 trait 조합을 중심으로 하고 클래스 상속은 후속 검토 항목으로 둔다.
 
+독립된 [class 예제](../examples/design/class.md)와 [여러 trait 조합 예제](../examples/design/traits.md)에서 생성·필드·공통 동작을 확인할 수 있다. 두 문서 모두 설계 예제이며 현재 실행할 수 없다. 현재 실행 가능한 C++ 바인딩 예제는 [예제 목록](../examples/README.md)에 있다.
+
 ```text
 trait Named
    label: function(Self): string

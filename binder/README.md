@@ -42,6 +42,8 @@ int result = lua.call<int>("sum", 20, 22);
 
 완전한 실행 예제는 [cpp_binder.cpp](../examples/cpp_binder.cpp)에 있습니다. 기존 VM에는 `tynex::binder lua(existing_state);`로 연결합니다. 이 생성자는 라이브러리를 열거나 VM 소유권을 가져오지 않습니다. `state`는 VM을 만들고 닫으며 기본적으로 LuaJIT 표준 라이브러리를 엽니다. 라이브러리를 직접 구성하려면 `state vm(false)`를 사용합니다.
 
+[클래스 예제](../examples/cpp_class.cpp)는 생성자·메서드·프로퍼티·예외 처리를, [공통 동작 예제](../examples/cpp_traits.cpp)는 C++20 concept과 템플릿을 통한 바인딩 재사용을 보여줍니다. `make binder-examples`로 세 예제를 실행할 수 있습니다. 후자는 C++ 기능이며 Tynex 스크립트의 `trait` 키워드와 구분합니다.
+
 ## API와 규칙
 
 - `reg_func(name, callable)`: 일반 함수, `noexcept` 함수, 캡처·mutable·이동 전용 람다, `std::function` 지원. 오버로드·generic 람다는 명시적인 인자 타입을 가진 람다로 감쌉니다. `lua_CFunction`은 원래 C API 호출 규약으로 등록합니다.

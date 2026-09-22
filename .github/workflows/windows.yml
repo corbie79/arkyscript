@@ -13,7 +13,7 @@ on:
       - 'bin/**'
       - 'tests/**'
       - 'binder/**'
-      - 'examples/cpp_binder.cpp'
+      - 'examples/cpp_*.cpp'
       - '.github/workflows/windows.yml'
   pull_request:
   workflow_dispatch:
@@ -77,7 +77,7 @@ jobs:
       - name: Execute C++20 binder tests and example
         shell: pwsh
         run: |
-          foreach ($name in @('arg.exe', 'object.exe', 'value.exe', 'binder.exe', 'cpp_binder.exe')) {
+          foreach ($name in @('arg.exe', 'object.exe', 'value.exe', 'binder.exe', 'cpp_binder.exe', 'cpp_class.exe', 'cpp_traits.exe')) {
             $exe = @(Get-ChildItem binder-artifacts -Recurse -Filter $name)
             if ($exe.Count -ne 1) { throw "Expected one $name" }
             & $exe[0].FullName

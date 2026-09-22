@@ -49,6 +49,8 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 `make setup` 후 C++20 컴파일러로 `make binder-test`, `make binder-sanitize`를 실행합니다. Windows x64는 `make windows` 후 `make binder-windows`로 xwin 크로스 빌드를 확인합니다. LuaJIT 업데이트 검증에도 바인더의 네이티브 테스트와 Windows 빌드를 포함합니다. [바인딩 API 안내](binder/README.md), [실행 예제](examples/cpp_binder.cpp)를 참고하세요.
 
+`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 3개를 실행합니다. [예제 목록](examples/README.md)에는 실행 명령·출력과 스크립트 `class`·`trait`의 설계 예제를 정리했습니다. 스크립트용 새 키워드는 아직 미구현입니다.
+
 ## 현재 문법
 
 ```lua
