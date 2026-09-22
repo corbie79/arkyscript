@@ -9,6 +9,7 @@ import sys
 from bootstrap import build_native
 from build_common import ROOT, dependencies, output, run, validate_revision, write_json
 from build_windows import build_windows
+from build_task import native as build_native_task, windows as build_windows_task
 from test_binder import native as test_native_binder, windows as build_windows_binder
 
 
@@ -23,6 +24,8 @@ def latest_revision(spec):
 def validate_candidate(revision):
     runtime = build_native(revision)
     build_windows(revision)
+    build_native_task(revision)
+    build_windows_task(revision)
     test_native_binder(revision, sanitize=False)
     build_windows_binder(revision)
     env = os.environ.copy()

@@ -1,0 +1,7 @@
+type_mode = "strict"
+include = ["*.tlj", "*.lua"]
+external_modules = ["tynex_task"]
+
+[[overrides]]
+files = ["*.lua"]
+mode = "legacy"

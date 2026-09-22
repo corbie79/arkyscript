@@ -7,6 +7,7 @@ on:
       - 'scripts/test_editor_grammar.py'
       - 'scripts/prepare_zed.py'
       - 'runtime/runner.lua'
+      - 'examples/**'
       - 'Cargo.*'
       - 'rust-toolchain.toml'
       - '.github/workflows/rust.yml'

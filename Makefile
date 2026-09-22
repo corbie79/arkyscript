@@ -17,6 +17,7 @@ windows-sdk:
 
 windows:
 	python3 scripts/build_windows.py
+	python3 scripts/build_task.py --windows
 
 check-luajit-update:
 	python3 scripts/update_luajit.py --check
@@ -48,3 +49,14 @@ binder-sanitize:
 
 binder-windows:
 	python3 scripts/test_binder.py --windows
+
+.PHONY: task task-windows task-test
+task:
+	python3 scripts/build_task.py
+
+task-windows:
+	python3 scripts/build_task.py --windows
+
+task-test: task
+	python3 scripts/test_binder.py --tasks
+	python3 -m unittest discover -s tests -p 'test_tasks.py' -v

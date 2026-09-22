@@ -90,6 +90,8 @@ class UpdateTransactionTests(unittest.TestCase):
         with patch.object(update_luajit, "ROOT", self.root), \
              patch.object(update_luajit, "build_native", return_value=self.root / "luajit"), \
              patch.object(update_luajit, "build_windows"), \
+             patch.object(update_luajit, "build_native_task"), \
+             patch.object(update_luajit, "build_windows_task"), \
              patch.object(update_luajit, "test_native_binder") as native, \
              patch.object(update_luajit, "build_windows_binder", side_effect=RuntimeError("binder failed")) as windows, \
              patch.object(update_luajit, "run") as run:
@@ -97,6 +99,21 @@ class UpdateTransactionTests(unittest.TestCase):
                 update_luajit.apply_update(self.new)
             native.assert_called_once_with(self.new, sanitize=False)
             windows.assert_called_once_with(self.new)
+            run.assert_not_called()
+        self.assertEqual(self.path.read_bytes(), original)
+
+    def test_task_failure_blocks_candidate_update(self):
+        original = self.path.read_bytes()
+        with patch.object(update_luajit, "ROOT", self.root), \
+             patch.object(update_luajit, "build_native", return_value=self.root / "luajit"), \
+             patch.object(update_luajit, "build_windows"), \
+             patch.object(update_luajit, "build_native_task"), \
+             patch.object(update_luajit, "build_windows_task", side_effect=RuntimeError("task module failed")), \
+             patch.object(update_luajit, "test_native_binder") as binder, \
+             patch.object(update_luajit, "run") as run:
+            with self.assertRaisesRegex(RuntimeError, "task module failed"):
+                update_luajit.apply_update(self.new)
+            binder.assert_not_called()
             run.assert_not_called()
         self.assertEqual(self.path.read_bytes(), original)
 

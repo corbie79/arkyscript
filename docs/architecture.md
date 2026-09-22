@@ -15,6 +15,7 @@
 | `crates/tynex-compiler` | 외부 의존성 없는 Rust 라이브러리. AST·타입 검사·공개 타입·import 발견·선언 파일 파싱·Lua 생성 |
 | `crates/tynex-cli` | CLI·설정·파일별 모드·프로젝트 탐색·모듈 의존 그래프·진단·실행 목록 생성·LuaJIT 프로세스 실행·stdio LSP |
 | `runtime/runner.lua` | Rust 바이너리에 포함한 모듈 로더·실행·디버거 연결 코드. 컴파일러 기능은 없음 |
+| `runtime/task/` | C++20 고정 OS worker 풀·Lua 네이티브 Task 모듈. 독립 VM과 값 복사 전송 |
 | `scripts/` | Python 기반 공식 엔진 빌드·업데이트 도구. 사용자 스크립트 실행 경로와 분리 |
 | `binder/` | C++20 함수·클래스 바인딩, 인자 변환, Lua 객체와 동적 값 |
 

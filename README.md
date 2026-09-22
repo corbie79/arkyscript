@@ -15,7 +15,7 @@
 
 ## 시작하기
 
-Rust 1.94.0은 `rust-toolchain.toml`, Rust 의존성은 `Cargo.lock`, 공식 LuaJIT SHA는 `dependencies.json`에 고정합니다. macOS/Linux에서 엔진을 준비할 때 Python 3.12 이상·Git·Make·C 컴파일러가 필요합니다. 실행과 타입 검사에는 Python을 사용하지 않습니다.
+Rust 1.94.0은 `rust-toolchain.toml`, Rust 의존성은 `Cargo.lock`, 공식 LuaJIT SHA는 `dependencies.json`에 고정합니다. macOS/Linux에서 엔진을 준비할 때 Python 3.12 이상·Git·Make·C/C++20 컴파일러가 필요합니다. 실행과 타입 검사에는 Python을 사용하지 않습니다.
 
 ```sh
 make setup
@@ -25,6 +25,7 @@ make setup
 ./bin/tynex run examples/multiple_values.tlj
 ./bin/tynex run examples/modules/main.tlj
 ./bin/tynex run examples/imports/main.tlj
+./bin/tynex run examples/tasks/main.tlj
 ./bin/tynex check --project examples/modules/tynex.toml
 ./bin/tynex run examples/legacy.lua
 make test
@@ -49,7 +50,13 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 `make setup` 후 C++20 컴파일러로 `make binder-test`, `make binder-sanitize`를 실행합니다. Windows x64는 `make windows` 후 `make binder-windows`로 xwin 크로스 빌드를 확인합니다. LuaJIT 업데이트 검증에도 바인더의 네이티브 테스트와 Windows 빌드를 포함합니다. [바인딩 API 안내](binder/README.md), [실행 예제](examples/cpp_binder.cpp)를 참고하세요.
 
-`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 3개를 실행합니다. [예제 목록](examples/README.md)에는 실행 명령·출력과 스크립트 `class`·`trait`의 설계 예제를 정리했습니다. 스크립트용 새 키워드는 아직 미구현입니다.
+`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 4개를 실행합니다. 여기에는 실제 OS 스레드 풀을 사용하는 [Task 예제](examples/cpp_tasks.cpp)도 포함됩니다. [예제 목록](examples/README.md)에는 실행 명령·출력과 스크립트 `class`·`trait`의 설계 예제를 정리했습니다. 스크립트용 새 키워드는 아직 미구현입니다.
+
+## 실제 병렬 Task
+
+`task.spawn`은 고정 개수의 OS worker에 작은 작업을 배분합니다. 실행 작업마다 독립 Lua VM을 사용하고 입력·결과를 복사하므로 메인 VM을 여러 스레드가 동시에 건드리지 않습니다. Task마다 스레드를 새로 만들지는 않지만 VM 생성·데이터 복사 비용은 있습니다. 공식 LuaJIT은 수정하지 않습니다.
+
+[실행 예제](examples/tasks/README.md)는 정적 import·선언 파일과 함께 제출, 상태 조회, 결과, 취소, 실패를 보여줍니다. `make setup`으로 네이티브 모듈을 준비하고 `make task-test`로 검증합니다. **`wait()`는 호출 스레드를 막으며 async/await 문법은 아직 없습니다.** 긴 작업의 취소는 `context.checkpoint()`를 사용하는 협력 방식입니다. [Task API·제한·빌드](docs/tasks.md), [요청 기능별 예제 확인표](examples/README.md)를 참고하세요.
 
 ## 현재 문법
 

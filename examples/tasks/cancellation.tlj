@@ -1,0 +1,30 @@
+--!typecheck strict
+import task from "task"
+task.configure(2, 16)
+
+local endless = task.spawn(function(input: any, context: any): any
+   while true do
+      context.checkpoint() -- running cancellation is cooperative
+   end
+end, nil)
+endless:cancel()
+try
+   endless:wait()
+except err then
+   print("Cancelled: " .. endless:status())
+end
+
+local broken = task.spawn(function(input: any, context: any): any
+   error("calculation failed")
+end, nil)
+try
+   broken:wait()
+except err then
+   print("Failure: " .. broken:status())
+end
+
+local healthy = task.spawn(function(input: any, context: any): any
+   return input * 2
+end, 21)
+print("Pool still works: " .. tostring(healthy:wait()))
+task.shutdown()

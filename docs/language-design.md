@@ -67,6 +67,8 @@ trait의 `label`은 함수 타입으로 쓴 필수 메서드 선언이고, `desc
 
 ## 데이터를 담는 enum과 match
 
+[독립 enum·match 설계 예제](../examples/design/enum-match.md)에 여러 payload와 Result/Option을 정리했다.
+
 ```text
 enum Result<T, E>
    Ok(T)
@@ -103,6 +105,8 @@ enum 값은 논리적으로 타입 식별자·variant·payload로 구성된다. 
 `Option<T>`는 `Some(T)`와 `None`으로 값의 부재를 표현한다. 현재 기본 타입용 `T?`와 Option 사이의 변환, 복합 타입의 nil 규칙과 Lua/FFI에서 들어오는 값의 검증은 별도로 설계한다. any나 외부 선언만으로 런타임 값이 검증되지는 않는다.
 
 ## async와 await
+
+별도로 **실행 가능한 OS worker Task API**를 추가했다. [Task 런타임](tasks.md)의 `spawn`·`wait`·취소는 현재 사용할 수 있지만 아래 async/await 문법과 메인 coroutine 스케줄러는 아직 없다. [독립 async 설계 예제](../examples/design/async-await.md)는 두 계층의 연결 방향을 보여준다.
 
 ```text
 -- User, Result, HttpClient, HttpResponse는 별도로 선언된 타입이다.

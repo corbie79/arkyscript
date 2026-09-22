@@ -49,7 +49,10 @@ for _, root in ipairs(manifest.roots) do
 end
 package.path = table.concat(prefixes) .. package.path
 local runtime_dir = os.getenv("TYNEX_LUAJIT_DIR")
-if runtime_dir then package.path = runtime_dir .. "/?.lua;" .. runtime_dir .. "/lua/?.lua;" .. package.path end
+if runtime_dir then
+   package.path = runtime_dir .. "/?.lua;" .. runtime_dir .. "/lua/?.lua;" .. package.path
+   package.cpath = runtime_dir .. "/?.so;" .. runtime_dir .. "/?.dll;" .. package.cpath
+end
 
 local function local_candidate(name)
    if type(name) ~= "string" then return end

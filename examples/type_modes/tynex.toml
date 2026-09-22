@@ -1,0 +1,10 @@
+type_mode = "gradual"
+include = ["*.tlj", "*.lua"]
+
+[[overrides]]
+files = ["*.lua"]
+mode = "legacy"
+
+[[overrides]]
+files = ["strict.tlj"]
+mode = "strict"

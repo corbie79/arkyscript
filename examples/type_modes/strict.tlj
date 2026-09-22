@@ -1,0 +1,6 @@
+--!typecheck strict
+local function twice(value: number): number
+   return value * 2
+end
+local answer = twice(21) -- inference is still allowed in strict mode
+print("strict", answer)

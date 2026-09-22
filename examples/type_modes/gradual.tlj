@@ -1,0 +1,6 @@
+--!typecheck gradual
+-- Unannotated arguments are allowed during incremental adoption.
+local function twice(value)
+   return value * 2
+end
+print("gradual", twice(21))

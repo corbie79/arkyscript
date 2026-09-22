@@ -10,9 +10,9 @@ from build_common import ROOT, dependencies, find_tool, run
 
 
 TEST_SOURCES = tuple(ROOT / "tests" / "binder" / name for name in
-                     ("arg.cpp", "object.cpp", "value.cpp", "binder.cpp"))
+                     ("arg.cpp", "object.cpp", "value.cpp", "binder.cpp")) + (ROOT / "tests/task/pool.cpp", ROOT / "tests/task/lua.cpp")
 EXAMPLE_SOURCES = tuple(ROOT / "examples" / name for name in
-                        ("cpp_binder.cpp", "cpp_class.cpp", "cpp_traits.cpp"))
+                        ("cpp_binder.cpp", "cpp_class.cpp", "cpp_traits.cpp", "cpp_tasks.cpp"))
 SOURCES = TEST_SOURCES + EXAMPLE_SOURCES
 
 
@@ -24,7 +24,7 @@ def native(revision, sanitize, sources=SOURCES):
     destination = ROOT / "build" / "binder" / ("sanitize" if sanitize else "native") / revision
     destination.mkdir(parents=True, exist_ok=True)
     compiler = shlex.split(os.environ.get("CXX", "c++"))
-    flags = ["-std=c++20", "-Wall", "-Wextra", "-Wpedantic", "-Werror", "-g",
+    flags = ["-std=c++20", "-Wall", "-Wextra", "-Wpedantic", "-Werror", "-g", "-pthread",
              "-I", str(ROOT), "-I", str(engine)]
     if sanitize:
         flags += ["-O1", "-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
@@ -73,9 +73,12 @@ def main():
     mode.add_argument("--sanitize", action="store_true", help="Run native ASan/UBSan checks")
     mode.add_argument("--windows", action="store_true", help="Cross-build with the pinned xwin SDK")
     parser.add_argument("--examples", action="store_true", help="Build only the runnable C++ examples")
+    parser.add_argument("--tasks", action="store_true", help="Build only task runtime tests and example")
     args = parser.parse_args()
     revision = dependencies()["luajit"]["revision"]
     sources = EXAMPLE_SOURCES if args.examples else SOURCES
+    if args.tasks:
+        sources = (ROOT / "tests/task/pool.cpp", ROOT / "tests/task/lua.cpp", ROOT / "examples/cpp_tasks.cpp")
     if args.windows:
         windows(revision, sources=sources)
     else:

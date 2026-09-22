@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - 'binder/**'
+      - 'runtime/task/**'
+      - 'tests/task/**'
       - 'examples/cpp_*.cpp'
       - 'tests/binder/**'
       - 'scripts/test_binder.py'

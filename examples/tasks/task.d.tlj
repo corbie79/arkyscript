@@ -1,0 +1,5 @@
+-- Opaque native handles and transferable trees use explicit any until named
+-- types/generics arrive. The native boundary validates values at runtime.
+declare configure: function(number, number): ()
+declare spawn: function(function(any, any): any, any): any
+declare shutdown: function(): ()

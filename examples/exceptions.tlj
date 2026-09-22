@@ -1,0 +1,17 @@
+--!typecheck strict
+local value = 0
+try
+   value = 21 * 2
+except err then
+   print("unexpected failure")
+else
+   print("success: " .. tostring(value))
+end
+
+try
+   error("example failure")
+except err then
+   print("handled failure")
+else
+   print("this success branch must not run")
+end

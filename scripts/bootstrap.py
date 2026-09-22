@@ -31,7 +31,10 @@ def build_native(revision=None):
 
 
 def main():
+    from build_task import native as build_task
+
     runtime = build_native()
+    build_task(dependencies()["luajit"]["revision"])
     run("cargo", "build", "--workspace", "--locked", cwd=ROOT)
     print(f"Ready: {runtime}\nRun: ./bin/tynex run examples/main.tlj")
 

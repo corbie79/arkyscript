@@ -4,7 +4,7 @@ macOS ARM64 또는 Linux 64비트에서 `xwin + clang-cl + lld-link + llvm-lib`�
 
 ## 준비와 빌드
 
-Python 3.12 이상, Git, Make, 호스트 C 컴파일러, LLVM·LLD 및 xwin 0.10.0이 필요하다. 공식 엔진 업데이트의 프런트엔드 회귀 검증에는 프로젝트가 고정한 Rust 도구 체인도 필요하다.
+Python 3.12 이상, Git, Make, 호스트 C/C++20 컴파일러, LLVM·LLD 및 xwin 0.10.0이 필요하다. 고정한 Microsoft C++ STL은 Clang 19 이상을 요구하므로 Windows Task·바인더 빌드도 해당 버전을 사용한다. 공식 엔진 업데이트의 프런트엔드 회귀 검증에는 프로젝트가 고정한 Rust 도구 체인도 필요하다.
 
 ```sh
 # macOS: LLVM은 Homebrew의 keg-only 경로도 자동 탐색한다.
@@ -24,6 +24,8 @@ Linux에서는 배포판의 `clang`, `lld`, `llvm` 패키지와 `cargo install x
 공식 저장소 체크아웃을 수정하지 않고 지정 SHA의 `git archive`를 별도 디렉터리에 추출한다. `minilua`, `buildvm`은 호스트에서 실행하며 Windows x64 VM 오브젝트와 등록 헤더를 생성한다. 엔진 C 소스는 Windows MSVC ABI로 컴파일한다. 생성 파일·오브젝트는 다른 커밋이나 네이티브 빌드에서 재사용하지 않는다. 실패 시 기존 성공 산출물을 유지하고 실패 로그를 남긴다.
 
 결과는 `build/windows-x64/<전체 SHA>/`와 같은 상위 디렉터리의 `luajit-windows-x64-<전체 SHA>.zip`이다.
+
+`make windows`는 이어서 `scripts/build_task.py --windows`를 실행해 `tynex_task.dll`을 만들고 **엔진 + Task**를 `tynex-windows-x64-<전체 SHA>.zip`으로 묶는다. `task-build-info.json`에는 모듈·소스 해시와 엔진 SHA를 별도로 기록한다. Rust CLI는 두 ZIP 모두에 아직 포함하지 않는다. Ubuntu 24.04 CI는 `clang-19 clang-tools-19 lld-19 llvm-19`를 사용하며 `clang-cl` 제공 패키지인 `clang-tools-19`도 필요하다.
 
 | 파일 | 용도 |
 | --- | --- |
@@ -60,7 +62,7 @@ make update-luajit        # 새 버전 검증 후 dependencies.json 갱신
 1. 공식 저장소 `v2.1`의 전체 커밋 SHA를 조회한다.
 2. 후보의 네이티브 바이너리를 별도 SHA 디렉터리에 빌드한다.
 3. 후보의 Windows x64 엔진을 크로스 빌드하고 PE/API를 검사한다.
-4. 후보 네이티브 바이너리로 프로젝트 테스트를 실행한다.
+4. Task 모듈의 네이티브·Windows 빌드와 바인더/Task C++ 검증, 후보 네이티브 바이너리로 Rust·Lua 프로젝트 테스트를 실행한다.
 5. 전부 성공한 경우에만 `dependencies.json`을 원자적으로 갱신한다.
 
 후보 빌드나 테스트 실패 시 기존 pin과 이전 커밋의 산출물이 유지된다. 검증 도중 다른 작업이 `dependencies.json`을 수정해도 덮어쓰지 않는다. 공식 소스 캐시에 추적 파일의 로컬 수정이 있으면 빌드를 중단하며 이를 리셋하거나 삭제하지 않는다. 업데이트는 수동 명령이며 주기적 자동 갱신은 설정하지 않는다.
