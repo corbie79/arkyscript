@@ -193,6 +193,9 @@ impl Prepared {
         for span in &self.erased_spans {
             edits.push((span.clone(), &lua[span.clone()]));
         }
+        // Keep this sort stable: the parser adds nested closing insertions
+        // before enclosing ones at the same byte (for example an optional
+        // chain followed by its class field default's generated `end`).
         edits.sort_by_key(|(span, _)| (span.start, span.end));
         let mut position = source_map::Position::default();
         let mut cursor = 0;

@@ -18,15 +18,19 @@
 (type_field name: (identifier) @property)
 (field name: (identifier) @property)
 (dot_index_expression field: (identifier) @property)
+(optional_dot_index_expression field: (identifier) @property)
 (method_index_expression method: (identifier) @function.method)
+(optional_method_index_expression method: (identifier) @function.method)
 (function_declaration name: (identifier) @function)
 (function_call name: (identifier) @function)
+(optional_function_call name: (identifier) @function)
 (function_declaration name: (dot_index_expression field: (identifier) @function))
 ["local" "function" "return" "end" "if" "then" "else" "elseif"
  "do" "while" "repeat" "until" "for" "in" "export"
  "import" "from" "declare" "try" "except" "class" "trait" "is"] @keyword
 ["and" "or" "not"] @keyword.operator
 ["+" "-" "*" "/" "%" "^" "#" "==" "~=" "<=" ">=" "<" ">" "=" ".." "?" "..."] @operator
+["?." "?[" "?(" "?:"] @operator
 ["(" ")" "[" "]" "{" "}"] @punctuation.bracket
 [":" "," ";" "."] @punctuation.delimiter
 

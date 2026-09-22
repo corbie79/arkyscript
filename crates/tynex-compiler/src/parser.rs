@@ -172,7 +172,11 @@ impl Parser {
     }
     fn ty(&mut self) -> Result<Type, Diagnostic> {
         self.enter()?;
-        let mut ty = if self.take("function") {
+        let mut ty = if self.take("(") {
+            let ty = self.ty()?;
+            self.expect(")")?;
+            ty
+        } else if self.take("function") {
             self.expect("(")?;
             let mut params = vec![];
             let mut tail = None;
@@ -294,6 +298,16 @@ impl Parser {
                 }
             }
             self.expect(")")?;
+            if self.at("?") {
+                if pack.values.len() != 1 || pack.tail.is_some() {
+                    return Err(self.fail(
+                        "only a single grouped return type can be optional; return packs cannot use '?'",
+                    ));
+                }
+                self.index += 1;
+                let value = pack.values.pop().unwrap();
+                pack.values.push(value.optional());
+            }
         } else {
             pack.values.push(self.ty()?);
         }
@@ -573,7 +587,9 @@ impl Parser {
                         return Err(self.fail("expected an assignable name or table field"));
                     }
                     Stmt::Assign(targets, self.expressions()?)
-                } else if matches!(target.kind, ExprKind::Call(..) | ExprKind::MethodCall(..)) {
+                } else if matches!(target.kind, ExprKind::Call(..) | ExprKind::MethodCall(..))
+                    || matches!(&target.kind, ExprKind::OptionalChain(_, steps) if steps.last().is_some_and(|step| matches!(step.kind, ChainStepKind::Call(_) | ChainStepKind::MethodCall(..))))
+                {
                     Stmt::Call(target)
                 } else {
                     return Err(self.fail("expected an assignment or function call"));
@@ -854,6 +870,85 @@ impl Parser {
         self.expect("}")?;
         Ok(fields)
     }
+    fn optional_chain(&mut self, base: Expr) -> Result<Expr, Diagnostic> {
+        let mut steps = vec![];
+        let mut markers = vec![];
+        loop {
+            let start = self.tok().span.start;
+            let marker = if self.take("?") {
+                if !self.typed {
+                    return Err(self.fail("optional chaining requires a .tlj file"));
+                }
+                let marker = self.tokens[self.index - 1].span.clone();
+                if marker.end != self.tok().span.start
+                    || ![".", "[", "(", ":"].contains(&self.tok().text.as_str())
+                {
+                    return Err(self.fail("expected adjacent ?., ?[, ?(, or ?:"));
+                }
+                Some(marker)
+            } else {
+                None
+            };
+            let kind = if self.take(".") {
+                ChainStepKind::Field(self.name()?.text.into_bytes())
+            } else if self.take("[") {
+                let index = self.expr(0)?;
+                self.expect("]")?;
+                ChainStepKind::Index(index)
+            } else if self.take(":") {
+                let name = self.name()?.text.into_bytes();
+                ChainStepKind::MethodCall(name, self.arguments()?)
+            } else if self.at("(") || self.at("{") || self.tok().kind == Kind::String {
+                ChainStepKind::Call(self.arguments()?)
+            } else {
+                break;
+            };
+            steps.push(ChainStep {
+                kind,
+                optional: marker.is_some(),
+                span: start..self.tokens[self.index - 1].span.end,
+            });
+            markers.push(marker);
+            if !(self.at("?")
+                || self.at(".")
+                || self.at("[")
+                || self.at(":")
+                || self.at("(")
+                || self.at("{")
+                || self.tok().kind == Kind::String)
+            {
+                break;
+            }
+        }
+        let end = steps
+            .last()
+            .expect("optional suffix starts a chain")
+            .span
+            .end;
+        let parameters = if self.variadic { "..." } else { "" };
+        self.edit(
+            base.span.start..base.span.start,
+            format!("(function({parameters}) local __tynex_value = "),
+        );
+        for (index, (step, marker)) in steps.iter().zip(markers).enumerate() {
+            let mut prefix = String::from("; ");
+            if step.optional {
+                prefix.push_str("if __tynex_value == nil then return nil end; ");
+            }
+            prefix.push_str(if index + 1 == steps.len() {
+                "return __tynex_value"
+            } else {
+                "__tynex_value = __tynex_value"
+            });
+            self.edit(marker.unwrap_or(step.span.start..step.span.start), prefix);
+        }
+        self.edit(end..end, format!(" end)({parameters})"));
+        let span = base.span.start..end;
+        Ok(Expr {
+            kind: ExprKind::OptionalChain(Box::new(base), steps),
+            span,
+        })
+    }
     fn expr(&mut self, min: u8) -> Result<Expr, Diagnostic> {
         self.enter()?;
         let t = self.tok().clone();
@@ -918,7 +1013,15 @@ impl Parser {
                     | ExprKind::MethodCall(..)
                     | ExprKind::Field(..)
                     | ExprKind::Index(..)
+                    | ExprKind::OptionalChain(..)
             );
+            if self.at("?") {
+                if !prefix {
+                    return Err(self.fail("parenthesize a literal before optional chaining"));
+                }
+                lhs = self.optional_chain(lhs)?;
+                continue;
+            }
             if self.at("(")
                 || self.at(".")
                 || self.at(":")

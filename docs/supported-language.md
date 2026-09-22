@@ -7,6 +7,7 @@
 - 다중 지역 변수 선언과 대입, 테이블 필드·인덱스 대입.
 - `local function`, 일반/테이블 함수 선언, 익명 함수, 함수 값, 재귀 함수. strict에서 재귀의 반환형 추론이 해결되지 않으면 반환형을 명시한다.
 - 다중 반환값·가변 인수, 일반 함수·메서드 호출, `print "hello"`·`print {1, 2}` 형태의 인자 축약.
+- nil이면 생략하는 `obj?.field`, `obj?[key]`, `fn?(args)`, `obj?:method(args)`. [평가·타입·체인 규칙](optional-chaining.md)을 따른다.
 - `do/end`, `if/elseif/else`, `while/do`, `repeat/until`, 숫자 `for`, `pairs/ipairs` 순회, 루프 안의 `break`.
 - 기본 산술·비교·문자열 연결·길이·논리 연산, Lua 문자열·긴 문자열·주석.
 
@@ -76,6 +77,7 @@ print(result)
 | `any` | 명시적인 동적 경계 |
 | `Player`, `Named`, `models.Player`, `Self` | 선언한 class·trait, import한 명명 타입, 현재 구현 타입 |
 | `T?` | T 또는 nil |
+| `(T)`·`(function(number): number)?` | 타입 묶기·nil일 수 있는 함수 |
 | `{name: string, score: number?}` | 고정 필드가 있는 레코드 |
 | `{number}` | 숫자 키로 접근하는 배열 |
 | `{[string]: number}` | 문자열 키를 사용하는 사전 |

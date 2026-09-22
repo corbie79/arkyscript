@@ -59,6 +59,28 @@ const onig = require('vscode-oniguruma');
     [1,'Named','entity.name.type',true], [2,'label','entity.name.type',true],
     [3,'Player','comment'], [4,'Named','string'], [5,'api.Player','entity.name.type'],
     [5,'Self','entity.name.type'], [5,'return','keyword'], [5,'value end','entity.name.type',true]]);
+  check('local score: number? = player?.score\nlocal value = items?[key()]\ncallback?(value)\nplayer?:update(value)\nplayer?:configure {}\nplayer?:label "name"\nlocal mixed = player?.children[index()]?:find("name").score\nlocal ordinary = player:update(value)', [
+    [0,'number','storage.type'], [0,'number?','meta.type.annotation'],
+    [0,'?.','keyword.operator.optional'], [0,'player','meta.type.annotation',true],
+    [1,'?[','keyword.operator.optional'], [1,'key','entity.name.function'],
+    [2,'callback','entity.name.function'], [2,'?(','keyword.operator.optional'],
+    [3,'?:','keyword.operator.optional'], [3,'update','entity.name.function'],
+    [3,'update','entity.name.type',true], [4,'configure','entity.name.type',true],
+    [5,'label','entity.name.type',true], [5,'name','string'],
+    [6,'find','entity.name.function'], [7,'update','entity.name.function']]);
+  check('local callback: (function(number): number)? = nil\nlocal returns: function(number): number? = other\nlocal grouped: (Player)? = nil\n-- player?.field callback?() player?:method()\nlocal text = "player?.field callback?() player?:method()"', [
+    [0,'function','keyword'], [0,'number','storage.type'], [0,'?','keyword.operator.type'],
+    [0,'?','keyword.operator.optional',true], [0,'nil','constant.language'],
+    [1,'?','keyword.operator.type'], [2,'Player','entity.name.type'], [2,'?','keyword.operator.type'],
+    [3,'?.','comment'], [3,'?.','keyword.operator.optional',true],
+    [4,'?.','string'], [4,'?.','keyword.operator.optional',true]]);
+  check('local function factory(): (function(number): number)? return nil end\nlocal function read(): (number)? return nil end', [
+    [0,'factory','entity.name.function'], [0,'number','storage.type'], [0,'?','keyword.operator.type'],
+    [0,'?','keyword.operator.optional',true], [0,'return','keyword'], [0,'nil','constant.language'],
+    [0,'nil','storage.type',true], [0,'end','keyword'],
+    [1,'read','entity.name.function'], [1,'number','storage.type'], [1,'?','keyword.operator.type'],
+    [1,'?','keyword.operator.optional',true], [1,'return','keyword'], [1,'nil','constant.language'],
+    [1,'nil','storage.type',true], [1,'end','keyword']]);
   registry.dispose();
-  console.log('TextMate highlighting: 12 fixtures passed');
+  console.log('TextMate highlighting: 15 fixtures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

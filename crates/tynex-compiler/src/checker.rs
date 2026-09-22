@@ -1497,12 +1497,123 @@ impl Checker<'_> {
                 };
                 self.access(&ty, &key_type, name, false, expr.span.clone())
             }
-            ExprKind::Call(..) | ExprKind::MethodCall(..) | ExprKind::Varargs => {
-                self.expansion(expr).at(0)
-            }
+            ExprKind::Call(..)
+            | ExprKind::MethodCall(..)
+            | ExprKind::OptionalChain(..)
+            | ExprKind::Varargs => self.expansion(expr).at(0),
         };
         self.depth -= 1;
         result
+    }
+    fn expands(expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::Call(..) | ExprKind::MethodCall(..) | ExprKind::Varargs => true,
+            ExprKind::OptionalChain(_, steps) => steps.last().is_some_and(|step| {
+                matches!(
+                    step.kind,
+                    ChainStepKind::Call(_) | ChainStepKind::MethodCall(..)
+                )
+            }),
+            _ => false,
+        }
+    }
+    fn may_be_nil(ty: &Type) -> bool {
+        match ty {
+            Type::Nil | Type::Optional(_) | Type::Any | Type::Unknown => true,
+            Type::Union(types) => types.iter().any(Self::may_be_nil),
+            _ => false,
+        }
+    }
+    fn declared_chain_base(&self, expr: &Expr) -> Option<Type> {
+        if let ExprKind::Group(inner) = &expr.kind {
+            self.declared_chain_base(inner)
+        } else {
+            self.defined_type(expr)
+        }
+    }
+    fn optional_chain(&mut self, base: &Expr, steps: &[ChainStep]) -> Pack {
+        let declared = self.declared_chain_base(base);
+        let mut value = self.expr(base);
+        let mut reachable = value != Type::Never;
+        let mut skipped = false;
+        let mut result = Pack::one(value.clone());
+        for (index, step) in steps.iter().enumerate() {
+            if step.optional {
+                skipped |= reachable && Self::may_be_nil(&value);
+                value = value.without_nil();
+                if value == Type::Never {
+                    reachable = false;
+                    // Keep checking a known contract even when the receiver
+                    // is currently nil. This is the same policy as dead bodies.
+                    if index == 0
+                        && let Some(declared) = &declared
+                    {
+                        value = declared.without_nil();
+                    }
+                }
+            }
+            result = if value == Type::Never {
+                // A literal nil has no member/call contract, but expressions
+                // inside its skipped suffix still receive normal diagnostics.
+                match &step.kind {
+                    ChainStepKind::Index(key) => {
+                        self.expr(key);
+                    }
+                    ChainStepKind::Call(args) | ChainStepKind::MethodCall(_, args) => {
+                        self.expressions(args, &[], None);
+                    }
+                    ChainStepKind::Field(_) => {}
+                }
+                Pack::one(Type::Never)
+            } else {
+                match &step.kind {
+                    ChainStepKind::Field(name) => Pack::one(self.access(
+                        &value,
+                        &Type::String,
+                        Some(name),
+                        false,
+                        step.span.clone(),
+                    )),
+                    ChainStepKind::Index(key) => {
+                        let key_type = self.expr(key);
+                        let name = Self::string_constant(key);
+                        Pack::one(self.access(&value, &key_type, name, false, step.span.clone()))
+                    }
+                    ChainStepKind::Call(args) => self.call(&value, args, None, step.span.clone()),
+                    ChainStepKind::MethodCall(name, args) => {
+                        let method = if value == Type::String {
+                            let library = self.scopes[0]["string"].declared.clone();
+                            self.access(
+                                &library,
+                                &Type::String,
+                                Some(name),
+                                false,
+                                step.span.clone(),
+                            )
+                        } else {
+                            self.access_member(
+                                &value,
+                                &Type::String,
+                                Some(name),
+                                false,
+                                true,
+                                step.span.clone(),
+                            )
+                        };
+                        self.call(&method, args, Some(value), step.span.clone())
+                    }
+                }
+            };
+            value = result.at(0);
+        }
+        if !reachable {
+            result = Pack::one(Type::Never);
+        }
+        if skipped {
+            result.join(Pack::one(Type::Nil))
+        } else {
+            result
+        }
     }
     fn expressions(
         &mut self,
@@ -1512,12 +1623,7 @@ impl Checker<'_> {
     ) -> Pack {
         let mut out = Pack::default();
         for (i, expr) in expressions.iter().enumerate() {
-            if i + 1 == expressions.len()
-                && matches!(
-                    expr.kind,
-                    ExprKind::Call(..) | ExprKind::MethodCall(..) | ExprKind::Varargs
-                )
-            {
+            if i + 1 == expressions.len() && Self::expands(expr) {
                 let pack = self.expansion(expr);
                 out.minimum += pack.minimum;
                 out.values.extend(pack.values);
@@ -1544,6 +1650,7 @@ impl Checker<'_> {
         self.depth += 1;
         let result = match &expr.kind {
             ExprKind::Varargs => Pack::variadic(self.varargs.clone().unwrap_or(Type::Unknown)),
+            ExprKind::OptionalChain(base, steps) => self.optional_chain(base, steps),
             ExprKind::Call(callee, args) => {
                 let ty = self.expr(callee);
                 self.call(&ty, args, None, expr.span.clone())
@@ -1975,10 +2082,7 @@ impl Checker<'_> {
             });
             if matches!(field, TableField::List(_))
                 && position + 1 == fields.len()
-                && matches!(
-                    value.kind,
-                    ExprKind::Call(..) | ExprKind::MethodCall(..) | ExprKind::Varargs
-                )
+                && Self::expands(value)
             {
                 let pack = self.expansion(value);
                 let mut element = Type::Never;

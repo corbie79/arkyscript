@@ -1,0 +1,17 @@
+local maybe: Player? = nil
+local callback: (function(number): number)? = nil
+local nullable_return: function(number): number? = lookup
+local function factory(): (function(number): number)? return nil end
+local function read(): (number)? return nil end
+local score: number? = maybe?.score
+local indexed = maybe?[key()]
+local result = callback?(argument())
+maybe?:update(argument())
+maybe?:configure {enabled = true}
+maybe?:label "player"
+local mixed = maybe?.children[index()]?:find("name").score
+local nested = maybe?[other?.key]?.callback?(argument())
+local grouped = (maybe?.child).score
+local ordinary = maybe:find("name").score
+local text = "obj?.field fn?() obj?:method()"
+-- obj?.field fn?() obj?:method()

@@ -62,6 +62,18 @@
         "named": true
       },
       {
+        "type": "optional_bracket_index_expression",
+        "named": true
+      },
+      {
+        "type": "optional_dot_index_expression",
+        "named": true
+      },
+      {
+        "type": "optional_function_call",
+        "named": true
+      },
+      {
         "type": "parenthesized_expression",
         "named": true
       },
@@ -137,6 +149,10 @@
       },
       {
         "type": "label_statement",
+        "named": true
+      },
+      {
+        "type": "optional_function_call",
         "named": true
       },
       {
@@ -393,6 +409,18 @@
             "named": true
           },
           {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
+            "named": true
+          },
+          {
             "type": "parenthesized_expression",
             "named": true
           },
@@ -605,6 +633,18 @@
         "types": [
           {
             "type": "function_call",
+            "named": true
+          },
+          {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
             "named": true
           },
           {
@@ -880,6 +920,18 @@
           },
           {
             "type": "method_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
             "named": true
           },
           {
@@ -1198,6 +1250,18 @@
             "named": true
           },
           {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
+            "named": true
+          },
+          {
             "type": "parenthesized_expression",
             "named": true
           },
@@ -1228,6 +1292,213 @@
     "type": "nil",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "optional_arguments",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "optional_bracket_index_expression",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "table": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "function_call",
+            "named": true
+          },
+          {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "variable",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "optional_dot_index_expression",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "table": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "function_call",
+            "named": true
+          },
+          {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "variable",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "optional_function_call",
+    "named": true,
+    "fields": {
+      "arguments": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "arguments",
+            "named": true
+          },
+          {
+            "type": "optional_arguments",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "function_call",
+            "named": true
+          },
+          {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
+            "named": true
+          },
+          {
+            "type": "optional_method_index_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "variable",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "optional_method_index_expression",
+    "named": true,
+    "fields": {
+      "method": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "table": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "function_call",
+            "named": true
+          },
+          {
+            "type": "optional_bracket_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_dot_index_expression",
+            "named": true
+          },
+          {
+            "type": "optional_function_call",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "variable",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "optional_type",
@@ -1299,6 +1570,21 @@
       "types": [
         {
           "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "parenthesized_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type",
           "named": true
         }
       ]
@@ -1627,6 +1913,10 @@
           "named": true
         },
         {
+          "type": "parenthesized_type",
+          "named": true
+        },
+        {
           "type": "primitive_type",
           "named": true
         },
@@ -1936,6 +2226,22 @@
   },
   {
     "type": "?",
+    "named": false
+  },
+  {
+    "type": "?(",
+    "named": false
+  },
+  {
+    "type": "?.",
+    "named": false
+  },
+  {
+    "type": "?:",
+    "named": false
+  },
+  {
+    "type": "?[",
     "named": false
   },
   {

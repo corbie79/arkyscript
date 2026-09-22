@@ -2,8 +2,9 @@
 
 An independent editor grammar extending a pinned, unmodified MIT Lua grammar.
 The Rust compiler remains authoritative for valid syntax and types. This grammar
-recognizes optional types, records, arrays, maps, function signatures, variadic
-parameters/results and export declarations. It recovers while editing incomplete
+recognizes optional and parenthesized types, records, arrays, maps, function
+signatures, variadic parameters/results, class/trait declarations, and optional
+field/index/function/method chains (`?.`, `?[`, `?(`, `?:`). It recovers while editing incomplete
 code. Future language features must add compiler tests and editor fixtures together.
 
 `npm ci && npm run generate` regenerates src/parser.c and src/node-types.json.

@@ -79,3 +79,14 @@ class LspRuntimeTests(unittest.TestCase):
         self.assertEqual(errors[0]['code'], 'T001')
         self.assertEqual(errors[0]['range']['start']['line'], 7)
         self.assertEqual(self.check_buffer('classes.tlj', source.replace('user.name=42', 'user.name="Joon"')), [])
+
+    def test_optional_calls_check_nullable_callback_arguments(self):
+        source = ('--!typecheck strict\n'
+                  'local function invoke(callback:(function(number):number)?):number?\n'
+                  '    return callback?("wrong")\n'
+                  'end\n')
+        errors = self.check_buffer('optional.tlj', source)
+        self.assertTrue(errors)
+        self.assertEqual(errors[0]['code'], 'T001')
+        self.assertEqual(errors[0]['range']['start']['line'], 2)
+        self.assertEqual(self.check_buffer('optional.tlj', source.replace('"wrong"', '42')), [])

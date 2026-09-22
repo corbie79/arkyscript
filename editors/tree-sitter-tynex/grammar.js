@@ -5,6 +5,7 @@ const list = rule => seq(rule, repeat(seq(',', rule)));
 const binding = $ => seq(field('name', $.identifier), optional($.type_annotation));
 export default grammar(lua, {
   name: 'tynex',
+  conflicts: $ => [[$.return_type, $.parenthesized_type]],
   // Keep a malformed member from consuming the next end/trait/class as a bare field.
   reserved: {
     global: _ => ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for',
@@ -14,7 +15,25 @@ export default grammar(lua, {
   },
   rules: {
     identifier: _ => /[A-Za-z_][A-Za-z0-9_]*/,
-    statement: ($, original) => choice(original, $.import_statement, $.try_statement),
+    statement: ($, original) => choice(original, $.import_statement, $.try_statement, $.optional_function_call),
+    expression: ($, original) => choice(original,
+      $.optional_dot_index_expression, $.optional_bracket_index_expression, $.optional_function_call),
+    _prefix_expression: ($, original) => prec(1, choice(original,
+      $.optional_dot_index_expression, $.optional_bracket_index_expression, $.optional_function_call)),
+    optional_dot_index_expression: $ => seq(
+      field('table', $._prefix_expression), '?.', field('field', $.identifier)
+    ),
+    optional_bracket_index_expression: $ => seq(
+      field('table', $._prefix_expression), '?[', field('field', $.expression), ']'
+    ),
+    optional_function_call: $ => choice(
+      seq(field('name', $._prefix_expression), field('arguments', $.optional_arguments)),
+      seq(field('name', $.optional_method_index_expression), field('arguments', $.arguments))
+    ),
+    optional_arguments: $ => seq('?(', optional(list($.expression)), ')'),
+    optional_method_index_expression: $ => seq(
+      field('table', $._prefix_expression), '?:', field('method', $.identifier)
+    ),
     declaration: ($, original) => choice(original, $.export_declaration, $.declare_statement, $.class_declaration, $.trait_declaration),
     class_declaration: $ => seq(
       'class', field('name', $.identifier), optional($.trait_list),
@@ -54,7 +73,8 @@ export default grammar(lua, {
     return_annotation: $ => seq(':', $.return_type),
     return_type: $ => choice($.type, seq('(', optional(list(choice($.type, $.variadic_type))), ')')),
     variadic_type: $ => seq('...', $.type),
-    type: $ => choice($.primitive_type, $.named_type, $.optional_type, $.table_type, $.function_type),
+    type: $ => choice($.primitive_type, $.named_type, $.optional_type, $.table_type, $.function_type, $.parenthesized_type),
+    parenthesized_type: $ => seq('(', $.type, ')'),
     named_type: $ => seq($.identifier, repeat(seq('.', $.identifier))),
     primitive_type: _ => choice('number', 'string', 'boolean', 'nil', 'any'),
     optional_type: $ => prec.left(3, seq($.type, '?')),

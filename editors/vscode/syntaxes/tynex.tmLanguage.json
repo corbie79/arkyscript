@@ -102,6 +102,10 @@
       "match": "\\bself\\b"
     },
     {
+      "name": "keyword.operator.optional.tynex",
+      "match": "\\?(?:[.:]|(?=[\\[(]))"
+    },
+    {
       "include": "#annotation"
     },
     {
@@ -110,7 +114,7 @@
     },
     {
       "name": "entity.name.function.lua",
-      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*\\()"
+      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*\\??\\()"
     },
     {
       "name": "keyword.other.tynex",

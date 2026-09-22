@@ -258,12 +258,26 @@ pub enum ExprKind {
     Binary(String, Box<Expr>, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>),
     MethodCall(Box<Expr>, Vec<u8>, Vec<Expr>),
+    OptionalChain(Box<Expr>, Vec<ChainStep>),
     Varargs,
     Field(Box<Expr>, Vec<u8>),
     Index(Box<Expr>, Box<Expr>),
     Group(Box<Expr>),
     Table(Vec<TableField>),
     Function(Function),
+}
+#[derive(Debug)]
+pub struct ChainStep {
+    pub kind: ChainStepKind,
+    pub optional: bool,
+    pub span: Range<usize>,
+}
+#[derive(Debug)]
+pub enum ChainStepKind {
+    Field(Vec<u8>),
+    Index(Expr),
+    Call(Vec<Expr>),
+    MethodCall(Vec<u8>, Vec<Expr>),
 }
 #[derive(Debug)]
 pub enum TableField {

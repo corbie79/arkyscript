@@ -8,6 +8,7 @@
 | 기본 타입·테이블·함수·다중 반환 | [main.tlj](main.tlj), [control_flow.tlj](control_flow.tlj), [multiple_values.tlj](multiple_values.tlj) | 실행 가능 |
 | 정적 import·선언 전용 파일 | [imports/main.tlj](imports/main.tlj), [legacy.d.tlj](imports/legacy.d.tlj) | 실행 가능, import 재대입 진단 |
 | try / except / else | [exceptions.tlj](exceptions.tlj) | 성공·실패 경로 실행 가능 |
+| nil일 때만 접근·호출 (`?.`, `?[`, `?(`, `?:`) | [optional_chaining.tlj](optional_chaining.tlj) | 실행 가능: 인자 생략·self·다중 반환 유지 |
 | 실제 스레드 병렬 Task | [tasks/](tasks/README.md), [cpp_tasks.cpp](cpp_tasks.cpp) | 실행 가능: 풀·격리·취소·결과; wait는 블로킹 |
 | C++20 class·객체·동적 값 연결 | 아래 C++ 예제와 [Binder API](../binder/README.md) | 실행 가능 |
 | 스크립트 class | [class.tlj](class.tlj), [안내](design/class.md) | 실행 가능: 필수 필드·기본값·메서드·명명 타입 |
@@ -50,6 +51,7 @@ make binder-examples
 ./bin/tynex run examples/multiple_values.tlj
 ./bin/tynex run examples/class.tlj
 ./bin/tynex run examples/traits.tlj
+./bin/tynex run examples/optional_chaining.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/exceptions.tlj
 ./bin/tynex run examples/modules/main.tlj
@@ -60,6 +62,8 @@ make binder-examples
 `multiple_values.tlj`는 현재 지원되는 Lua 테이블 메서드와 다중 반환을, `imports/`는 정적 import·선언 파일·try/except/else를 보여줍니다. 오류 진단 확인용 `type_error.tlj`는 의도적으로 타입 검사가 실패합니다.
 
 `class.tlj`는 필수 필드·기본값·참조 공유를, `traits.tlj`는 필수 메서드·기본 구현·여러 trait 조합·trait 타입 인자를 보여줍니다. 자세한 규칙은 [class·trait](../docs/classes-traits.md)에 있습니다.
+
+`optional_chaining.tlj`는 nil일 때 메서드·콜백 호출과 필드·사전 접근을 생략합니다. 출력은 `Mina 10`, `nil nil`, `done`, `42 nil`이며 값 사이는 탭입니다. [선택적 접근·호출](../docs/optional-chaining.md)에 평가·타입 규칙을 정리했습니다.
 
 ## 확장 문법 — 설계 예제
 

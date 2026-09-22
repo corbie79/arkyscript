@@ -36,8 +36,47 @@ def main():
     outline = run('query', '--captures', QUERIES / 'outline.scm', classes)
     for name in ['Player', 'Named', 'Scorable', 'label', 'describe', 'score', 'active']:
         assert any(' - name,' in line and f'text: `{name}`' in line for line in outline.splitlines()), (name, outline)
+    chaining = GRAMMAR / 'test/fixtures/optional-chaining.tlj'
+    captures = run('query', '--captures', QUERIES / 'highlights.scm', chaining)
+    for kind, text in [('operator', '?.'), ('operator', '?['), ('operator', '?('), ('operator', '?:'),
+                       ('operator', '?'), ('property', 'score'), ('property', 'children'),
+                       ('function', 'callback'), ('function.method', 'update'), ('function.method', 'configure'),
+                       ('function.method', 'label'), ('function.method', 'find'), ('type', 'Player')]:
+        assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in captures.splitlines()), (kind, text, captures)
+    brackets = run('query', '--captures', QUERIES / 'brackets.scm', chaining)
+    for text in ['?(', '?[']:
+        assert any(' - open,' in line and f'text: `{text}`' in line for line in brackets.splitlines()), (text, brackets)
     with tempfile.TemporaryDirectory() as directory:
+        shape_query = Path(directory) / 'optional-shapes.scm'
+        shape_query.write_text('''
+(dot_index_expression
+  table: (parenthesized_expression (optional_dot_index_expression))) @grouped.chain
+(dot_index_expression
+  table: (optional_function_call
+    name: (optional_method_index_expression
+      table: (bracket_index_expression table: (optional_dot_index_expression))))) @mixed.chain
+(optional_type (type (parenthesized_type (type (function_type))))) @optional.callback
+(function_type (return_type (type (optional_type)))) @optional.return
+(return_annotation
+  (return_type (type (optional_type
+    (type (parenthesized_type (type (function_type)))))))) @optional.callback.result
+(return_annotation
+  (return_type (type (optional_type
+    (type (parenthesized_type (type (primitive_type)))))))) @optional.scalar.result
+''')
+        shapes = run('query', '--captures', shape_query, chaining)
+        for kind, text in [('grouped.chain', '(maybe?.child).score'),
+                           ('mixed.chain', 'maybe?.children[index()]?:find("name").score'),
+                           ('optional.callback', '(function(number): number)?'),
+                           ('optional.return', 'function(number): number?'),
+                           ('optional.callback.result', ': (function(number): number)?'),
+                           ('optional.scalar.result', ': (number)?')]:
+            assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in shapes.splitlines()), (kind, text, shapes)
         source = Path(directory) / 'capture.tlj'
+        for invalid_result in ['(number, string)?', '()?']:
+            source.write_text(f'local function invalid(): {invalid_result} return nil end\n')
+            parsed = subprocess.run([str(CLI), 'parse', str(source)], cwd=GRAMMAR, capture_output=True, text=True)
+            assert parsed.returncode != 0 and 'ERROR' in parsed.stdout, (invalid_result, parsed.stdout, parsed.stderr)
         source.write_text('local function add(score: number, amount: number?): number\n'
                           '  -- 한글 😀\n  local text: string = "number"\n'
                           '  return score + amount\nend\n')
@@ -56,6 +95,9 @@ def main():
         captures = run('query', '--captures', QUERIES / 'highlights.scm', source)
         for word in ['Recovery', 'Self']:
             assert any(' - type,' in line and f'text: `{word}`' in line for line in captures.splitlines()), captures
+        source.write_text('local broken = player?.\nlocal next: string = "still highlighted"\n')
+        captures = run('query', '--captures', QUERIES / 'highlights.scm', source)
+        assert any('type.builtin' in line and 'text: `string`' in line for line in captures.splitlines()), captures
     print(f'Tree-sitter highlighting: {len(examples)} examples, {len(fixtures)} editor fixtures, all queries, captures and recovery passed')
 
 

@@ -1,0 +1,28 @@
+--!typecheck strict
+class Player
+   name: string
+   score: number = 0
+
+   function add(amount: number): ()
+      self.score = self.score + amount
+   end
+end
+
+local function update(player: Player?): ()
+   player?:add(10)
+   print(player?.name, player?.score)
+end
+
+update(Player {name="Mina"})
+update(nil)
+
+local function notify(callback: (function(string): ())?): ()
+   callback?("done")
+end
+notify(function(message: string): () print(message) end)
+notify(nil)
+
+local function lookup(values: {[string]: number}?): number?
+   return values?["answer"]
+end
+print(lookup({answer=42}), lookup(nil))

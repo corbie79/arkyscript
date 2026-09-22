@@ -25,6 +25,7 @@ make setup
 ./bin/tynex run examples/multiple_values.tlj
 ./bin/tynex run examples/class.tlj
 ./bin/tynex run examples/traits.tlj
+./bin/tynex run examples/optional_chaining.tlj
 ./bin/tynex run examples/modules/main.tlj
 ./bin/tynex run examples/imports/main.tlj
 ./bin/tynex run examples/tasks/main.tlj
@@ -93,6 +94,8 @@ end
 
 스크립트 `class Player is Named`는 필드와 메서드, trait 계약을 정의합니다. `Player {name="Mina"}`로 만들고 `player:method()`로 호출합니다. 기본값은 생성할 때마다 평가하며 클래스는 이름으로 구분합니다. [class·trait 규칙](docs/classes-traits.md), [클래스 예제](examples/class.tlj), [trait 예제](examples/traits.tlj)를 참고하세요.
 
+`player?.name`, `values?[key]`, `callback?(args)`, `player?:move(args)`는 receiver가 **nil일 때만** 연속된 접근·호출을 건너뜁니다. 건너뛴 인자도 실행하지 않으며 `?:`는 메서드의 self를 유지합니다. nullable 함수 타입은 `(function(number): number)?`로 씁니다. [선택적 접근·호출 규칙](docs/optional-chaining.md), [실행 예제](examples/optional_chaining.tlj)를 참고하세요.
+
 초기 제한: 타입 별칭·제네릭, 사용자 iterator의 정적 분석은 미구현입니다. 조건문·루프 안에서 새 비지역 함수나 메서드를 처음 정의하는 것도 현재는 진단하며, 미리 선언한 함수의 같은 타입 재정의는 가능합니다. 파일당 4096 토큰, 중첩 128 제한을 진단합니다. 표준 API 타입은 일부 기본 함수와 `math`·`string` 함수만 제공하며, 모든 LuaJIT API를 검사하지는 않습니다. 기존 Lua 모듈에는 선언 파일 또는 명시적 `any` 경계를 사용할 수 있습니다. **레거시 선언 파일·`any`·동적 경계에는 런타임 타입 보장이 없으며, 완전한 타입 안전성을 제공하는 단계는 아닙니다.**
 
 `import worker from "worker"`는 검사된 프로젝트 모듈을 전용 로더로 가져오며 가져온 이름의 재대입을 막습니다. `.d.tlj`에는 `declare label: function(string): string`으로 공개 계약을 작성할 수 있습니다. `try … except err then … else … end`는 오류 처리와 성공 경로를 나누고 return·break·다중 반환을 보존합니다. [새 문법과 동작 규칙](docs/imports-exceptions.md), [실행 예제](examples/imports/main.tlj)를 참고하세요.
@@ -148,7 +151,7 @@ declare label: function(string, number): string
 
 `tynex lsp`와 VS Code 로컬 확장을 추가했습니다. 미저장 파일·의존 모듈·선언 파일의 진단을 같은 Rust 검사기로 처리합니다. VS Code 확장 설치와 Zed 연결은 [에디터 안내](docs/editors.md)를 따릅니다. 두 에디터 모두 `.tlj` 전용 타입 구문 강조를 제공합니다. 자동완성·정의 이동은 아직 없습니다.
 
-VS Code·Zed의 **Tynex: mapped modules** 구성은 생성 번들과 원본 소스 맵을 사용합니다. [디버깅 안내](docs/debugging.md)를 따릅니다. macOS ARM64에서 실제 VS Code 확장 호스트와 EmmyLua DAP를 통해 행 이동·모듈 Step Into/Over·Watch·조건부 중단점·오류·재연결을 검증했습니다. Zed 전용 확장은 구문 강조·LSP·소스 맵 디버깅 설정과 WASM 빌드를 제공합니다. [검증 기록](docs/editor-validation.md)에 방식을 구분했습니다. class·match·async 변환과 async 논리 스택은 후속 작업입니다.
+VS Code·Zed의 **Tynex: mapped modules** 구성은 생성 번들과 원본 소스 맵을 사용합니다. [디버깅 안내](docs/debugging.md)를 따릅니다. macOS ARM64에서 실제 VS Code 확장 호스트와 EmmyLua DAP를 통해 행 이동·모듈 Step Into/Over·Watch·조건부 중단점·오류·재연결을 검증했습니다. Zed 전용 확장은 구문 강조·LSP·소스 맵 디버깅 설정과 WASM 빌드를 제공합니다. [검증 기록](docs/editor-validation.md)에 방식을 구분했습니다. 이후 추가한 class·trait·선택적 호출은 자동 테스트로 검증했으며 GUI 세션은 재검증하지 않았습니다. match·async 변환과 async 논리 스택은 후속 작업입니다.
 
 ## 배포 플랫폼과 공식 소스
 
