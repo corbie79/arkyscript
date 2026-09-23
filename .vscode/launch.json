@@ -19,7 +19,7 @@
       "preLaunchTask": "Tynex: build Rust CLI",
       "args": [
         "debug",
-        "examples/main.tlj"
+        "examples/main.luax"
       ],
       "stopOnEntry": false
     },
@@ -27,14 +27,14 @@
       "name": "Tynex: mapped modules",
       "type": "tynex",
       "request": "launch",
-      "entry": "examples/debug/main.tlj",
+      "entry": "examples/debug/main.luax",
       "bundleDirectory": "build/debug/modules"
     },
     {
       "name": "Tynex: import and try",
       "type": "tynex",
       "request": "launch",
-      "entry": "examples/imports/main.tlj",
+      "entry": "examples/imports/main.luax",
       "bundleDirectory": "build/debug/vscode-imports"
     }
   ]

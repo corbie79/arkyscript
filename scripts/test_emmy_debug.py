@@ -80,11 +80,11 @@ def run(backend, core, directory, error=False, extensions=False):
         dap = Dap(adapter)
         capabilities = dap.request('initialize', {'clientID':'tynex-test', 'adapterID':'emmylua_new', 'linesStartAt1':True, 'columnsStartAt1':True, 'pathFormat':'path'})
         dap.request('launch', {'host':'127.0.0.1', 'port':port, 'sourcePaths':[str(directory)], 'ext':['.lua'], 'ideConnectDebugger':True})
-        main = ROOT / 'examples/debug' / ('error.tlj' if error else 'main.tlj')
-        worker = ROOT / 'examples/debug/worker.tlj'
+        main = ROOT / 'examples/debug' / ('error.luax' if error else 'main.luax')
+        worker = ROOT / 'examples/debug/worker.luax'
         if extensions:
-            main = ROOT / 'examples/imports/main.tlj'
-            worker = ROOT / 'examples/imports/worker.tlj'
+            main = ROOT / 'examples/imports/main.luax'
+            worker = ROOT / 'examples/imports/worker.luax'
         first_line = 6 if extensions else 2
         dap.request('setBreakpoints', {'source':{'path':str(main)}, 'breakpoints':[{'line':first_line}]})
         dap.request('configurationDone')
@@ -154,10 +154,10 @@ def main():
     for error in [False, True, False]:
         name = 'error' if error else 'main'
         directory = ROOT / 'build/debug' / ('error' if error else 'modules')
-        subprocess.run([str(CLI), 'bundle', f'examples/debug/{name}.tlj', '--out', str(directory)], cwd=ROOT, check=True)
+        subprocess.run([str(CLI), 'bundle', f'examples/debug/{name}.luax', '--out', str(directory)], cwd=ROOT, check=True)
         results.append(run(args.backend.resolve(), args.core.resolve(), directory, error))
     directory = ROOT / 'build/debug/imports'
-    subprocess.run([str(CLI), 'bundle', 'examples/imports/main.tlj', '--out', str(directory)], cwd=ROOT, check=True)
+    subprocess.run([str(CLI), 'bundle', 'examples/imports/main.luax', '--out', str(directory)], cwd=ROOT, check=True)
     results.append(run(args.backend.resolve(), args.core.resolve(), directory, extensions=True))
     destination = ROOT / 'build/editor-test/emmy-mapped-result.json'
     destination.write_text(json.dumps(results, indent=2))

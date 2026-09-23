@@ -3,10 +3,10 @@ setup:
 	python3 scripts/bootstrap.py
 
 check:
-	./bin/tynex check examples/main.tlj
+	./bin/tynex check examples/main.luax
 
 run:
-	./bin/tynex run examples/main.tlj
+	./bin/tynex run examples/main.luax
 
 test:
 	cargo test --workspace --locked

@@ -85,7 +85,7 @@ local function local_candidate(name)
    local stem = name:gsub("%.", "/")
    for _, root in ipairs(manifest.roots) do
       local selected
-      for _, suffix in ipairs({".tlj", "/init.tlj", ".lua", "/init.lua"}) do
+      for _, suffix in ipairs({".luax", "/init.luax", ".lua", "/init.lua"}) do
          local path = root .. "/" .. stem .. suffix
          local file = io.open(path, "rb")
          if file then
@@ -142,7 +142,7 @@ table.insert(package.loaders, 2, function(name)
       end
    end
    local candidate = local_candidate(name)
-   if candidate and candidate:sub(-4)==".tlj" then
+   if candidate and candidate:sub(-5)==".luax" then
       error("typed module '" .. name .. "' was not prepared; add it to dynamic_modules", 2)
    end
    return "\n\tno prepared Tynex module '" .. tostring(name) .. "'"

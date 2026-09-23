@@ -53,16 +53,16 @@ class LspRuntimeTests(unittest.TestCase):
 
     def test_static_import_types_and_named_declarations_in_unsaved_buffer(self):
         self.file('api.lua', 'error("MODULE MUST NOT RUN")')
-        self.file('api.d.tlj', 'declare n: number')
+        self.file('api.d.luax', 'declare n: number')
         source='import api from "api"\ntry\n  local n:string=api.n\nexcept err then print(err) end'
-        errors=self.check_buffer('main.tlj',source)
+        errors=self.check_buffer('main.luax',source)
         self.assertEqual(errors[0]['code'],'T001')
         self.assertEqual(errors[0]['range']['start']['line'],2)
-        self.assertEqual(self.check_buffer('main.tlj',source.replace('n:string','n:number')),[])
+        self.assertEqual(self.check_buffer('main.luax',source.replace('n:string','n:number')),[])
 
     def test_named_declaration_buffer_rejects_executable_code(self):
-        self.assertEqual(self.check_buffer('host.d.tlj','declare n: number'),[])
-        errors=self.check_buffer('host.d.tlj','declare n: number = 1')
+        self.assertEqual(self.check_buffer('host.d.luax','declare n: number'),[])
+        errors=self.check_buffer('host.d.luax','declare n: number = 1')
         self.assertEqual(errors[0]['code'],'P001')
 
     def test_class_and_trait_diagnostics_in_unsaved_buffer(self):
@@ -74,22 +74,22 @@ class LspRuntimeTests(unittest.TestCase):
                   'end\n'
                   'local user=User {name="Mina"}\n'
                   'user.name=42\n')
-        errors = self.check_buffer('classes.tlj', source)
+        errors = self.check_buffer('classes.luax', source)
         self.assertTrue(errors)
         self.assertEqual(errors[0]['code'], 'T001')
         self.assertEqual(errors[0]['range']['start']['line'], 7)
-        self.assertEqual(self.check_buffer('classes.tlj', source.replace('user.name=42', 'user.name="Joon"')), [])
+        self.assertEqual(self.check_buffer('classes.luax', source.replace('user.name=42', 'user.name="Joon"')), [])
 
     def test_optional_calls_check_nullable_callback_arguments(self):
         source = ('--!typecheck strict\n'
                   'local function invoke(callback:(function(number):number)?):number?\n'
                   '    return callback?("wrong")\n'
                   'end\n')
-        errors = self.check_buffer('optional.tlj', source)
+        errors = self.check_buffer('optional.luax', source)
         self.assertTrue(errors)
         self.assertEqual(errors[0]['code'], 'T001')
         self.assertEqual(errors[0]['range']['start']['line'], 2)
-        self.assertEqual(self.check_buffer('optional.tlj', source.replace('"wrong"', '42')), [])
+        self.assertEqual(self.check_buffer('optional.luax', source.replace('"wrong"', '42')), [])
 
     def test_async_results_and_await_are_checked_in_unsaved_buffer(self):
         source = ('--!typecheck strict\n'
@@ -97,8 +97,8 @@ class LspRuntimeTests(unittest.TestCase):
                   'local async function main():string\n'
                   '    return await fetch()\n'
                   'end\n')
-        errors = self.check_buffer('async.tlj', source)
+        errors = self.check_buffer('async.luax', source)
         self.assertTrue(errors)
         self.assertEqual(errors[0]['code'], 'T001')
         self.assertEqual(errors[0]['range']['start']['line'], 3)
-        self.assertEqual(self.check_buffer('async.tlj', source.replace('main():string', 'main():number')), [])
+        self.assertEqual(self.check_buffer('async.luax', source.replace('main():string', 'main():number')), [])

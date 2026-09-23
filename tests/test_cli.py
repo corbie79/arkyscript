@@ -41,12 +41,12 @@ class RustLuaJITTests(unittest.TestCase):
                               env=environment, capture_output=True, text=True, timeout=30)
 
     def test_typed_example_executes(self):
-        result = self.cli("run", ROOT / "examples/main.tlj")
+        result = self.cli("run", ROOT / "examples/main.luax")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "LuaJIT score: 15\n")
 
     def test_table_control_flow_example_executes(self):
-        result = self.cli("run", ROOT / "examples/control_flow.tlj")
+        result = self.cli("run", ROOT / "examples/control_flow.luax")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "Mina: 60\nhigh\tmissing\n5\t0\n")
 
@@ -66,7 +66,7 @@ class RustLuaJITTests(unittest.TestCase):
         for index, source in enumerate(cases):
             with self.subTest(index=index):
                 lua = self.file(f"reference{index}.lua", source)
-                typed = self.file(f"checked{index}.tlj", source)
+                typed = self.file(f"checked{index}.luax", source)
                 stock = subprocess.run([str(LUAJIT), str(lua)], capture_output=True, text=True, timeout=10)
                 result = self.cli("run", typed)
                 self.assertEqual(stock.returncode, 0, stock.stderr)
@@ -74,7 +74,7 @@ class RustLuaJITTests(unittest.TestCase):
                 self.assertEqual(result.stdout, stock.stdout)
 
     def test_multiple_values_example_executes(self):
-        result = self.cli("run", ROOT / "examples/multiple_values.tlj")
+        result = self.cli("run", ROOT / "examples/multiple_values.luax")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "60\t3\n5\tnil\n")
 
@@ -101,7 +101,7 @@ class RustLuaJITTests(unittest.TestCase):
         for index, source in enumerate(cases):
             with self.subTest(index=index):
                 lua = self.file(f"values_reference{index}.lua", source)
-                typed = self.file(f"values_checked{index}.tlj", source)
+                typed = self.file(f"values_checked{index}.luax", source)
                 stock = subprocess.run([str(LUAJIT), str(lua)], capture_output=True, text=True, timeout=10)
                 result = self.cli("run", typed)
                 self.assertEqual(stock.returncode, 0, stock.stderr)
@@ -115,14 +115,14 @@ class RustLuaJITTests(unittest.TestCase):
             "local m={n=0} function m:f(n:number) self.n=n end m:f('s')",
             "local function f(): (number,string) return 1 end",
         ]):
-            source = self.file(f"values_bad{index}.tlj", "print('MUST NOT RUN')\n" + code)
+            source = self.file(f"values_bad{index}.luax", "print('MUST NOT RUN')\n" + code)
             for command in ("check", "gen", "run", "debug"):
                 result = self.cli(command, source)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(result.stdout, "")
 
     def test_method_debug_hook_preserves_self_arguments_and_multi_locals(self):
-        source = ROOT / "examples/multiple_values.tlj"
+        source = ROOT / "examples/multiple_values.luax"
         probe = self.file("method_probe.lua", '''
             jit.off()
             debug.sethook(function(_, line)
@@ -152,13 +152,13 @@ class RustLuaJITTests(unittest.TestCase):
             "for i='bad',3 do print(i) end",
         ]
         for index, code in enumerate(cases):
-            source = self.file(f"bad{index}.tlj", "print('MUST NOT EXECUTE')\n"+code)
+            source = self.file(f"bad{index}.luax", "print('MUST NOT EXECUTE')\n"+code)
             result = self.cli("run", source)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(result.stdout, "")
 
     def test_loop_debug_hook_sees_original_table_and_iterator_locals(self):
-        source = ROOT / "examples/control_flow.tlj"
+        source = ROOT / "examples/control_flow.luax"
         probe = self.file("loop_probe.lua", '''
             jit.off()
             debug.sethook(function(_, line)
@@ -181,13 +181,13 @@ class RustLuaJITTests(unittest.TestCase):
         self.assertEqual(result.stderr.count("LOOP_HOOK_OK"), 3)
 
     def test_gradual_accepts_untyped_parameters(self):
-        source = self.file("main.tlj", "local function twice(x) return x*2 end print(twice(21))")
+        source = self.file("main.luax", "local function twice(x) return x*2 end print(twice(21))")
         result = self.cli("run", source)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "42\n")
 
     def test_known_type_error_blocks_every_command_and_lua_init(self):
-        source = self.file("bad.tlj", "print('MUST NOT EXECUTE')\nlocal n: number = 'bad'")
+        source = self.file("bad.luax", "print('MUST NOT EXECUTE')\nlocal n: number = 'bad'")
         for command in ("check", "gen", "run", "debug"):
             result = self.cli(command, source, env={"LUA_INIT": "print('INIT MUST NOT EXECUTE')"})
             self.assertNotEqual(result.returncode, 0)
@@ -230,13 +230,13 @@ class RustLuaJITTests(unittest.TestCase):
 
     def test_legacy_import_from_strict_typed_code_uses_explicit_any_boundary(self):
         self.file("legacy.lua", "return { double = function(x) return x*2 end }")
-        source = self.file("main.tlj", "--!typecheck strict\nlocal lib: any = require('legacy')\nprint(lib.double(21))")
+        source = self.file("main.luax", "--!typecheck strict\nlocal lib: any = require('legacy')\nprint(lib.double(21))")
         result = self.cli("run", source)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "42\n")
 
     def test_generated_lua_executes_in_unmodified_engine(self):
-        result = self.cli("gen", ROOT / "examples/main.tlj")
+        result = self.cli("gen", ROOT / "examples/main.luax")
         self.assertEqual(result.returncode, 0, result.stderr)
         generated = self.file("output.lua", result.stdout)
         executed = subprocess.run([str(LUAJIT), str(generated)], capture_output=True, text=True)
@@ -253,7 +253,7 @@ class RustLuaJITTests(unittest.TestCase):
         ]
         for index, code in enumerate(cases):
             with self.subTest(index=index):
-                source = self.file(f"case{index}.tlj", code)
+                source = self.file(f"case{index}.luax", code)
                 result = self.cli("gen", source)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 generated = self.file(f"case{index}.lua", result.stdout)
@@ -261,13 +261,13 @@ class RustLuaJITTests(unittest.TestCase):
                 self.assertEqual(checked.returncode, 0, checked.stderr)
 
     def test_typed_runtime_errors_use_original_source_lines(self):
-        source = self.file("crash.tlj", "local n: number = 1\nerror('runtime marker')")
+        source = self.file("crash.luax", "local n: number = 1\nerror('runtime marker')")
         result = self.cli("run", source)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("crash.tlj:2: runtime marker", result.stderr)
+        self.assertIn("crash.luax:2: runtime marker", result.stderr)
 
     def test_debug_hooks_see_original_file_locals_and_stack(self):
-        source = self.file("hook.tlj", '''
+        source = self.file("hook.luax", '''
             local function double(value: number): number
                local total = value * 2
                return total
@@ -296,24 +296,24 @@ class RustLuaJITTests(unittest.TestCase):
         self.assertIn("HOOK_OK", result.stderr)
 
     def test_debug_without_adapter_does_not_run_entry(self):
-        result = self.cli("debug", ROOT / "examples/main.tlj")
+        result = self.cli("debug", ROOT / "examples/main.luax")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
         self.assertIn("docs/debugging.md", result.stderr)
 
     def test_unicode_and_spaces_in_source_path(self):
-        source = self.file("한글 경로/main.tlj", "print('hello')")
+        source = self.file("한글 경로/main.luax", "print('hello')")
         result = self.cli("run", source)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "hello\n")
 
     @unittest.skipIf(os.name == "nt", "requires local symlink creation permissions")
     def test_symlink_parent_resolution_uses_filesystem_semantics(self):
-        self.file("inner/main.tlj", "print('wrong')")
-        self.file("elsewhere/main.tlj", "print('expected')")
+        self.file("inner/main.luax", "print('wrong')")
+        self.file("elsewhere/main.luax", "print('expected')")
         (self.directory / "elsewhere/target").mkdir()
         (self.directory / "inner/link").symlink_to(self.directory / "elsewhere/target")
-        result = self.cli("run", self.directory / "inner/link/../main.tlj")
+        result = self.cli("run", self.directory / "inner/link/../main.luax")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "expected\n")
 

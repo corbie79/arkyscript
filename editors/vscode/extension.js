@@ -17,7 +17,7 @@ async function activate(context) {
         async resolveDebugConfigurationWithSubstitutedVariables(folder, config) {
             const root = folder?.uri.fsPath;
             if (!root) throw new Error('Open a project folder for Tynex debugging.');
-            if (!config.entry) throw new Error('Set entry to the .tlj or .lua entry file.');
+            if (!config.entry) throw new Error('Set entry to the .luax or .lua entry file.');
             if (vscode.workspace.textDocuments.some(d=>d.isDirty && !d.isUntitled && d.uri.fsPath.startsWith(root+path.sep))) {
                 throw new Error('Save project changes before building the Tynex debug bundle.');
             }

@@ -23,18 +23,18 @@ fn cli_overrides_directive_and_last_matching_glob_overrides_project_default() {
     file(
         &dir,
         "tynex.toml",
-        "type_mode = 'strict'\n[[overrides]]\nfiles=['**/*.tlj']\nmode='strict'\n[[overrides]]\nfiles=['new/**/*.tlj']\nmode='gradual'\n",
+        "type_mode = 'strict'\n[[overrides]]\nfiles=['**/*.luax']\nmode='strict'\n[[overrides]]\nfiles=['new/**/*.luax']\nmode='gradual'\n",
     );
-    file(&dir, "new/main.tlj", "local function f(x) return x end");
-    assert!(check(&dir, "new/main.tlj", &[]).status.success());
+    file(&dir, "new/main.luax", "local function f(x) return x end");
+    assert!(check(&dir, "new/main.luax", &[]).status.success());
     file(
         &dir,
-        "new/main.tlj",
+        "new/main.luax",
         "--!typecheck strict\nlocal function f(x) return x end",
     );
-    assert!(!check(&dir, "new/main.tlj", &[]).status.success());
+    assert!(!check(&dir, "new/main.luax", &[]).status.success());
     assert!(
-        check(&dir, "new/main.tlj", &["--mode", "gradual"])
+        check(&dir, "new/main.luax", &["--mode", "gradual"])
             .status
             .success()
     );
@@ -44,10 +44,10 @@ fn nearest_config_and_explicit_project_are_deterministic() {
     let dir = TempDir::new().unwrap();
     file(&dir, "tynex.toml", "type_mode = 'strict'\n");
     file(&dir, "nested/tynex.toml", "type_mode = 'gradual'\n");
-    file(&dir, "nested/main.tlj", "local function f(x) return x end");
-    assert!(check(&dir, "nested/main.tlj", &[]).status.success());
+    file(&dir, "nested/main.luax", "local function f(x) return x end");
+    assert!(check(&dir, "nested/main.luax", &[]).status.success());
     assert!(
-        !check(&dir, "nested/main.tlj", &["--project", "tynex.toml"])
+        !check(&dir, "nested/main.luax", &["--project", "tynex.toml"])
             .status
             .success()
     );
@@ -55,14 +55,14 @@ fn nearest_config_and_explicit_project_are_deterministic() {
 #[test]
 fn malformed_configuration_does_not_fall_back_to_a_looser_mode() {
     let dir = TempDir::new().unwrap();
-    file(&dir, "main.tlj", "print(1)");
+    file(&dir, "main.luax", "print(1)");
     for config in [
         "type_mode = 'typo'",
         "type_mdoe = 'strict'",
         "[[overrides]]\nfiles=['[']\nmode='strict'",
     ] {
         file(&dir, "tynex.toml", config);
-        assert!(!check(&dir, "main.tlj", &[]).status.success());
+        assert!(!check(&dir, "main.luax", &[]).status.success());
     }
 }
 #[test]
@@ -70,16 +70,16 @@ fn comments_in_long_strings_are_not_mode_directives() {
     let dir = TempDir::new().unwrap();
     file(
         &dir,
-        "main.tlj",
+        "main.luax",
         "local s=[=[\n--!typecheck strict\n]=]\nlocal function f(x) return x end",
     );
-    assert!(check(&dir, "main.tlj", &[]).status.success());
+    assert!(check(&dir, "main.luax", &[]).status.success());
 }
 #[test]
 fn json_type_diagnostics_have_code_mode_and_original_location() {
     let dir = TempDir::new().unwrap();
-    file(&dir, "main.tlj", "-- hello\nlocal n: number = 'bad'");
-    let output = check(&dir, "main.tlj", &["--format", "json"]);
+    file(&dir, "main.luax", "-- hello\nlocal n: number = 'bad'");
+    let output = check(&dir, "main.luax", &["--format", "json"]);
     assert!(!output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["diagnostics"][0]["code"], "T001");
@@ -90,13 +90,27 @@ fn json_type_diagnostics_have_code_mode_and_original_location() {
 fn retired_teal_and_invalid_legacy_selection_are_explicit_errors() {
     let dir = TempDir::new().unwrap();
     file(&dir, "main.tl", "print(1)");
-    file(&dir, "main.tlj", "print(1)");
+    file(&dir, "main.luax", "print(1)");
     let output = check(&dir, "main.tl", &[]);
     assert!(String::from_utf8_lossy(&output.stderr).contains("Teal .tl support has been retired"));
     assert!(
-        !check(&dir, "main.tlj", &["--mode", "legacy"])
+        !check(&dir, "main.luax", &["--mode", "legacy"])
             .status
             .success()
+    );
+}
+
+#[test]
+fn luax_is_the_canonical_typed_extension_and_tlj_is_not_an_alias() {
+    let dir = TempDir::new().unwrap();
+    let source = "local value: number = 42";
+    file(&dir, "main.luax", source);
+    assert!(check(&dir, "main.luax", &[]).status.success());
+    file(&dir, "main.tlj", source);
+    let output = check(&dir, "main.tlj", &[]);
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("expected a .lua or .luax source file")
     );
 }
 
@@ -105,10 +119,10 @@ fn bundled_class_maps_and_runtime_manifest_share_helper_offsets() {
     let dir = TempDir::new().unwrap();
     let source =
         "class Item\n function fail(): ()\n  error('method failure')\n end\nend\nItem {}:fail()\n";
-    file(&dir, "main.tlj", source);
+    file(&dir, "main.luax", source);
     let result = Command::new(env!("CARGO_BIN_EXE_tynex"))
         .current_dir(dir.path())
-        .args(["bundle", "main.tlj", "--out", "bundle"])
+        .args(["bundle", "main.luax", "--out", "bundle"])
         .output()
         .unwrap();
     assert!(

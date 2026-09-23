@@ -18,7 +18,7 @@ class AsyncIOTests(unittest.TestCase):
     lua = runtime_support.AsyncRuntimeTests.lua
 
     def run_source(self, source, expected=None):
-        result = self.cli('run', self.file('main.tlj', '--!typecheck strict\n' + source))
+        result = self.cli('run', self.file('main.luax', '--!typecheck strict\n' + source))
         self.assertEqual(result.returncode, 0, result.stderr)
         if expected is not None:
             self.assertEqual(result.stdout, expected)
@@ -332,11 +332,11 @@ class AsyncIOTests(unittest.TestCase):
         self.run_source(source, 'rejected\n' * len(expressions) + '0\n')
 
     def test_file_example_and_bundle(self):
-        example = support.ROOT / 'examples/io/files.tlj'
+        example = support.ROOT / 'examples/io/files.luax'
         result = self.cli('run', example)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, 'first\t6\nsecond\t7\n')
-        path = self.file('bundle.tlj', '''
+        path = self.file('bundle.luax', '''
             local async function main(): string return await fs.read_file('bundle-data.txt') end
             print(scheduler.run(main()))
         ''')
@@ -349,7 +349,7 @@ class AsyncIOTests(unittest.TestCase):
         self.assertEqual(result.stdout, 'bundled IO\n')
 
     def test_io_error_bundle_trace_includes_original_await_line(self):
-        path = self.file('io-error.tlj', '''
+        path = self.file('io-error.luax', '''
             local async function load(): string
                 return await fs.read_file('does-not-exist')
             end

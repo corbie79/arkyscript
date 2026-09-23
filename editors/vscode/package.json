@@ -40,10 +40,10 @@
         "id": "tynex",
         "aliases": [
           "Tynex",
-          "tlj"
+          "luax"
         ],
         "extensions": [
-          ".tlj"
+          ".luax"
         ],
         "configuration": "./language-configuration.json"
       }

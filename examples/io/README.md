@@ -4,7 +4,7 @@
 
 ```sh
 make setup
-./bin/tynex run examples/io/files.tlj
+./bin/tynex run examples/io/files.luax
 ```
 
 출력은 다음과 같습니다. 값 사이는 탭입니다.
@@ -14,7 +14,7 @@ first	6
 second	7
 ```
 
-`files.tlj`는 읽기 두 개를 먼저 시작한 뒤 `await`로 결과를 받습니다. `first.txt`와 `second.txt`는 마지막 개행을 포함합니다. 경로는 CLI가 제공하는 원본 `arg[0]`을 기준으로 계산하므로 다른 작업 디렉터리에서도 실행할 수 있습니다. `args.lua`와 `args.d.tlj`는 표준 Lua 인자 테이블에 대한 작은 선언 경계입니다.
+`files.luax`는 읽기 두 개를 먼저 시작한 뒤 `await`로 결과를 받습니다. `first.txt`와 `second.txt`는 마지막 개행을 포함합니다. 경로는 CLI가 제공하는 원본 `arg[0]`을 기준으로 계산하므로 다른 작업 디렉터리에서도 실행할 수 있습니다. `args.lua`와 `args.d.luax`는 표준 Lua 인자 테이블에 대한 작은 선언 경계입니다.
 
 TCP 예제는 로컬 echo 서버를 사용합니다. 첫 번째 터미널에서 서버를 시작합니다.
 
@@ -25,7 +25,7 @@ python3 examples/io/echo_server.py
 두 번째 터미널에서 클라이언트를 실행합니다.
 
 ```sh
-./bin/tynex run examples/io/tcp.tlj
+./bin/tynex run examples/io/tcp.luax
 ```
 
 ```text

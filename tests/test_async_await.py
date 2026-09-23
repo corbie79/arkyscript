@@ -13,7 +13,7 @@ class AsyncAwaitTests(unittest.TestCase):
     cli = support.RustLuaJITTests.cli
 
     def run_source(self, source, expected):
-        path = self.file('main.tlj', source)
+        path = self.file('main.luax', source)
         result = self.cli('run', path)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, expected)
@@ -21,8 +21,8 @@ class AsyncAwaitTests(unittest.TestCase):
 
     def test_shipped_examples(self):
         for source, expected in [
-            ('examples/async.tlj', 'scheduled\tqueued\nresult\t72\nframe result\t20\n'),
-            ('examples/tasks/async.tlj', 'Async worker sum: 250015000\n'),
+            ('examples/async.luax', 'scheduled\tqueued\nresult\t72\nframe result\t20\n'),
+            ('examples/tasks/async.luax', 'Async worker sum: 250015000\n'),
         ]:
             with self.subTest(source=source):
                 result = self.cli('run', support.ROOT / source)
@@ -136,7 +136,7 @@ class AsyncAwaitTests(unittest.TestCase):
         ''', '42\nskipped\n')
 
     def test_imports_share_scheduler_and_task_type_metadata(self):
-        self.file('provider.tlj', '''
+        self.file('provider.luax', '''
             local async function get():number return 42 end
             return {get=get,pending=get()}
         ''')
@@ -166,7 +166,7 @@ class AsyncAwaitTests(unittest.TestCase):
     def test_native_await_returns_control_before_job_finishes(self):
         self.file('tynex.toml','type_mode="strict"\nexternal_modules=["tynex_task"]\n[[overrides]]\nfiles=["*.lua"]\nmode="legacy"\n')
         self.file('task.lua','return require("tynex_task")')
-        self.file('task.d.tlj','declare spawn:function(function(any,any):any,any):any\ndeclare shutdown:function():()')
+        self.file('task.d.luax','declare spawn:function(function(any,any):any,any):any\ndeclare shutdown:function():()')
         release=self.directory/'release'
         self.file('host.lua', '''
             return {
@@ -183,7 +183,7 @@ class AsyncAwaitTests(unittest.TestCase):
                 end
             }
         '''.replace('PATH',json.dumps(str(release))))
-        self.file('host.d.tlj','declare release:function():()\ndeclare work:function(any,any):any')
+        self.file('host.d.luax','declare release:function():()\ndeclare work:function(any,any):any')
         self.run_source('''
             --!typecheck strict
             import task from "task"
@@ -214,7 +214,7 @@ class AsyncAwaitTests(unittest.TestCase):
         for mode in ('gradual','strict'):
             for source in cases:
                 with self.subTest(mode=mode,source=source):
-                    path=self.file('invalid.tlj','print("MUST NOT RUN")\n'+source)
+                    path=self.file('invalid.luax','print("MUST NOT RUN")\n'+source)
                     result=self.cli('run',path,'--mode',mode)
                     self.assertNotEqual(result.returncode,0)
                     self.assertNotIn('MUST NOT RUN',result.stdout)
@@ -223,7 +223,7 @@ class AsyncAwaitTests(unittest.TestCase):
         source='local async function fail():number\n   error("ASYNC_FAILURE")\nend\nlocal async function main():number\n   return await fail()\nend\nscheduler.run(main())\n'
         for newline in ('\n','\r\n'):
             with self.subTest(newline=repr(newline)):
-                path=self.directory/'errors.tlj'
+                path=self.directory/'errors.luax'
                 path.write_bytes(source.replace('\n',newline).encode())
                 generated=self.cli('gen',path)
                 self.assertEqual(generated.returncode,0,generated.stderr)

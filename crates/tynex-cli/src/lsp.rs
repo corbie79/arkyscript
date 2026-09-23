@@ -137,7 +137,7 @@ impl Server {
                 out,
                 json!({"jsonrpc":"2.0","id":"tynex-watch","method":"client/registerCapability","params":{
                     "registrations":[{"id":"tynex-files","method":"workspace/didChangeWatchedFiles","registerOptions":{
-                        "watchers":[{"globPattern":"**/*.tlj","kind":7},{"globPattern":"**/*.lua","kind":7},{"globPattern":"**/tynex.toml","kind":7}]
+                        "watchers":[{"globPattern":"**/*.luax","kind":7},{"globPattern":"**/*.lua","kind":7},{"globPattern":"**/tynex.toml","kind":7}]
                     }}]
                 }}),
             )?;
@@ -327,9 +327,9 @@ fn document_path(uri: &str) -> Result<PathBuf, String> {
         .map_err(|_| "only local file documents are supported")?;
     if !matches!(
         path.extension().and_then(|x| x.to_str()),
-        Some("lua" | "tlj")
+        Some("lua" | "luax")
     ) {
-        return Err("expected .lua or .tlj document".into());
+        return Err("expected .lua or .luax document".into());
     }
     pathutil::source_path(&path).map_err(|e| e.to_string())
 }

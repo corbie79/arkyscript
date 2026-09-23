@@ -57,7 +57,7 @@ impl Project {
         let anchor = entry.clone().unwrap_or(
             std::env::current_dir()
                 .map_err(|e| e.to_string())?
-                .join("__project__.tlj"),
+                .join("__project__.luax"),
         );
         let config = Config::load(&anchor, explicit)?;
         if entry.is_none() && config.file.is_none() {
@@ -163,7 +163,7 @@ impl Project {
                 && self.config.include.is_match(relative)
                 && matches!(
                     path.extension().and_then(|x| x.to_str()),
-                    Some("lua" | "tlj")
+                    Some("lua" | "luax")
                 )
             {
                 files.push(pathutil::canonicalize(&path).map_err(|e| e.to_string())?);
@@ -181,8 +181,8 @@ impl Project {
         let stem = name.replace('.', "/");
         for root in &self.search {
             let candidates = [
-                format!("{stem}.tlj"),
-                format!("{stem}/init.tlj"),
+                format!("{stem}.luax"),
+                format!("{stem}/init.luax"),
                 format!("{stem}.lua"),
                 format!("{stem}/init.lua"),
             ];
@@ -268,7 +268,7 @@ impl Project {
         } else if mode != Mode::Legacy {
             let text =
                 std::str::from_utf8(&source).map_err(|e| format!("{}: {e}", path.display()))?;
-            match prepare(text, path.extension().is_some_and(|s| s == "tlj")) {
+            match prepare(text, path.extension().is_some_and(|s| s == "luax")) {
                 Err(errors) => self.diagnostics(path, mode, text, errors),
                 Ok(prepared) => {
                     let mut imports = BTreeMap::new();
@@ -363,14 +363,14 @@ impl Project {
         // Declarations describe opaque legacy exports; they never execute or
         // pretend that the legacy implementation has been statically verified.
         if mode == Mode::Legacy && !declaration_file {
-            let stub = path.with_extension("d.tlj");
+            let stub = path.with_extension("d.luax");
             if self.exists(&stub) {
                 let stub = pathutil::source_path(&stub).map_err(|e| e.to_string())?;
                 if let Some(value) = self.visit(&stub)? {
                     interface = value;
                 }
             }
-        } else if !declaration_file && self.exists(&path.with_extension("d.tlj")) {
+        } else if !declaration_file && self.exists(&path.with_extension("d.luax")) {
             self.issue(path.into(), &mode.to_string(), "M104", "sidecar declarations are only supported for legacy .lua implementations; typed exports are inferred".into(), (1,1));
         }
         self.visiting.pop();
@@ -431,5 +431,5 @@ impl Project {
 pub fn is_declaration(path: &Path) -> bool {
     path.file_name()
         .and_then(|s| s.to_str())
-        .is_some_and(|s| s.ends_with(".d.tlj"))
+        .is_some_and(|s| s.ends_with(".d.luax"))
 }

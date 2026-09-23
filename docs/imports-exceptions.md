@@ -1,9 +1,9 @@
 # import, 선언 파일, 예외 처리
 
-공식 LuaJIT 소스를 수정하지 않고 Rust 컴파일러와 프로젝트 로더에서 제공한다. `.tlj`의 gradual/strict에서 사용할 수 있다. 기존 `.lua`의 legacy 실행과 `require`는 유지한다. 실행 예제:
+공식 LuaJIT 소스를 수정하지 않고 Rust 컴파일러와 프로젝트 로더에서 제공한다. `.luax`의 gradual/strict에서 사용할 수 있다. 기존 `.lua`의 legacy 실행과 `require`는 유지한다. 실행 예제:
 
 ```sh
-./bin/tynex run examples/imports/main.tlj
+./bin/tynex run examples/imports/main.luax
 ```
 
 출력은 `score: 42`다.
@@ -25,17 +25,17 @@ local score = worker.double(21)
 - import는 한 반환값을 사용하고, 빈 반환/nil은 `true`다. `false`도 캐시하며 성공한 초기화는 반복하지 않는다. 오류가 난 초기화는 캐시하지 않아 다시 시도할 수 있다.
 - 검사된 로더를 통해 먼저 require한 값은 import에서 재사용한다. 먼저 import한 값도 이후 검사된 require 로더가 재사용한다. 외부에서 조작한 공개 캐시는 import가 신뢰하지 않는다.
 - `require`만 쓰는 기존 코드의 `false` 재로딩·`module()` 등록·외부 모듈 로딩은 유지한다. import로 옮길 레거시 모듈은 공개 값을 명시적으로 반환해야 한다.
-- 현재 import 대상은 구현 파일이 있는 프로젝트 `.tlj/.lua` 모듈이다. 호스트/C/preload 전용 모듈은 `require`와 `external_modules`를 사용한다. 정적 import에 구현이 없으면 `M110` 오류다.
+- 현재 import 대상은 구현 파일이 있는 프로젝트 `.luax/.lua` 모듈이다. 호스트/C/preload 전용 모듈은 `require`와 `external_modules`를 사용한다. 정적 import에 구현이 없으면 `M110` 오류다.
 - 조건문이나 함수 안의 import도 의존성은 미리 검사한다. 실제 초기화는 해당 문장이 실행될 때 일어난다.
 
 `gen`은 진입 파일만 변환한다. import가 있는 생성 Lua에는 프로젝트 전용 로더가 필요하며 임의의 전역 require로 대체하지 않는다. `run`, `debug` 또는 `bundle`/`exec-bundle`을 사용한다. 현재 번들은 원본/생성 파일의 절대 경로를 사용하는 로컬 산출물이다.
 
-## 선언 전용 .d.tlj
+## 선언 전용 .d.luax
 
-원본 `legacy.lua` 옆에 `legacy.d.tlj`를 둔다.
+원본 `legacy.lua` 옆에 `legacy.d.luax`를 둔다.
 
 ```lua
--- legacy.d.tlj
+-- legacy.d.luax
 declare label: function(string, number): string
 declare version: string
 declare read: function(string): (string?, string?)

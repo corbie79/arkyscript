@@ -53,7 +53,7 @@ int result = lua.call<int>("sum", 20, 22);
 - `reg_func`, `reg_var`, `reg_prop`은 메서드·멤버·프로퍼티를 등록합니다. const 메서드는 그대로 유지됩니다. getter만 등록한 프로퍼티와 const 멤버는 읽기 전용입니다. 알 수 없는 멤버 쓰기와 메서드/프로퍼티 이름 충돌은 오류입니다. 같은 종류의 멤버 재등록은 교체입니다.
 - `set_var/get_var<T>`, `call<R>(name, args...)`로 값을 주고받습니다. `R` 생략은 반환값을 버립니다. 현재 반환값은 하나이며, 함수 인자 개수는 정확히 맞아야 합니다.
 - `set_namespace("app.math")`로 등록·조회·호출 경로를 지정합니다. `"app.math.sum"` 같은 경로도 직접 사용할 수 있습니다. 경로 조회는 일반 테이블을 사용하며 `__index` 등 메타메서드를 호출하지 않습니다.
-- `dostring(source)`, `dobuffer(source, chunk_name)`, `dofile(path)`는 Lua를 실행합니다. 타입 문법을 사용하는 `.tlj` 소스는 Tynex 컴파일러로 먼저 Lua로 변환합니다.
+- `dostring(source)`, `dobuffer(source, chunk_name)`, `dofile(path)`는 Lua를 실행합니다. 타입 문법을 사용하는 `.luax` 소스는 Tynex 컴파일러로 먼저 Lua로 변환합니다.
 
 지원 값은 bool·숫자·C++ enum·문자열·`std::optional<T>`·`std::vector<T>`·등록된 클래스와 해당 클래스의 `std::shared_ptr<T>`입니다. `std::string`과 `std::string_view`는 문자열 안의 NUL도 유지합니다. 숫자/문자열/bool 사이의 암묵 변환은 하지 않으며, 정수는 **±(2^53−1)**과 목적 C++ 타입 범위를 검사합니다. Lua number가 double이므로 64비트 정수 전체 범위를 보장하지 않습니다. NaN·무한대는 거부합니다. `value`와 `value::table`로 동적 값·키/값 테이블을 지원합니다. 다중 반환·`std::unique_ptr` 자동 변환·클래스 간 자동 다운캐스팅은 제공하지 않습니다.
 

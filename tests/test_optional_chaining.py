@@ -13,14 +13,14 @@ class OptionalChainingTests(unittest.TestCase):
     cli = support.RustLuaJITTests.cli
 
     def run_source(self, source, expected):
-        main = self.file('main.tlj', source)
+        main = self.file('main.luax', source)
         result = self.cli('run', main)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, expected)
         return main
 
     def test_shipped_example(self):
-        result = self.cli('run', support.ROOT/'examples/optional_chaining.tlj')
+        result = self.cli('run', support.ROOT/'examples/optional_chaining.luax')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, 'Mina\t10\nnil\tnil\ndone\n42\tnil\n')
 
@@ -160,7 +160,7 @@ class OptionalChainingTests(unittest.TestCase):
 
     def test_metamethod_receiver_and_method_lookup_only_once(self):
         self.file('meta.lua', 'return {create=setmetatable}')
-        self.file('meta.d.tlj', 'declare create: function(any, any): any')
+        self.file('meta.d.luax', 'declare create: function(any, any): any')
         self.run_source('''
             --!typecheck strict
             import meta from "meta"
@@ -176,7 +176,7 @@ class OptionalChainingTests(unittest.TestCase):
         ''', '42\t1\t1\n')
 
     def test_static_module_discovery_still_covers_optional_calls(self):
-        self.file('api.tlj','print("loaded") return {n=42}')
+        self.file('api.luax','print("loaded") return {n=42}')
         self.run_source('''
             --!typecheck strict
             local callback:(function(any):())?=nil
@@ -201,7 +201,7 @@ class OptionalChainingTests(unittest.TestCase):
         for mode in ['gradual','strict']:
             for source in failures:
                 with self.subTest(mode=mode,source=source):
-                    main=self.file('main.tlj', f'--!typecheck {mode}\nprint("NEVER")\n'+source)
+                    main=self.file('main.luax', f'--!typecheck {mode}\nprint("NEVER")\n'+source)
                     result=self.cli('run',main)
                     self.assertNotEqual(result.returncode,0)
                     self.assertEqual(result.stdout,'')
@@ -216,14 +216,14 @@ local n=api
 '''
         for newline in ['\n','\r\n']:
             with self.subTest(newline=repr(newline)):
-                main=self.file('main.tlj','')
+                main=self.file('main.luax','')
                 main.write_bytes(source.replace('\n',newline).encode('utf8'))
                 generated=self.cli('gen',main)
                 self.assertEqual(generated.returncode,0,generated.stderr)
                 self.assertEqual(generated.stdout.count('\n'),source.count('\n'))
                 direct=self.cli('run',main)
                 self.assertNotEqual(direct.returncode,0)
-                self.assertIn('main.tlj:1:',direct.stderr)
+                self.assertIn('main.luax:1:',direct.stderr)
                 output=self.directory/'bundle'
                 built=self.cli('bundle',main,'--out',str(output))
                 self.assertEqual(built.returncode,0,built.stderr)

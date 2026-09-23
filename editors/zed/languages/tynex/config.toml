@@ -1,6 +1,6 @@
 name = "Tynex"
 grammar = "tynex"
-path_suffixes = ["tlj"]
+path_suffixes = ["luax"]
 line_comments = ["-- "]
 block_comment = ["--[[", "]]"]
 tab_size = 3

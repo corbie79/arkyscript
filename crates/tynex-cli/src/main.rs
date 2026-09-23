@@ -58,6 +58,7 @@ enum Format {
 }
 #[derive(Args)]
 struct Input {
+    /// A .luax script or legacy .lua source (.d.luax declarations can be checked).
     file: Option<PathBuf>,
     #[arg(long)]
     mode: Option<Mode>,

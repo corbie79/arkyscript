@@ -30,7 +30,7 @@
         "tynex-cli",
         "--",
         "check",
-        "examples/main.tlj"
+        "examples/main.luax"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -64,7 +64,7 @@
         "tynex-cli",
         "--",
         "run",
-        "examples/main.tlj"
+        "examples/main.luax"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -94,7 +94,7 @@
         "tynex-cli",
         "--",
         "bundle",
-        "examples/debug/main.tlj",
+        "examples/debug/main.luax",
         "--out",
         "build/debug/modules"
       ],

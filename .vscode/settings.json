@@ -1,5 +1,8 @@
 {
   "debug.allowBreakpointsEverywhere": true,
+  "files.associations": {
+    "*.luax": "tynex"
+  },
   "tynex.serverPath": "${workspaceFolder}/target/debug/tynex",
   "tynex.checkLua": true
 }

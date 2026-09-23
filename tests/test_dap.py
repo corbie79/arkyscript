@@ -55,7 +55,7 @@ class DapTests(unittest.TestCase):
     def test_stdio_mapping_source_and_shutdown(self):
         with tempfile.TemporaryDirectory() as directory:
             directory=Path(directory)
-            source=directory/'한글.tlj'; source.write_text('local x: number = 1\nprint(x)\n')
+            source=directory/'한글.luax'; source.write_text('local x: number = 1\nprint(x)\n')
             generated=directory/'generated.lua'
             mapping=directory/'map.json'
             mapping.write_text(json.dumps({'version':1,'files':[{'original':str(source),'generated':str(generated),

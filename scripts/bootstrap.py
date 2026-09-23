@@ -36,7 +36,7 @@ def main():
     runtime = build_native()
     build_task(dependencies()["luajit"]["revision"])
     run("cargo", "build", "--workspace", "--locked", cwd=ROOT)
-    print(f"Ready: {runtime}\nRun: ./bin/tynex run examples/main.tlj")
+    print(f"Ready: {runtime}\nRun: ./bin/tynex run examples/main.luax")
 
 
 if __name__ == "__main__":

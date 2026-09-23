@@ -1,8 +1,8 @@
 # Tynex for VS Code
 
-Local development extension for the independent Rust Tynex compiler. Provides `.tlj` highlighting, file breakpoints, and compiler diagnostics through `tynex lsp`. Completion, hover, rename and formatting are not implemented.
+Local development extension for the independent Rust Tynex compiler. Provides `.luax` source and `.d.luax` declaration highlighting, file breakpoints, and compiler diagnostics through `tynex lsp`. Completion, hover, rename and formatting are not implemented.
 
-Build the Rust CLI in the Tynex repository with `cargo build --locked -p tynex-cli`. Install the generated VSIX, open the repository, and open `examples/main.tlj`. Repository settings select `target/debug/tynex`; Windows uses `.exe` automatically.
+Build the Rust CLI in the Tynex repository with `cargo build --locked -p tynex-cli`. Install the generated VSIX, open the repository, and open `examples/main.luax`. Repository settings select `target/debug/tynex`; Windows uses `.exe` automatically.
 
 For another project, set `tynex.serverPath` to the absolute executable path (or put `tynex` on PATH). Enable `tynex.checkLua` to also synchronize `.lua` buffers. Use **Tynex: Restart Language Server** after changing these settings. Only trusted, local file workspaces are supported. Policy comes from the nearest saved `tynex.toml` and each file's leading directive.
 
@@ -13,7 +13,7 @@ Build this extension with Node.js 22 or newer: `npm ci`, then `npm run package`.
 ## Mapped debugging
 
 Install `tomblind.local-lua-debugger-vscode` alongside this extension. Use a launch
-configuration with `type: "tynex"`, `request: "launch"`, and `entry: "src/main.tlj"`.
+configuration with `type: "tynex"`, `request: "launch"`, and `entry: "src/main.luax"`.
 Save project edits before starting. Tynex checks and bundles the module graph,
 then passes all generated files and v3 source maps to the unmodified upstream
 adapter. `bundleDirectory`, `mode`, `scriptArguments`, and `stopOnEntry` are optional.

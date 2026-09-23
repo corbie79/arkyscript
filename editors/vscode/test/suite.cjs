@@ -11,11 +11,14 @@ async function run() {
     const root = process.env.TYNEX_TEST_ROOT || vscode.workspace.workspaceFolders[0].uri.fsPath;
     const extension = vscode.extensions.getExtension('tynex-local.tynex');
     assert.ok(extension);
-    const testFile = path.join(root,'build/editor-test/live.tlj');
+    const testFile = path.join(root,'build/editor-test/live.luax');
     fs.writeFileSync(testFile,'local value: number = 1\n');
     const document = await vscode.workspace.openTextDocument(testFile);
     await vscode.window.showTextDocument(document);
     assert.equal(document.languageId,'tynex');
+    const declarationFile = path.join(root,'build/editor-test/api.d.luax');
+    fs.writeFileSync(declarationFile,'declare value: number\n');
+    assert.equal((await vscode.workspace.openTextDocument(declarationFile)).languageId,'tynex');
     await extension.activate();
     const replace = async text => {
         const edit = new vscode.WorkspaceEdit();
@@ -27,7 +30,7 @@ async function run() {
     assert.equal(fs.readFileSync(testFile,'utf8'),'local value: number = 1\n');
     await replace('local value: number = 2\n');
     await until(()=>vscode.languages.getDiagnostics(document.uri).length===0, 'fixed error not cleared');
-    const dependency = path.join(root,'build/editor-test/live-dependency.tlj');
+    const dependency = path.join(root,'build/editor-test/live-dependency.luax');
     fs.writeFileSync(dependency,'return 1');
     await replace("local value: number = require('live-dependency')\n");
     await until(()=>vscode.languages.getDiagnostics(document.uri).length===0,'valid dependency rejected');
@@ -37,7 +40,7 @@ async function run() {
     await until(()=>vscode.languages.getDiagnostics(document.uri).length===0,'dependency fix not cleared');
     await replace('local value: number = 2\n');
     await document.save();
-    const source = vscode.Uri.file(path.join(root,'examples/main.tlj'));
+    const source = vscode.Uri.file(path.join(root,'examples/main.luax'));
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(source));
     const breakpoint = new vscode.SourceBreakpoint(new vscode.Location(source,new vscode.Position(2,0)));
     vscode.debug.addBreakpoints([breakpoint]);

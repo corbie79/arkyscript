@@ -84,7 +84,7 @@ fn reports<'a>(messages: &'a [Value], path: &Path) -> Vec<&'a Value> {
 #[test]
 fn unsaved_unicode_ranges_versions_and_close() {
     let temp = tempfile::tempdir().unwrap();
-    let file = temp.path().join("한글 # 파일.tlj");
+    let file = temp.path().join("한글 # 파일.luax");
     let bad = "-- header\r\nlocal emoji = '😀'; local n: number = '오류'\r\n";
     let good = "local n: number = 2";
     let messages = session(vec![
@@ -120,8 +120,8 @@ fn unsaved_unicode_ranges_versions_and_close() {
 #[test]
 fn dependency_edits_recheck_importers_and_close_restores_disk() {
     let temp = tempfile::tempdir().unwrap();
-    let main = temp.path().join("main.tlj");
-    let lib = temp.path().join("lib.tlj");
+    let main = temp.path().join("main.luax");
+    let lib = temp.path().join("lib.luax");
     fs::write(&lib, "return 4").unwrap();
     let messages = session(vec![
         open(&main, "local n: number = require('lib')"),
@@ -145,8 +145,8 @@ fn dependency_edits_recheck_importers_and_close_restores_disk() {
 #[test]
 fn newly_created_dependency_and_error_clearing() {
     let temp = tempfile::tempdir().unwrap();
-    let main = temp.path().join("main.tlj");
-    let lib = temp.path().join("lib.tlj");
+    let main = temp.path().join("main.luax");
+    let lib = temp.path().join("lib.luax");
     let messages = session(vec![
         open(&main, "local n: number = require('lib')"),
         open(&lib, "return 5"),
@@ -168,8 +168,8 @@ fn file_policy_and_unsaved_declaration_are_shared_with_cli() {
         "type_mode='strict'\n[[overrides]]\nfiles=['*.lua']\nmode='legacy'\n",
     )
     .unwrap();
-    let main = temp.path().join("main.tlj");
-    let stub = temp.path().join("lib.d.tlj");
+    let main = temp.path().join("main.luax");
+    let stub = temp.path().join("lib.d.luax");
     fs::write(temp.path().join("lib.lua"), "return 1").unwrap();
     let messages = session(vec![
         open(&stub, "export: string"),
@@ -183,7 +183,7 @@ fn file_policy_and_unsaved_declaration_are_shared_with_cli() {
 #[test]
 fn malformed_notification_does_not_stop_subsequent_checks() {
     let temp = tempfile::tempdir().unwrap();
-    let file = temp.path().join("main.tlj");
+    let file = temp.path().join("main.luax");
     let messages = session(vec![
         notification("textDocument/didOpen", json!({})),
         json!({"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{}}),

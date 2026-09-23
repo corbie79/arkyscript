@@ -3,6 +3,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const tm = require('vscode-textmate');
 const onig = require('vscode-oniguruma');
+const manifest = require('../package.json');
+const language = manifest.contributes.languages.find(language => language.id === 'tynex');
+for (const filename of ['main.luax', 'api.d.luax']) {
+  assert.ok(language.extensions.some(extension => filename.endsWith(extension)), `${filename} must activate Tynex`);
+}
+assert.deepEqual(language.extensions, ['.luax']);
 (async () => {
   await onig.loadWASM(fs.readFileSync(require.resolve('vscode-oniguruma/release/onig.wasm')).buffer);
   const registry = new tm.Registry({

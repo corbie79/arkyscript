@@ -32,8 +32,8 @@ class TaskRuntimeTests(unittest.TestCase):
 
     def test_typed_task_examples(self):
         for file, expected in (
-            ("main.tlj", "Parallel task sum: 250015000\nInput isolation: 1 / 10000\nTask status: succeeded\n"),
-            ("cancellation.tlj", "Cancelled: cancelled\nFailure: failed\nPool still works: 42\n"),
+            ("main.luax", "Parallel task sum: 250015000\nInput isolation: 1 / 10000\nTask status: succeeded\n"),
+            ("cancellation.luax", "Cancelled: cancelled\nFailure: failed\nPool still works: 42\n"),
         ):
             with self.subTest(file=file):
                 result = self.run_process(support.CLI, "run", support.ROOT / "examples/tasks" / file)
@@ -81,15 +81,15 @@ print("overlapping Lua workers passed")
 
     def test_type_mode_and_exception_examples(self):
         for mode in ("legacy", "gradual", "strict"):
-            suffix = "lua" if mode == "legacy" else "tlj"
+            suffix = "lua" if mode == "legacy" else "luax"
             result = self.run_process(support.CLI, "run", support.ROOT / f"examples/type_modes/{mode}.{suffix}")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, f"{mode}\t42\n")
         for folder in ("tasks", "type_modes"):
             result = self.run_process(support.CLI, "check", "--project", support.ROOT / f"examples/{folder}/tynex.toml")
             self.assertEqual(result.returncode, 0, result.stderr)
-        result = self.run_process(support.CLI, "check", "--mode", "strict", support.ROOT / "examples/type_modes/gradual.tlj")
+        result = self.run_process(support.CLI, "check", "--mode", "strict", support.ROOT / "examples/type_modes/gradual.luax")
         self.assertNotEqual(result.returncode, 0)
-        result = self.run_process(support.CLI, "run", support.ROOT / "examples/exceptions.tlj")
+        result = self.run_process(support.CLI, "run", support.ROOT / "examples/exceptions.luax")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "success: 42\nhandled failure\n")

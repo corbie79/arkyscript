@@ -385,12 +385,12 @@ pub fn serve(options: Options) -> Result<u8, String> {
 mod tests {
     use super::*;
     fn bridge() -> Bridge {
-        Bridge::new(serde_json::from_value(json!({"version":1,"files":[{"original":"/src/한글.tlj","generated":"/out/module.lua","lines":[null,null,{"line":1,"column":1},{"line":2,"column":3},{"line":2,"column":3},{"line":4,"column":1}]}]})).unwrap())
+        Bridge::new(serde_json::from_value(json!({"version":1,"files":[{"original":"/src/한글.luax","generated":"/out/module.lua","lines":[null,null,{"line":1,"column":1},{"line":2,"column":3},{"line":2,"column":3},{"line":4,"column":1}]}]})).unwrap())
     }
     #[test]
     fn original_breakpoints_and_expanded_stack() {
         let mut b = bridge();
-        let mut request = json!({"type":"request","seq":7,"command":"setBreakpoints","arguments":{"source":{"path":"/src/한글.tlj"},"breakpoints":[{"line":2,"condition":"n == 3","hitCondition":"2","logMessage":"{n}"}]}});
+        let mut request = json!({"type":"request","seq":7,"command":"setBreakpoints","arguments":{"source":{"path":"/src/한글.luax"},"breakpoints":[{"line":2,"condition":"n == 3","hitCondition":"2","logMessage":"{n}"}]}});
         b.request(&mut request);
         assert_eq!(request["arguments"]["breakpoints"][0]["line"], 4);
         assert_eq!(
@@ -422,7 +422,7 @@ mod tests {
         assert_eq!(point["column"], 2);
         assert_eq!(
             b.text("/out/module.lua:4: failed\n /out/module.lua:6"),
-            "/src/한글.tlj:2: failed\n /src/한글.tlj:4"
+            "/src/한글.luax:2: failed\n /src/한글.luax:4"
         );
     }
     #[test]

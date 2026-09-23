@@ -1,6 +1,6 @@
 # class 예제
 
-**구현 완료.** 실행 가능한 원본은 [class.tlj](../class.tlj)이며 `./bin/tynex run examples/class.tlj`로 실행합니다.
+**구현 완료.** 실행 가능한 원본은 [class.luax](../class.luax)이며 `./bin/tynex run examples/class.luax`로 실행합니다.
 
 ```lua
 class Player

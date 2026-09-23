@@ -10,7 +10,7 @@
       "$ZED_WORKTREE_ROOT"
     ],
     "ext": [
-      ".tlj",
+      ".luax",
       ".lua"
     ],
     "ideConnectDebugger": true

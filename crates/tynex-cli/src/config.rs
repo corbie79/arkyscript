@@ -78,7 +78,7 @@ impl Config {
         }
         let include = data
             .include
-            .unwrap_or_else(|| vec!["**/*.tlj".into(), "**/*.lua".into()]);
+            .unwrap_or_else(|| vec!["**/*.luax".into(), "**/*.lua".into()]);
         if include.is_empty() {
             return Err("include must not be empty".into());
         }
@@ -133,9 +133,9 @@ impl Config {
         let extension = path.extension().and_then(|s| s.to_str());
         let mut mode = match extension {
             Some("lua") => Mode::Legacy,
-            Some("tlj") => Mode::Gradual,
-            Some("tl") => return Err("Teal .tl support has been retired. Migrate explicitly to the documented .tlj subset; renaming alone does not convert Teal syntax.".into()),
-            _ => return Err("expected a .lua or .tlj source file".into()),
+            Some("luax") => Mode::Gradual,
+            Some("tl") => return Err("Teal .tl support has been retired. Migrate explicitly to the documented .luax subset; renaming alone does not convert Teal syntax.".into()),
+            _ => return Err("expected a .lua or .luax source file".into()),
         };
         if let Some(relative) = self.root.as_ref().and_then(|r| path.strip_prefix(r).ok()) {
             mode = self.default.unwrap_or(mode);
@@ -164,8 +164,8 @@ impl Config {
             }
         }
         mode = cli.unwrap_or(mode);
-        if extension == Some("tlj") && mode == Mode::Legacy {
-            return Err("legacy mode requires .lua; use gradual for .tlj".into());
+        if extension == Some("luax") && mode == Mode::Legacy {
+            return Err("legacy mode requires .lua; use gradual for .luax".into());
         }
         Ok(mode)
     }

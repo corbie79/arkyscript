@@ -1,6 +1,6 @@
 # async / await
 
-`.tlj`의 `async function`, `await`, 결과 타입 `Task<T>`를 지원한다. async 함수 호출은 메인 Lua VM의 coroutine 작업을 큐에 넣고 Task를 즉시 반환한다. **async 함수마다 OS 스레드를 만들지 않는다.** 실제 병렬 계산은 기존 [worker Task](tasks.md)로 보낸다. 공식 LuaJIT은 수정하지 않는다.
+`.luax`의 `async function`, `await`, 결과 타입 `Task<T>`를 지원한다. async 함수 호출은 메인 Lua VM의 coroutine 작업을 큐에 넣고 Task를 즉시 반환한다. **async 함수마다 OS 스레드를 만들지 않는다.** 실제 병렬 계산은 기존 [worker Task](tasks.md)로 보낸다. 공식 LuaJIT은 수정하지 않는다.
 
 ```lua
 local async function double(n: number): number
@@ -75,8 +75,8 @@ runtime.step(64)
 ## 예제와 도구
 
 ```sh
-./bin/tynex run examples/async.tlj
-./bin/tynex run examples/tasks/async.tlj
+./bin/tynex run examples/async.luax
+./bin/tynex run examples/tasks/async.luax
 python3 -m unittest discover -s tests -p 'test_async*.py' -v
 ```
 

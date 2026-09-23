@@ -1,6 +1,6 @@
 # nil일 때 건너뛰는 접근과 호출
 
-`.tlj`에서 `?.`, `?[`, `?(`, `?:`를 지원한다. 검사한 값을 한 번 평가하고, **nil이면 연속된 접근·호출을 건너뛰어 nil 하나를 반환**한다. `false`는 일반 값이며 건너뛰지 않는다. 공식 LuaJIT 원본은 수정하지 않고 Rust 컴파일러가 일반 Lua로 변환한다.
+`.luax`에서 `?.`, `?[`, `?(`, `?:`를 지원한다. 검사한 값을 한 번 평가하고, **nil이면 연속된 접근·호출을 건너뛰어 nil 하나를 반환**한다. `false`는 일반 값이며 건너뛰지 않는다. 공식 LuaJIT 원본은 수정하지 않고 Rust 컴파일러가 일반 Lua로 변환한다.
 
 | 표기 | nil 확인 대상 | 실행되는 동작 |
 | --- | --- | --- |
@@ -59,8 +59,8 @@ print(select('#', (values?()))) -- 1
 VS Code·Zed 구문 강조와 LSP 진단에 포함된다. 생성 코드는 원본 줄·소스 맵을 유지한다. 변환에 내부 함수가 사용되어 디버거에서 추가 프레임과 내부 변수가 보일 수 있다. 새 문법의 실제 에디터 GUI 세션은 별도 검증 대상이다.
 
 ```sh
-./bin/tynex run examples/optional_chaining.tlj
+./bin/tynex run examples/optional_chaining.luax
 python3 -m unittest discover -s tests -p test_optional_chaining.py -v
 ```
 
-[실행 예제](../examples/optional_chaining.tlj)는 class 메서드·필드·nullable 콜백·사전 접근을 보여준다. 기존 `.lua` legacy 파일의 문법은 바뀌지 않는다. `??` 기본값 연산자와 삼항 연산자는 포함하지 않는다.
+[실행 예제](../examples/optional_chaining.luax)는 class 메서드·필드·nullable 콜백·사전 접근을 보여준다. 기존 `.lua` legacy 파일의 문법은 바뀌지 않는다. `??` 기본값 연산자와 삼항 연산자는 포함하지 않는다.

@@ -1,6 +1,7 @@
 # Tynex editor grammar
 
 An independent editor grammar extending a pinned, unmodified MIT Lua grammar.
+Tynex source files use `.luax`; declaration files use `.d.luax`.
 The Rust compiler remains authoritative for valid syntax and types. This grammar
 recognizes optional and parenthesized types, records, arrays, maps, function
 signatures, variadic parameters/results, class/trait declarations, async functions,
