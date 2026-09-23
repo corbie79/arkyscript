@@ -1,6 +1,6 @@
 [
   {
-    "label": "Tynex: check example",
+    "label": "Arky: check example",
     "command": "cargo",
     "args": [
       "run",
@@ -10,13 +10,13 @@
       "tynex-cli",
       "--",
       "check",
-      "examples/main.luax"
+      "examples/main.arky"
     ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "save": "all"
   },
   {
-    "label": "Tynex: run example",
+    "label": "Arky: run example",
     "command": "cargo",
     "args": [
       "run",
@@ -26,13 +26,13 @@
       "tynex-cli",
       "--",
       "run",
-      "examples/main.luax"
+      "examples/main.arky"
     ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "save": "all"
   },
   {
-    "label": "Tynex: start example for EmmyLua",
+    "label": "Arky: start example for EmmyLua",
     "command": "cargo",
     "args": [
       "run",
@@ -42,7 +42,7 @@
       "tynex-cli",
       "--",
       "debug",
-      "examples/main.luax"
+      "examples/main.arky"
     ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "save": "all",
@@ -50,7 +50,7 @@
     "allow_concurrent_runs": false
   },
   {
-    "label": "Tynex: prepare debug bundle",
+    "label": "Arky: prepare debug bundle",
     "command": "cargo",
     "args": [
       "run",
@@ -60,7 +60,7 @@
       "tynex-cli",
       "--",
       "bundle",
-      "examples/debug/main.luax",
+      "examples/debug/main.arky",
       "--out",
       "build/debug/modules"
     ],
@@ -68,7 +68,7 @@
     "save": "all"
   },
   {
-    "label": "Tynex: start mapped bundle for EmmyLua",
+    "label": "Arky: start mapped bundle for EmmyLua",
     "command": "cargo",
     "args": [
       "run",

@@ -15,15 +15,15 @@ class LanguageExtensionTests(unittest.TestCase):
     cli = support.RustLuaJITTests.cli
 
     def run_source(self, source, expected, **kwargs):
-        main = self.file('main.luax', source)
+        main = self.file('main.arky', source)
         result = self.cli('run', main, **kwargs)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, expected)
         return main
 
     def test_import_ignores_reassigned_require_preloads_and_public_cache(self):
-        self.file('api.luax', "print('ONCE') return {n=42}")
-        self.file('other.luax', "return 23")
+        self.file('api.arky', "print('ONCE') return {n=42}")
+        self.file('other.arky', "return 23")
         self.run_source('''
             local globals:any = _G
             local packages:any = package
@@ -42,9 +42,9 @@ class LanguageExtensionTests(unittest.TestCase):
         ''', 'ONCE\ntrue\t42\t23\n')
 
     def test_import_initializer_once_false_and_module_arguments(self):
-        self.file('f.luax', "print('FALSE') return false")
-        self.file('empty.luax', "print('EMPTY')")
-        self.file('api.luax', "local name:string=... return {name=name}")
+        self.file('f.arky', "print('FALSE') return false")
+        self.file('empty.arky', "print('EMPTY')")
+        self.file('api.arky', "local name:string=... return {name=name}")
         self.run_source('''
             --!typecheck strict
             import a from 'f' import b from 'f'
@@ -54,7 +54,7 @@ class LanguageExtensionTests(unittest.TestCase):
         ''', 'FALSE\nEMPTY\nfalse\tfalse\ttrue\ttrue\tapi\n')
 
     def test_import_and_require_share_checked_instances(self):
-        self.file('api.luax', "print('ONCE') return {n=42}")
+        self.file('api.arky', "print('ONCE') return {n=42}")
         for source in [
             "import a from 'api' local b=require('api') print(a==b)",
             "local a=require('api') import b from 'api' print(a==b)",
@@ -62,7 +62,7 @@ class LanguageExtensionTests(unittest.TestCase):
             self.run_source(source, 'ONCE\ntrue\n')
 
     def test_import_contract_and_immutable_binding_enforced_before_execution(self):
-        self.file('api.luax', 'return {n=42}')
+        self.file('api.arky', 'return {n=42}')
         for tail, code in [
             ('api = {n=3}', 'T012'),
             ('local api = 3', 'T012'),
@@ -72,7 +72,7 @@ class LanguageExtensionTests(unittest.TestCase):
             ('local function f() api = {n=3} end', 'T012'),
         ]:
             with self.subTest(tail=tail):
-                main = self.file('main.luax', "print('NEVER') import api from 'api' " + tail)
+                main = self.file('main.arky', "print('NEVER') import api from 'api' " + tail)
                 result = self.cli('run', main)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(code, result.stderr)
@@ -81,7 +81,7 @@ class LanguageExtensionTests(unittest.TestCase):
 
     def test_named_declarations_describe_legacy_exports_without_execution(self):
         self.file('old.lua', 'return {double=function(n) return n*2 end, version="1.0"}')
-        stub = self.file('old.d.luax', 'declare double: function(number): number\ndeclare version: string')
+        stub = self.file('old.d.arky', 'declare double: function(number): number\ndeclare version: string')
         self.run_source('''
             --!typecheck strict
             import old from 'old'
@@ -89,9 +89,9 @@ class LanguageExtensionTests(unittest.TestCase):
         ''', '42\t1.0\n')
         for source in ['declare n: number = 1', 'declare n: number\ndeclare n:string', 'declare n', 'print("NEVER")']:
             stub.write_text(source)
-            result = self.cli('check', self.directory / 'main.luax')
+            result = self.cli('check', self.directory / 'main.arky')
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('old.d.luax', result.stderr)
+            self.assertIn('old.d.arky', result.stderr)
 
     def test_import_requires_literal_prepared_implementation_and_checks_cycles(self):
         self.file('tynex.toml', "external_modules=['host']")
@@ -101,13 +101,13 @@ class LanguageExtensionTests(unittest.TestCase):
             ("local x:any=require('host') import y from 'host'", 'M110'),
             ("import x from 'missing'", 'M101'),
         ]:
-            main = self.file('main.luax', source)
+            main = self.file('main.arky', source)
             result = self.cli('check', main)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(message, result.stderr)
-        self.file('a.luax', "import b from 'b' return b")
-        self.file('b.luax', "import a from 'a' return a")
-        main = self.file('main.luax', "print('NEVER') import a from 'a'")
+        self.file('a.arky', "import b from 'b' return b")
+        self.file('b.arky', "import a from 'a' return a")
+        main = self.file('main.arky', "print('NEVER') import a from 'a'")
         result = self.cli('run', main)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('M103', result.stderr)
@@ -198,7 +198,7 @@ class LanguageExtensionTests(unittest.TestCase):
             'try local hidden=1 except err then print(hidden) else print(hidden) end',
             'local n:number?=1 try n=nil error(1) except err then local x:number=n end',
         ]:
-            main = self.file('main.luax', '--!typecheck strict\n' + source)
+            main = self.file('main.arky', '--!typecheck strict\n' + source)
             result = self.cli('check', main)
             self.assertNotEqual(result.returncode, 0, source)
         self.run_source('''
@@ -223,7 +223,7 @@ class LanguageExtensionTests(unittest.TestCase):
         ''', 'true\tpause\nresumed\nelse\ntrue\n')
 
     def test_comments_multiline_imports_and_original_error_lines_survive_lowering(self):
-        self.file('api.luax', 'return {n=42}')
+        self.file('api.arky', 'return {n=42}')
         source='''\
 import -- module
     api: -- contract
@@ -238,14 +238,14 @@ else -- no exception
     error('EXPECTED', 0)
 end
 '''
-        main = self.file('main.luax', source)
+        main = self.file('main.arky', source)
         generated = self.cli('gen', main)
         self.assertEqual(generated.returncode, 0, generated.stderr)
         self.assertEqual(generated.stdout.count('\n'), main.read_text().count('\n'))
         result = self.cli('run', main)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, '42\n')
-        self.assertIn('main.luax:11:', result.stderr)
+        self.assertIn('main.arky:11:', result.stderr)
         bundle=self.directory / 'bundle'
         result=self.cli('bundle', main, '--out', str(bundle))
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -259,7 +259,7 @@ end
         self.assertEqual(entry['lines'][error_line]['line'], 11)
 
     def test_failed_static_initialization_can_retry_without_poisoning_private_cache(self):
-        self.file('api.luax', "local globals:any=_G if globals.ready ~= true then error('retry',0) end return {n=42}")
+        self.file('api.arky', "local globals:any=_G if globals.ready ~= true then error('retry',0) end return {n=42}")
         self.run_source("try import api from 'api' except err then print(err) end local globals:any=_G globals.ready=true import api from 'api' print(api.n)", 'retry\n42\n')
 
     def test_legacy_require_preserves_module_registration_without_return(self):

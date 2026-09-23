@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Tynex mapped EmmyLua session",
+  "title": "Arky mapped EmmyLua session",
   "type": "object",
   "required": ["request", "tynexMap"],
   "properties": {

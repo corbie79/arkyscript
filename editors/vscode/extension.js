@@ -10,16 +10,16 @@ async function activate(context) {
     // generated file list after compilation, including newly added modules.
     const debuggerExtension = () => {
         const extension = vscode.extensions.getExtension('tomblind.local-lua-debugger-vscode');
-        if (!extension) throw new Error('Install Local Lua Debugger (tomblind.local-lua-debugger-vscode) for Tynex debugging.');
+        if (!extension) throw new Error('Install Local Lua Debugger (tomblind.local-lua-debugger-vscode) for Arky debugging.');
         return extension;
     };
     context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('tynex', {
         async resolveDebugConfigurationWithSubstitutedVariables(folder, config) {
             const root = folder?.uri.fsPath;
-            if (!root) throw new Error('Open a project folder for Tynex debugging.');
-            if (!config.entry) throw new Error('Set entry to the .luax or .lua entry file.');
+            if (!root) throw new Error('Open a project folder for Arky debugging.');
+            if (!config.entry) throw new Error('Set entry to the .arky or .lua entry file.');
             if (vscode.workspace.textDocuments.some(d=>d.isDirty && !d.isUntitled && d.uri.fsPath.startsWith(root+path.sep))) {
-                throw new Error('Save project changes before building the Tynex debug bundle.');
+                throw new Error('Save project changes before building the Arky debug bundle.');
             }
             let cli = vscode.workspace.getConfiguration('tynex',folder.uri).get('serverPath','tynex').replaceAll('${workspaceFolder}',root);
             if (!path.isAbsolute(cli) && /[\\/]/.test(cli)) cli = path.resolve(root,cli);
@@ -55,7 +55,7 @@ async function activate(context) {
         if (process.platform === 'win32' && path.isAbsolute(command) && !path.extname(command)) command += '.exe';
         const selector = [{ scheme: 'file', language: 'tynex' }];
         if (config.get('checkLua', false)) selector.push({ scheme: 'file', language: 'lua' });
-        client = new LanguageClient('tynex', 'Tynex', { command, args: ['lsp'], options: { cwd: folder } }, {
+        client = new LanguageClient('tynex', 'Arky', { command, args: ['lsp'], options: { cwd: folder } }, {
             documentSelector: selector,
         });
         await client.start();

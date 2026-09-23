@@ -5,10 +5,11 @@ const tm = require('vscode-textmate');
 const onig = require('vscode-oniguruma');
 const manifest = require('../package.json');
 const language = manifest.contributes.languages.find(language => language.id === 'tynex');
-for (const filename of ['main.luax', 'api.d.luax']) {
-  assert.ok(language.extensions.some(extension => filename.endsWith(extension)), `${filename} must activate Tynex`);
+for (const filename of ['main.arky', 'api.d.arky']) {
+  assert.ok(language.extensions.some(extension => filename.endsWith(extension)), `${filename} must activate Arky`);
 }
-assert.deepEqual(language.extensions, ['.luax']);
+assert.deepEqual(language.extensions, ['.arky']);
+assert.deepEqual(language.aliases, ['Arky', 'arky']);
 (async () => {
   await onig.loadWASM(fs.readFileSync(require.resolve('vscode-oniguruma/release/onig.wasm')).buffer);
   const registry = new tm.Registry({

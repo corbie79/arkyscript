@@ -1,10 +1,10 @@
 type_mode = "gradual"
-include = ["*.luax", "*.lua"]
+include = ["*.arky", "*.lua"]
 
 [[overrides]]
 files = ["*.lua"]
 mode = "legacy"
 
 [[overrides]]
-files = ["strict.luax"]
+files = ["strict.arky"]
 mode = "strict"

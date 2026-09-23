@@ -13,7 +13,7 @@ class ClassTraitRuntimeTests(unittest.TestCase):
     cli = support.RustLuaJITTests.cli
 
     def run_source(self, source, expected):
-        main = self.file("main.luax", source)
+        main = self.file("main.arky", source)
         result = self.cli("run", main)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, expected)
@@ -21,8 +21,8 @@ class ClassTraitRuntimeTests(unittest.TestCase):
 
     def test_shipped_examples(self):
         for name, expected in [
-            ("class.luax", "Mina\t43\nJoon\t5\n"),
-            ("traits.luax", "name: Mina\nname: device: sensor-7\n42\n"),
+            ("class.arky", "Mina\t43\nJoon\t5\n"),
+            ("traits.arky", "name: Mina\nname: device: sensor-7\n42\n"),
         ]:
             with self.subTest(name=name):
                 result = self.cli("run", support.ROOT / "examples" / name)
@@ -107,7 +107,7 @@ class ClassTraitRuntimeTests(unittest.TestCase):
         ''', 'outer trait\nouter trait\n')
 
     def test_imported_classes_traits_and_nominal_identity(self):
-        self.file('models.luax', '''
+        self.file('models.arky', '''
             --!typecheck strict
             trait Named
                 label: function(Self): string
@@ -131,8 +131,8 @@ class ClassTraitRuntimeTests(unittest.TestCase):
             show(user)
             show(Device {})
         ''', 'name: Mina\nname: device\n')
-        self.file('other.luax', 'class User name:string end return {User=User}')
-        main = self.file('main.luax', '''
+        self.file('other.arky', 'class User name:string end return {User=User}')
+        main = self.file('main.arky', '''
             import models from "models"
             import other from "other"
             local user: models.User = other.User {name="wrong"}
@@ -159,7 +159,7 @@ class ClassTraitRuntimeTests(unittest.TestCase):
         for mode in ['gradual', 'strict']:
             for source in failures:
                 with self.subTest(mode=mode, source=source):
-                    main = self.file('main.luax', f'--!typecheck {mode}\nprint("NEVER")\n' + source)
+                    main = self.file('main.arky', f'--!typecheck {mode}\nprint("NEVER")\n' + source)
                     result = self.cli('run', main)
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(result.stdout, '')
@@ -212,7 +212,7 @@ class ClassTraitRuntimeTests(unittest.TestCase):
         ]:
             for newline in ['\n', '\r\n']:
                 with self.subTest(body=body, newline=repr(newline)):
-                    main = self.file('main.luax', '')
+                    main = self.file('main.arky', '')
                     original = body.replace('\n', newline)
                     main.write_bytes(original.encode('utf8'))
                     result = self.cli('run', main)
@@ -246,7 +246,7 @@ class ClassTraitRuntimeTests(unittest.TestCase):
         ''', '42\ndone\n')
 
     def test_debug_hook_sees_self_and_arguments_at_original_method_line(self):
-        source = self.file('method.luax', '''
+        source = self.file('method.arky', '''
             --!typecheck strict
             trait CounterLike
                 add: function(Self, number): number
@@ -283,7 +283,7 @@ class ClassTraitRuntimeTests(unittest.TestCase):
         self.assertEqual(result.stderr.count('CLASS_HOOK_OK'), 1)
 
     def test_bundle_constructor_helpers_have_no_original_breakpoint_line(self):
-        source = self.file('first-line.luax', '''
+        source = self.file('first-line.arky', '''
             class Item
                 value: number = 42
                 function get(): number return self.value end

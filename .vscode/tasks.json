@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Tynex: build Rust CLI",
+      "label": "Arky: build Rust CLI",
       "type": "process",
       "command": "cargo",
       "args": [
@@ -19,7 +19,7 @@
       ]
     },
     {
-      "label": "Tynex: check example",
+      "label": "Arky: check example",
       "type": "process",
       "command": "cargo",
       "args": [
@@ -30,7 +30,7 @@
         "tynex-cli",
         "--",
         "check",
-        "examples/main.luax"
+        "examples/main.arky"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -53,7 +53,7 @@
       }
     },
     {
-      "label": "Tynex: run example",
+      "label": "Arky: run example",
       "type": "process",
       "command": "cargo",
       "args": [
@@ -64,7 +64,7 @@
         "tynex-cli",
         "--",
         "run",
-        "examples/main.luax"
+        "examples/main.arky"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -83,7 +83,7 @@
       }
     },
     {
-      "label": "Tynex: prepare debug bundle",
+      "label": "Arky: prepare debug bundle",
       "type": "process",
       "command": "cargo",
       "args": [
@@ -94,7 +94,7 @@
         "tynex-cli",
         "--",
         "bundle",
-        "examples/debug/main.luax",
+        "examples/debug/main.arky",
         "--out",
         "build/debug/modules"
       ],

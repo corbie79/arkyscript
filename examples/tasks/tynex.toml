@@ -1,5 +1,5 @@
 type_mode = "strict"
-include = ["*.luax", "*.lua"]
+include = ["*.arky", "*.lua"]
 external_modules = ["tynex_task"]
 
 [[overrides]]

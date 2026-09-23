@@ -1,6 +1,6 @@
 # 현재 지원하는 typed Lua 문법
 
-이 문서는 현재 구현 범위다. enum·match 등의 [설계 제안](language-design.md)과 구분한다. `.luax`는 독립 Rust 코어로 검사하고 타입 표기를 제거하고 확장 문법을 Lua로 변환해 공식 LuaJIT에서 실행한다. 원본 `.lua`의 legacy 실행에는 아래 정적 문법 제한을 적용하지 않는다.
+이 문서는 현재 구현 범위다. enum·match 등의 [설계 제안](language-design.md)과 구분한다. `.arky`는 독립 Rust 코어로 검사하고 타입 표기를 제거하고 확장 문법을 Lua로 변환해 공식 LuaJIT에서 실행한다. 원본 `.lua`의 legacy 실행에는 아래 정적 문법 제한을 적용하지 않는다.
 
 ## 문장과 함수
 
@@ -130,14 +130,14 @@ end
 
 ## 기본 API와 남은 범위
 
-내장 타입은 `print`, `tostring`, `tonumber`, `require`, `error`, `type`, `pairs`, `ipairs`, `select`, `unpack`, `math.abs/floor/ceil/sqrt/min/max/pi/huge`, `string.len/upper/lower/sub`에 제공한다. 인자·반환형을 검사하는 초기 시그니처이며 모든 라이브러리나 값 범위·런타임 예외를 모델링하지 않는다. CLI에서 정적 require의 결과는 typed 모듈의 공개 타입 또는 legacy `.d.luax`에서 얻는다. 선언 없는 legacy·외부·동적 require는 unknown이며 strict에서는 명시적 `any` 경계가 필요하다. [혼합 모듈 안내](modules.md)
+내장 타입은 `print`, `tostring`, `tonumber`, `require`, `error`, `type`, `pairs`, `ipairs`, `select`, `unpack`, `math.abs/floor/ceil/sqrt/min/max/pi/huge`, `string.len/upper/lower/sub`에 제공한다. 인자·반환형을 검사하는 초기 시그니처이며 모든 라이브러리나 값 범위·런타임 예외를 모델링하지 않는다. CLI에서 정적 require의 결과는 typed 모듈의 공개 타입 또는 legacy `.d.arky`에서 얻는다. 선언 없는 legacy·외부·동적 require는 unknown이며 strict에서는 명시적 `any` 경계가 필요하다. [혼합 모듈 안내](modules.md)
 
 아직 지원하지 않는 typed 문법은 일반 iterator 목록, goto/label, 타입 별칭·사용자 제네릭·enum·match다. Task는 내장 결과 타입으로만 제공한다. 정적 혼합 모듈 로더·레거시 선언 파일·프로젝트 전체 검사와 진단 LSP를 구현했다.
 
 파일당 4096 토큰과 중첩 128의 초기 제한이 있다. 한계를 넘거나 미지원 문법을 사용하면 검사 성공으로 처리하지 않고 진단한다. 큰 기존 프로젝트는 `.lua` legacy 경로를 유지하며 지원 범위에 맞는 파일부터 전환할 수 있다.
 
-실행 예제는 [control_flow.luax](../examples/control_flow.luax)와 [multiple_values.luax](../examples/multiple_values.luax), 자동 검증은 [테이블 검사](../crates/tynex-compiler/tests/tables_control.rs)·[다중 값과 메서드 검사](../crates/tynex-compiler/tests/multiple_values.rs)·[LuaJIT 통합 테스트](../tests/test_cli.py)에 있다. 통합 테스트는 공통 Lua 문법 27개 사례의 공식 엔진 직접 실행 결과와 변환 후 결과, 원본 위치의 디버그 훅을 확인한다. 이는 VS Code/Zed UI나 다른 플랫폼 기기에서 실행했다는 의미는 아니다.
+실행 예제는 [control_flow.arky](../examples/control_flow.arky)와 [multiple_values.arky](../examples/multiple_values.arky), 자동 검증은 [테이블 검사](../crates/tynex-compiler/tests/tables_control.rs)·[다중 값과 메서드 검사](../crates/tynex-compiler/tests/multiple_values.rs)·[LuaJIT 통합 테스트](../tests/test_cli.py)에 있다. 통합 테스트는 공통 Lua 문법 27개 사례의 공식 엔진 직접 실행 결과와 변환 후 결과, 원본 위치의 디버그 훅을 확인한다. 이는 VS Code/Zed UI나 다른 플랫폼 기기에서 실행했다는 의미는 아니다.
 
 ## 프로젝트 문법 확장
 
-`.luax`는 `import name from "module"`, `.d.luax`는 `declare name: TYPE`을 지원한다. `try … except err then … else … end`는 중첩된 return/break와 다중 반환을 보존한다. 스코프·로더·캐시·선언 계약·지원 범위는 [import·선언·예외 처리](imports-exceptions.md)를 따른다. 기존 `require`와 `export: TYPE`도 유지한다.
+`.arky`는 `import name from "module"`, `.d.arky`는 `declare name: TYPE`을 지원한다. `try … except err then … else … end`는 중첩된 return/break와 다중 반환을 보존한다. 스코프·로더·캐시·선언 계약·지원 범위는 [import·선언·예외 처리](imports-exceptions.md)를 따른다. 기존 `require`와 `export: TYPE`도 유지한다.

@@ -1,7 +1,7 @@
 {
   "name": "tynex",
-  "displayName": "Tynex",
-  "description": "Tynex typed Lua development tools: diagnostics, syntax highlighting, and mapped debugging.",
+  "displayName": "Arky",
+  "description": "Arky script development tools powered by Tynex: diagnostics, syntax highlighting, and mapped debugging.",
   "repository": {
     "type": "git",
     "url": "https://github.com/corbie79/tynex.git",
@@ -39,11 +39,11 @@
       {
         "id": "tynex",
         "aliases": [
-          "Tynex",
-          "luax"
+          "Arky",
+          "arky"
         ],
         "extensions": [
-          ".luax"
+          ".arky"
         ],
         "configuration": "./language-configuration.json"
       }
@@ -63,11 +63,11 @@
     "commands": [
       {
         "command": "tynex.restart",
-        "title": "Tynex: Restart Language Server"
+        "title": "Arky: Restart Language Server"
       }
     ],
     "configuration": {
-      "title": "Tynex",
+      "title": "Arky",
       "properties": {
         "tynex.serverPath": {
           "type": "string",
@@ -86,7 +86,7 @@
     "debuggers": [
       {
         "type": "tynex",
-        "label": "Tynex (LuaJIT)",
+        "label": "Arky (LuaJIT)",
         "languages": [
           "tynex"
         ],
@@ -127,7 +127,7 @@
         },
         "initialConfigurations": [
           {
-            "name": "Tynex: current file",
+            "name": "Arky: current file",
             "type": "tynex",
             "request": "launch",
             "entry": "${file}"

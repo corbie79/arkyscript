@@ -44,7 +44,7 @@ def main():
         hooks.mkdir(exist_ok=True)
         run('git', '-c', 'user.name=Tynex build', '-c', 'user.email=build@tynex.invalid',
             '-c', 'commit.gpgsign=false', '-c', f'core.hooksPath={hooks}',
-            'commit', '-qm', 'Generated Tynex editor grammar snapshot', cwd=grammar)
+            'commit', '-qm', 'Generated Arky editor grammar snapshot', cwd=grammar)
     revision = run('git', 'rev-parse', 'HEAD', cwd=grammar)
     extension = OUT / 'zed'
     for name in ['src', 'languages', 'debug_adapter_schemas']:

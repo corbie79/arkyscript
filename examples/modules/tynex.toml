@@ -1,5 +1,5 @@
 type_mode = "strict"
-include = ["main.luax", "src/**", "legacy/**"]
+include = ["main.arky", "src/**", "legacy/**"]
 module_paths = ["src", "legacy"]
 dynamic_modules = ["plugins.bonus"]
 

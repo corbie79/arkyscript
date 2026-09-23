@@ -1,7 +1,7 @@
-# Tynex editor grammar
+# Arky editor grammar
 
 An independent editor grammar extending a pinned, unmodified MIT Lua grammar.
-Tynex source files use `.luax`; declaration files use `.d.luax`.
+Arky source files use `.arky`; declaration files use `.d.arky`.
 The Rust compiler remains authoritative for valid syntax and types. This grammar
 recognizes optional and parenthesized types, records, arrays, maps, function
 signatures, variadic parameters/results, class/trait declarations, async functions,

@@ -21,7 +21,7 @@ class SourceMapTests(unittest.TestCase):
         for newline in ("\n", "\r\n"):
             with self.subTest(newline=repr(newline)), tempfile.TemporaryDirectory() as directory:
                 directory = Path(directory)
-                source = directory / '한글 test.luax'
+                source = directory / '한글 test.arky'
                 original = 'local n: number = 7\nerror("mapped failure")\n'.replace('\n', newline)
                 source.write_bytes(original.encode('utf-8'))
                 output = directory / 'out'
@@ -46,7 +46,7 @@ class SourceMapTests(unittest.TestCase):
     def test_bundle_refuses_unowned_output_and_can_rebuild(self):
         with tempfile.TemporaryDirectory() as directory:
             directory=Path(directory)
-            source=directory/'main.luax'; source.write_text('print(1)\n')
+            source=directory/'main.arky'; source.write_text('print(1)\n')
             output=directory/'output'; output.mkdir(); (output/'keep.txt').write_text('keep')
             failed=self.cli('bundle',source,'--out',output)
             self.assertNotEqual(failed.returncode,0)
@@ -61,7 +61,7 @@ class SourceMapTests(unittest.TestCase):
     def test_previous_brand_bundle_requires_regeneration_and_can_be_rebuilt(self):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
-            source = directory / 'main.luax'
+            source = directory / 'main.arky'
             source.write_text('try print(42) except err then print(err) end\n')
             output = directory / 'bundle'
             output.mkdir()

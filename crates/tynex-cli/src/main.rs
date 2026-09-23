@@ -19,7 +19,7 @@ use tynex_compiler::Mode;
 #[command(
     name = "tynex",
     version,
-    about = "Tynex — Typed Lua Development Kit: compiler, language server, and debugging tools"
+    about = "Tynex — development tools for Arky scripts and Lua: compiler, language server, and debugger"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -58,7 +58,7 @@ enum Format {
 }
 #[derive(Args)]
 struct Input {
-    /// A .luax script or legacy .lua source (.d.luax declarations can be checked).
+    /// A .arky script or legacy .lua source (.d.arky declarations can be checked).
     file: Option<PathBuf>,
     #[arg(long)]
     mode: Option<Mode>,

@@ -1,6 +1,6 @@
 # trait 예제
 
-**구현 완료.** 실행 가능한 원본은 [traits.luax](../traits.luax)이며 `./bin/tynex run examples/traits.luax`로 실행합니다.
+**구현 완료.** 실행 가능한 원본은 [traits.arky](../traits.arky)이며 `./bin/tynex run examples/traits.arky`로 실행합니다.
 
 ```lua
 trait Named

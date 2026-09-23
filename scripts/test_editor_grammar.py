@@ -18,13 +18,13 @@ def run(*args):
 
 
 def main():
-    examples = sorted((ROOT / 'examples').rglob('*.luax'))
-    fixtures = sorted((GRAMMAR / 'test/fixtures').rglob('*.luax'))
+    examples = sorted((ROOT / 'examples').rglob('*.arky'))
+    fixtures = sorted((GRAMMAR / 'test/fixtures').rglob('*.arky'))
     sources = examples + fixtures
     run('parse', '--quiet', *sources)
     for query in QUERIES.glob('*.scm'):
         run('query', '--quiet', query, *sources)
-    classes = GRAMMAR / 'test/fixtures/class-trait.luax'
+    classes = GRAMMAR / 'test/fixtures/class-trait.arky'
     captures = run('query', '--captures', QUERIES / 'highlights.scm', classes)
     for kind, text in [('keyword', 'class'), ('keyword', 'trait'), ('keyword', 'is'),
                        ('type', 'Player'), ('type', 'Self'), ('type', 'api.Player'),
@@ -36,7 +36,7 @@ def main():
     outline = run('query', '--captures', QUERIES / 'outline.scm', classes)
     for name in ['Player', 'Named', 'Scorable', 'label', 'describe', 'score', 'active']:
         assert any(' - name,' in line and f'text: `{name}`' in line for line in outline.splitlines()), (name, outline)
-    chaining = GRAMMAR / 'test/fixtures/optional-chaining.luax'
+    chaining = GRAMMAR / 'test/fixtures/optional-chaining.arky'
     captures = run('query', '--captures', QUERIES / 'highlights.scm', chaining)
     for kind, text in [('operator', '?.'), ('operator', '?['), ('operator', '?('), ('operator', '?:'),
                        ('operator', '?'), ('property', 'score'), ('property', 'children'),
@@ -46,12 +46,12 @@ def main():
     brackets = run('query', '--captures', QUERIES / 'brackets.scm', chaining)
     for text in ['?(', '?[']:
         assert any(' - open,' in line and f'text: `{text}`' in line for line in brackets.splitlines()), (text, brackets)
-    asynchronous = GRAMMAR / 'test/fixtures/async-await.luax'
+    asynchronous = GRAMMAR / 'test/fixtures/async-await.arky'
     captures = run('query', '--captures', QUERIES / 'highlights.scm', asynchronous)
     for kind, text in [('keyword', 'async'), ('keyword', 'await'), ('type.builtin', 'Task'),
                        ('function', 'pair'), ('function.method', 'fetch'), ('variable.parameter', 'value')]:
         assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in captures.splitlines()), (kind, text, captures)
-    io_fixture = GRAMMAR / 'test/fixtures/async-io.luax'
+    io_fixture = GRAMMAR / 'test/fixtures/async-io.arky'
     captures = run('query', '--captures', QUERIES / 'highlights.scm', io_fixture)
     for kind, text in [('type.builtin', 'Socket'), ('type.builtin', 'Task'),
                        ('keyword', 'await'), ('function', 'exchange'),
@@ -84,7 +84,7 @@ def main():
                            ('optional.callback.result', ': (function(number): number)?'),
                            ('optional.scalar.result', ': (number)?')]:
             assert any(f' - {kind},' in line and f'text: `{text}`' in line for line in shapes.splitlines()), (kind, text, shapes)
-        source = Path(directory) / 'capture.luax'
+        source = Path(directory) / 'capture.arky'
         for invalid_result in ['(number, string)?', '()?']:
             source.write_text(f'local function invalid(): {invalid_result} return nil end\n')
             parsed = subprocess.run([str(CLI), 'parse', str(source)], cwd=GRAMMAR, capture_output=True, text=True)

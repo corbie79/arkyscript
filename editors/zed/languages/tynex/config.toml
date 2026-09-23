@@ -1,6 +1,6 @@
-name = "Tynex"
+name = "Arky"
 grammar = "tynex"
-path_suffixes = ["luax"]
+path_suffixes = ["arky"]
 line_comments = ["-- "]
 block_comment = ["--[[", "]]"]
 tab_size = 3

@@ -1,6 +1,6 @@
 # 개발 도구 검증
 
-macOS ARM64와 고정 LuaJIT `c6ffc141a8762b41703f9287d63d93622a13dd8f`에서 검증했다. 아래 실행 결과는 해당 환경의 결과이며 모바일·다른 데스크톱의 실제 에디터 세션을 포함하지 않는다.
+macOS ARM64와 고정 LuaJIT `c6ffc141a8762b41703f9287d63d93622a13dd8f`에서 검증했다. `.arky`·`.d.arky`와 Arky 언어 표시로 변경한 컴파일러·통합 테스트·에디터 문법·VS Code 세션을 재검증했다. 아래 실행 결과는 해당 환경의 결과이며 모바일·다른 데스크톱의 실제 에디터 세션을 포함하지 않는다. C++ 네이티브 및 Windows 크로스 빌드 결과는 이름·확장자 변경 전 검증이다.
 
 | 대상 | 검증 범위 | 결과 |
 | --- | --- | --- |
@@ -12,10 +12,10 @@ macOS ARM64와 고정 LuaJIT `c6ffc141a8762b41703f9287d63d93622a13dd8f`에서 �
 | 비동기 I/O | 바이너리 파일·TCP·IPv4/IPv6·취소·EOF·GC·원본 await 행 | 통합 16개 및 native ASan/UBSan·Windows DLL 크로스 빌드 통과 |
 | TextMate | 타입·함수·주석·문자열·불완전 문법·선택적 호출·async·Socket | 18개 fixture 통과 |
 | Tree-sitter | 파싱, 모든 Zed query, capture, 오류 회복 | 29개 예제·4개 전용 fixture 통과 |
-| VS Code | 실제 extension host, VSIX 패키징 | 통과 |
-| Zed | 확장 Rust 테스트, WASM 빌드, 개발 확장 준비 | 통과 |
+| VS Code | 실제 extension host, VSIX 패키징 | `.arky`·Arky 언어 등록과 mapped 디버깅 재검증 통과 |
+| Zed | 확장 Rust 테스트, WASM 빌드, 개발 확장 준비 | Arky 확장 통과, GUI 재검증은 별도 |
 
-VS Code 1.138.0에서 `tynex-local.tynex` 확장 ID의 `.luax`·`.d.luax` 언어 등록, 미저장 진단·수정, 외부 의존 파일 감시를 확인했다. 디버깅 검증은 원본 중단점, 모듈 Step Into/Over, Watch, 조건부 중단점, 오류 스택, 종료·재연결, import/try/else를 포함한다. 보고서는 `build/editor-test/vscode-result.json`과 `vscode-mapped-result.json`에 생성한다. 자동 테스트는 별도 profile을 사용한다. `.luax`로 변경한 실제 VS Code extension host 세션에서 이 항목들을 재검증했다.
+VS Code 1.138.0에서 `tynex-local.tynex` 확장 ID의 `.arky`·`.d.arky` 및 Arky 언어 등록, 미저장 진단·수정, 외부 의존 파일 감시를 확인했다. 디버깅 검증은 원본 중단점, 모듈 Step Into/Over, Watch, 조건부 중단점, 오류 스택, 종료·재연결, import/try/else를 포함한다. 보고서는 `build/editor-test/vscode-result.json`과 `vscode-mapped-result.json`에 생성한다. 자동 테스트는 별도 profile을 사용한다. `.arky`로 변경한 실제 VS Code extension host 세션에서 이 항목들을 재검증했다.
 
 Zed의 `tynex` 확장·언어 서버 및 `tynex-emmy` 디버그 어댑터는 설정 검사와 WASM 빌드로 검증했다. 현재 구성의 Zed GUI 세션과 Windows 실제 실행은 별도 검증 항목이다.
 

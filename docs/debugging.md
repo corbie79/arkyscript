@@ -1,6 +1,6 @@
 # Rust 프런트엔드의 원본 소스 디버깅
 
-현재 `.lua/.luax` 실행기는 생성 코드의 줄이 달라도 원본 중단점·모듈 스택·Step Into/Over·조건부 중단점을 지원한다. `.luax` 확장자로 VS Code 확장 호스트와 EmmyLua DAP 디버깅을 재검증했다. Zed 전용 Tynex 확장의 UI 연결 검증은 확장자 변경 전 결과다. [검증 기록](editor-validation.md)은 에디터별 방식과 `.luax` 변경 뒤 남은 재검증 항목을 구분한다. 타입 진단·구문 강조의 설치 방법은 [에디터 안내](editors.md)를 따른다.
+현재 `.lua/.arky` 실행기는 생성 코드의 줄이 달라도 원본 중단점·모듈 스택·Step Into/Over·조건부 중단점을 지원한다. 실제 VS Code 확장 호스트에서 `.arky`·`.d.arky` 언어 등록과 원본 소스 맵 디버깅을 재검증했다. Zed 전용 Arky 확장의 UI 연결 검증은 확장자 변경 전 결과다. [검증 기록](editor-validation.md)은 에디터별 방식과 확장자 변경 뒤 남은 재검증 항목을 구분한다. 타입 진단·구문 강조의 설치 방법은 [에디터 안내](editors.md)를 따른다.
 
 ## 준비
 
@@ -8,19 +8,19 @@
 
 ## VS Code
 
-1. 로컬 Tynex 확장과 [Local Lua Debugger](https://marketplace.visualstudio.com/items?itemName=tomblind.local-lua-debugger-vscode)를 설치하고 `cargo build --locked -p tynex-cli`를 실행한다.
-2. 프로젝트 변경을 저장하고 `examples/debug/main.luax` 2행에 중단점을 둔다.
-3. **Tynex: mapped modules**를 실행한다. Tynex이 그래프 전체를 검사하고 번들을 만든 다음 upstream 어댑터에 생성 파일 목록을 전달한다.
-4. Step Into로 `worker.luax` 2행에 들어가 `score`, `amount`를 보고 Watch에서 `score + amount`를 평가한다. Step Over 후 `total`은 15다.
+1. 로컬 Arky 확장과 [Local Lua Debugger](https://marketplace.visualstudio.com/items?itemName=tomblind.local-lua-debugger-vscode)를 설치하고 `cargo build --locked -p tynex-cli`를 실행한다.
+2. 프로젝트 변경을 저장하고 `examples/debug/main.arky` 2행에 중단점을 둔다.
+3. **Arky: mapped modules**를 실행한다. Tynex가 그래프 전체를 검사하고 번들을 만든 다음 upstream 어댑터에 생성 파일 목록을 전달한다.
+4. Step Into로 `worker.arky` 2행에 들어가 `score`, `amount`를 보고 Watch에서 `score + amount`를 평가한다. Step Over 후 `total`은 15다.
 
 다른 프로젝트의 구성:
 
 ```json
 {
-  "name": "Tynex",
+  "name": "Arky",
   "type": "tynex",
   "request": "launch",
-  "entry": "src/main.luax",
+  "entry": "src/main.arky",
   "bundleDirectory": "build/debug/vscode",
   "scriptArguments": []
 }
@@ -37,19 +37,19 @@
 3. 라이브러리 디렉터리를 `TYNEX_EMMY_CORE_DIR`로 지정해 실행 작업을 시작한다.
 
 ```sh
-TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex debug examples/main.luax
+TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex debug examples/main.arky
 ```
 
 4. 서버 대기 메시지가 나온 뒤 **Rust frontend on LuaJIT: connect to example**을 시작한다.
 
-[debug.json](../.zed/debug.json)은 `emmylua_new`, `127.0.0.1:9966`, `.luax/.lua` 검색으로 구성한다. request는 upstream 예제대로 launch지만 실행 중인 디버그 서버에 연결하는 구성이다. [tasks.json](../.zed/tasks.json)의 **Tynex: start example for EmmyLua**도 같은 실행을 시작한다. 환경 변수는 Zed 작업 환경에 전달해야 한다. [EmmyLua DAP 공식 구성](https://github.com/EmmyLuaLs/emmylua_dap), [Zed 디버거 설정](https://zed.dev/docs/debugger).
+[debug.json](../.zed/debug.json)은 `emmylua_new`, `127.0.0.1:9966`, `.arky/.lua` 검색으로 구성한다. request는 upstream 예제대로 launch지만 실행 중인 디버그 서버에 연결하는 구성이다. [tasks.json](../.zed/tasks.json)의 **Arky: start example for EmmyLua**도 같은 실행을 시작한다. 환경 변수는 Zed 작업 환경에 전달해야 한다. [EmmyLua DAP 공식 구성](https://github.com/EmmyLuaLs/emmylua_dap), [Zed 디버거 설정](https://zed.dev/docs/debugger).
 
 포트 변경 시 `TYNEX_DEBUG_PORT`와 Zed 설정의 port를 함께 수정한다. 실행기는 `.dylib/.so/.dll`을 검색하지만 각 플랫폼 네이티브 코어는 별도 준비·검증이 필요하다.
 
 ## 생성 번들과 소스 맵
 
 ```sh
-./bin/tynex bundle examples/debug/main.luax --out build/debug/modules
+./bin/tynex bundle examples/debug/main.arky --out build/debug/modules
 ./bin/tynex exec-bundle build/debug/modules
 ```
 
@@ -57,11 +57,11 @@ TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex debug examples/main.luax
 
 소스 맵은 0부터 시작하는 UTF-16 위치를 사용한다. DAP bridge는 디버거의 행 단위 위치와 0/1 기반 옵션을 변환한다. 원본 중단점/조건·스택/범위·breakpoint event·source 요청·출력 위치를 처리하며 변수와 식은 upstream 디버거가 평가한다. 아직 생성 변수 이름 변환, async 논리 스택, helper 자동 건너뛰기는 제공하지 않는다.
 
-Zed의 새 **Tynex: mapped modules** 구성은 `tynex-emmy`를 사용한다. 먼저 준비된 DAP 바이너리를 복사한다.
+Zed의 새 **Arky: mapped modules** 구성은 `tynex-emmy`를 사용한다. 먼저 준비된 DAP 바이너리를 복사한다.
 
 ```sh
 python3 scripts/prepare_zed.py --emmy-dap /absolute/path/to/emmylua_dap
-./bin/tynex bundle examples/debug/main.luax --out build/debug/modules
+./bin/tynex bundle examples/debug/main.arky --out build/debug/modules
 TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex exec-bundle build/debug/modules --debug
 ```
 
@@ -71,7 +71,7 @@ TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex exec-bundle build/debug/m
 ./bin/tynex dap --map build/debug/modules/debug-map.json --backend /absolute/path/to/emmylua_dap
 ```
 
-번들은 현재 로컬 디버깅용 산출물로 절대 경로를 포함한다. 소스를 바꿨으면 재생성하고 새 디버그 세션을 시작한다. 다른 컴퓨터로 옮기는 배포 패키지 형식은 아니다. 기존 파일을 덮어쓰지 않도록 빈 디렉터리 또는 Tynex이 표시한 번들 디렉터리에만 출력한다. legacy 모듈은 원본 로딩을 유지한다.
+번들은 현재 로컬 디버깅용 산출물로 절대 경로를 포함한다. 소스를 바꿨으면 재생성하고 새 디버그 세션을 시작한다. 다른 컴퓨터로 옮기는 배포 패키지 형식은 아니다. 기존 파일을 덮어쓰지 않도록 빈 디렉터리 또는 Tynex가 표시한 번들 디렉터리에만 출력한다. legacy 모듈은 원본 로딩을 유지한다.
 
 오류 traceback도 원본 파일과 행으로 복원한다. LuaJIT이 긴 파일명을 줄여 출력하는 경우는 VM의 `short_src`를 조회해 처리한다. 실행되지 않는 타입 선언에는 중단점을 둘 수 없다. EmmyLua의 오류 자동 정지는 현재 지원되지 않아 모듈의 오류 발생 행에 중단점을 두어 검사하며, CLI는 원본 traceback과 실패 종료 코드를 제공한다.
 

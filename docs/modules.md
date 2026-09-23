@@ -7,12 +7,12 @@
 저장소 루트에서 다음 명령을 실행한다.
 
 ```sh
-./bin/tynex run examples/modules/main.luax
+./bin/tynex run examples/modules/main.arky
 ./bin/tynex check --project examples/modules/tynex.toml
 ./bin/tynex check --project examples/modules/tynex.toml --format json
 ```
 
-실행 결과는 `Mina: 60`과 `Multiplier: 2`다. [main.luax](../examples/modules/main.luax)는 [scores.luax](../examples/modules/src/scores.luax)를 가져오고, scores는 typed 숫자 모듈과 원본 legacy formatter를 사용한다. 별도로 등록한 bonus 모듈은 동적 이름으로 가져온다. legacy 구현과 [formatter.d.luax](../examples/modules/legacy/formatter.d.luax)의 공개 계약을 분리했다.
+실행 결과는 `Mina: 60`과 `Multiplier: 2`다. [main.arky](../examples/modules/main.arky)는 [scores.arky](../examples/modules/src/scores.arky)를 가져오고, scores는 typed 숫자 모듈과 원본 legacy formatter를 사용한다. 별도로 등록한 bonus 모듈은 동적 이름으로 가져온다. legacy 구현과 [formatter.d.arky](../examples/modules/legacy/formatter.d.arky)의 공개 계약을 분리했다.
 
 정적 `import name from "module"`와 이름별 `declare` 계약, 예외 처리의 규칙은 [import·선언·예외 처리](imports-exceptions.md)를 따른다.
 
@@ -20,7 +20,7 @@
 
 ```toml
 type_mode = "strict"
-include = ["main.luax", "src/**", "legacy/**"]
+include = ["main.arky", "src/**", "legacy/**"]
 exclude = ["src/experiments/**"]
 module_paths = ["src", "legacy"]
 dynamic_modules = ["plugins.bonus"]
@@ -35,7 +35,7 @@ mode = "legacy"
 
 | 항목 | 의미와 기본값 |
 | --- | --- |
-| `include` | 프로젝트 check의 시작 파일. 기본 `**/*.luax`, `**/*.lua` |
+| `include` | 프로젝트 check의 시작 파일. 기본 `**/*.arky`, `**/*.lua` |
 | `exclude` | 시작 파일에서 제외. 기본 `.git/**`, `.deps/**`, `build/**`, `target/**`, `archive/**` |
 | `module_paths` | require 검색 디렉터리의 순서. 기본 `['.']` |
 | `dynamic_modules` | 실행 전에 추가로 검사·준비할 프로젝트 모듈 이름. 기본 없음 |
@@ -51,20 +51,20 @@ include/exclude를 명시하면 그 항목의 기본 목록을 대체한다. exc
 
 기본적으로 파일마다 가장 가까운 `tynex.toml` 하나를 적용한다. `--project`를 명시하면 그래프 전체에서 그 설정 파일을 사용한다. 중첩 설정의 타입 정책은 적용할 수 있지만 module_paths·include/exclude·dynamic_modules·external_modules는 진입 프로젝트의 설정으로 고정한다. 실행 중 전역 require의 해석이 호출 파일마다 바뀌지 않게 하기 위해서다.
 
-`.lua` 기본 모드는 legacy이고 `.luax` 기본은 gradual이다. legacy 본문은 원본을 LuaJIT으로 구문 검사하며 실행하지 않는다. run/debug도 준비된 legacy 파일의 구문 오류를 진입 전에 차단한다. 구문 검사에서는 `LUA_INIT`도 제거한다. 실제 실행은 원본 파일을 일반 Lua 환경에서 로드한다.
+`.lua` 기본 모드는 legacy이고 `.arky` 기본은 gradual이다. legacy 본문은 원본을 LuaJIT으로 구문 검사하며 실행하지 않는다. run/debug도 준비된 legacy 파일의 구문 오류를 진입 전에 차단한다. 구문 검사에서는 `LUA_INIT`도 제거한다. 실제 실행은 원본 파일을 일반 Lua 환경에서 로드한다.
 
 ## 이름과 검색 순서
 
 `require('util.numbers')`는 각 module_paths 디렉터리에서 다음 네 후보를 확인한다.
 
 ```text
-util/numbers.luax
-util/numbers/init.luax
+util/numbers.arky
+util/numbers/init.arky
 util/numbers.lua
 util/numbers/init.lua
 ```
 
-처음 후보가 발견되는 루트를 사용한다. 같은 루트에서 후보가 둘 이상이면 오류다. 예를 들어 `numbers.lua`와 `numbers.luax`가 공존하거나 파일과 init 모듈이 겹치면 하나를 선택하지 않는다. 나중 검색 루트의 후보는 앞선 루트를 덮어쓰지 않는다. 이름은 점으로 구분된 문자·숫자·밑줄·하이픈을 허용하며 `/`, `\`, 빈 구간, 상위 디렉터리 경로는 허용하지 않는다.
+처음 후보가 발견되는 루트를 사용한다. 같은 루트에서 후보가 둘 이상이면 오류다. 예를 들어 `numbers.lua`와 `numbers.arky`가 공존하거나 파일과 init 모듈이 겹치면 하나를 선택하지 않는다. 나중 검색 루트의 후보는 앞선 루트를 덮어쓰지 않는다. 이름은 점으로 구분된 문자·숫자·밑줄·하이픈을 허용하며 `/`, `\`, 빈 구간, 상위 디렉터리 경로는 허용하지 않는다.
 
 내장 require를 가리키는 호출의 문자열 리터럴을 정적으로 분석한다. 지역 변수로 가린 require, 문자열·주석 속의 require는 import로 취급하지 않는다. `local load = require` 같은 추적 가능한 별칭과 모듈이 반환한 require 별칭도 처리한다. `require(name)`처럼 변수·계산식으로 이름을 전달하면 동적 경계다. 실행되지 않을 수 있는 함수 본문과 분기 안의 정적 require도 검사한다.
 
@@ -74,7 +74,7 @@ util/numbers/init.lua
 
 typed 모듈의 첫 반환값을 공개 타입으로 추론한다. 예를 들어 `return {add = add}`의 함수 인자·반환형은 호출 파일에서 검사한다. require는 한 결과를 사용하므로 추가 반환값은 공개하지 않는다. 빈 반환/nil에는 require의 기본 boolean 결과를 반영한다. package.loaded를 직접 바꾸는 방식은 이 추론의 보장 범위에 포함하지 않는다.
 
-원본 `formatter.lua` 옆에 `formatter.d.luax`를 두면 다음처럼 계약을 선언할 수 있다.
+원본 `formatter.lua` 옆에 `formatter.d.arky`를 두면 다음처럼 계약을 선언할 수 있다.
 
 ```text
 export: {
@@ -84,7 +84,7 @@ export: {
 }
 ```
 
-기본 타입·optional·테이블·함수 타입을 조합한다. 선언 파일에는 `export: TYPE` 하나 또는 여러 `declare 이름: TYPE`을 허용한다. declare는 반환 테이블의 필드 계약이며 두 형식을 섞거나 실행 코드를 넣을 수 없다. 명명 타입·제네릭·class/trait 선언은 아직 없다. `.d.luax` 자체는 strict 선언 문법으로 검사한다. typed 구현에 sidecar를 붙이면 진단하며 공개 타입은 구현에서 추론한다.
+기본 타입·optional·테이블·함수 타입을 조합한다. 선언 파일에는 `export: TYPE` 하나 또는 여러 `declare 이름: TYPE`을 허용한다. declare는 반환 테이블의 필드 계약이며 두 형식을 섞거나 실행 코드를 넣을 수 없다. 명명 타입·제네릭·class/trait 선언은 아직 없다. `.d.arky` 자체는 strict 선언 문법으로 검사한다. typed 구현에 sidecar를 붙이면 진단하며 공개 타입은 구현에서 추론한다.
 
 선언 파일은 **legacy 구현과 비교 검증하지 않는 신뢰 계약**이다. 잘못된 계약은 런타임 오류를 일으킬 수 있다. 선언 없는 legacy와 외부 모듈은 unknown이며 strict에서는 `local api: any = require('legacy')`처럼 명시적 경계가 필요하다. gradual 모듈의 미해결 인자도 다른 파일에서 자동으로 안전한 타입이 되지 않는다.
 

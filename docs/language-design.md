@@ -1,6 +1,6 @@
 # Lua 문법을 유지하는 타입 확장 초안
 
-상태: **class·trait·async/await는 구현했다. enum·match·사용자 제네릭은 아직 설계 제안이다.** 현재 독립 Rust 컴파일러는 `.luax`의 기본 타입·함수·테이블·제어 흐름·다중 값·가변 인수·Lua 메서드를 지원한다. 아래 전체 예시를 현재 CLI로 실행할 수는 없다.
+상태: **class·trait·async/await는 구현했다. enum·match·사용자 제네릭은 아직 설계 제안이다.** 현재 독립 Rust 컴파일러는 `.arky`의 기본 타입·함수·테이블·제어 흐름·다중 값·가변 인수·Lua 메서드를 지원한다. 아래 전체 예시를 현재 CLI로 실행할 수는 없다.
 
 목표는 스크립트의 간결함을 유지하면서 `class`, trait, 데이터를 담는 enum, `match`, `async/await`를 제공하는 것이다. `local`, `function`, `end`, `obj:method()` 같은 Lua 문법은 유지한다. 메모리는 LuaJIT GC가 관리한다. 공식 LuaJIT 소스는 수정하지 않고 독립 Rust 프런트엔드·프로젝트 런타임에서 구현한다. Teal을 중간 단계나 타입 검사기로 사용하지 않는다.
 
@@ -8,7 +8,7 @@
 
 기존 Lua 프로젝트를 파일별로 전환할 수 있게 `legacy`·`gradual`·`strict` 모드를 제공한다. legacy는 기존 `.lua`를 그대로 실행하고, gradual은 타입 정보 부족을 허용하면서 확인 가능한 불일치를 검사한다. strict에서도 타입 추론을 허용하며 모든 변수에 표기를 강제하지 않는다. 모듈마다 자신의 정책을 적용하고 선언 파일이나 타입 어댑터로 레거시 API와 연결한다.
 
-새 문법의 구조적 규칙은 gradual에서도 적용한다. 예를 들어 잘못 선언된 enum이나 충돌하는 trait 기본 메서드를 단순히 타입 생략으로 취급하지 않는다. 현재 Rust 검사기는 nil을 구분하고 `T?` 및 지역 변수의 nil 좁히기를 제공한다. 필드 경로와 사용자 정의 복합 타입의 좁히기는 후속 기능이다. 설정 우선순위, 디버깅, 단계별 완료 조건은 [구현 계획](implementation-plan.md)을 기준으로 한다. 정적 의존 모듈마다 정책을 적용하며 legacy 모듈에는 `.d.luax` 공개 계약을 붙일 수 있다. [현재 모듈 규칙](modules.md)
+새 문법의 구조적 규칙은 gradual에서도 적용한다. 예를 들어 잘못 선언된 enum이나 충돌하는 trait 기본 메서드를 단순히 타입 생략으로 취급하지 않는다. 현재 Rust 검사기는 nil을 구분하고 `T?` 및 지역 변수의 nil 좁히기를 제공한다. 필드 경로와 사용자 정의 복합 타입의 좁히기는 후속 기능이다. 설정 우선순위, 디버깅, 단계별 완료 조건은 [구현 계획](implementation-plan.md)을 기준으로 한다. 정적 의존 모듈마다 정책을 적용하며 legacy 모듈에는 `.d.arky` 공개 계약을 붙일 수 있다. [현재 모듈 규칙](modules.md)
 
 ## 기능의 역할
 
@@ -24,7 +24,7 @@
 
 class는 상태를 소유하고 trait은 동작을 정의한다. 첫 구현은 trait 조합을 중심으로 하고 클래스 상속은 후속 검토 항목으로 둔다.
 
-독립된 [class 실행 예제](../examples/class.luax)와 [여러 trait 조합 예제](../examples/traits.luax)에서 생성·필드·공통 동작을 확인할 수 있다. 구현 규칙과 제한은 [class·trait 안내](classes-traits.md), C++ 바인딩 예제는 [예제 목록](../examples/README.md)에 있다.
+독립된 [class 실행 예제](../examples/class.arky)와 [여러 trait 조합 예제](../examples/traits.arky)에서 생성·필드·공통 동작을 확인할 수 있다. 구현 규칙과 제한은 [class·trait 안내](classes-traits.md), C++ 바인딩 예제는 [예제 목록](../examples/README.md)에 있다.
 
 ```text
 trait Named
@@ -106,7 +106,7 @@ enum 값은 논리적으로 타입 식별자·variant·payload로 구성된다. 
 
 ## async와 await
 
-**async/await·coroutine 스케줄러·내장 Task 결과 타입을 구현했다.** [현재 실행 규칙](async-await.md), [실행 예제](../examples/async.luax), [worker 연결](../examples/tasks/async.luax)을 따른다. 파일 읽기·DNS·TCP 연결/송수신은 [I/O API](io.md)로 제공한다. 아래 HTTP·Result 예제는 아직 없는 HTTP/TLS·enum 기능을 포함한 후속 설계다.
+**async/await·coroutine 스케줄러·내장 Task 결과 타입을 구현했다.** [현재 실행 규칙](async-await.md), [실행 예제](../examples/async.arky), [worker 연결](../examples/tasks/async.arky)을 따른다. 파일 읽기·DNS·TCP 연결/송수신은 [I/O API](io.md)로 제공한다. 아래 HTTP·Result 예제는 아직 없는 HTTP/TLS·enum 기능을 포함한 후속 설계다.
 
 ```text
 -- User, Result, HttpClient, HttpResponse는 별도로 선언된 타입이다.

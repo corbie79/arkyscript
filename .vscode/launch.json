@@ -16,25 +16,25 @@
           "communication": "pipe"
         }
       },
-      "preLaunchTask": "Tynex: build Rust CLI",
+      "preLaunchTask": "Arky: build Rust CLI",
       "args": [
         "debug",
-        "examples/main.luax"
+        "examples/main.arky"
       ],
       "stopOnEntry": false
     },
     {
-      "name": "Tynex: mapped modules",
+      "name": "Arky: mapped modules",
       "type": "tynex",
       "request": "launch",
-      "entry": "examples/debug/main.luax",
+      "entry": "examples/debug/main.arky",
       "bundleDirectory": "build/debug/modules"
     },
     {
-      "name": "Tynex: import and try",
+      "name": "Arky: import and try",
       "type": "tynex",
       "request": "launch",
-      "entry": "examples/imports/main.luax",
+      "entry": "examples/imports/main.arky",
       "bundleDirectory": "build/debug/vscode-imports"
     }
   ]

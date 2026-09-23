@@ -1,6 +1,6 @@
 # 스크립트 class·trait
 
-독립 Rust 컴파일러가 `.luax`의 class·trait를 검사하고 일반 Lua 테이블·메서드로 변환한다. 공식 LuaJIT 소스와 `.lua` legacy 로더는 변경하지 않는다. C++ `next2::luax` 바인더와 별도로 사용하는 스크립트 기능이다.
+독립 Rust 컴파일러가 `.arky`의 class·trait를 검사하고 일반 Lua 테이블·메서드로 변환한다. 공식 LuaJIT 소스와 `.lua` legacy 로더는 변경하지 않는다. C++ `next2::luax` 바인더와 별도로 사용하는 스크립트 기능이다.
 
 ## 클래스
 
@@ -66,9 +66,9 @@ trait 타입으로 인자를 받을 수 있고 호출은 Lua의 동적 메서드
 VS Code TextMate와 Zed Tree-sitter는 선언·필드·메서드·`is`·`Self`·명명 타입을 강조한다. LSP는 컴파일러의 동일한 타입 진단을 사용한다. 생성된 메서드와 기본값 식은 원본 위치에 연결되며 소스 맵·디버깅 번들에서도 원본 행을 유지한다. 자동 검증은 [컴파일러 검사](../crates/tynex-compiler/tests/class_traits.rs), [실행·모듈·오류 위치](../tests/test_classes.py), [LSP](../tests/test_lsp.py), 에디터 문법 테스트에 있다. 이 기능에 대한 실제 에디터 GUI 디버깅은 별도 검증 대상이다.
 
 ```sh
-./bin/tynex run examples/class.luax
-./bin/tynex run examples/traits.luax
+./bin/tynex run examples/class.arky
+./bin/tynex run examples/traits.arky
 python3 -m unittest discover -s tests -p test_classes.py -v
 ```
 
-상속, trait 상속, 제네릭, 접근 제어, 사용자 정의 `init` 생성자, `.d.luax`의 class·trait 선언은 아직 지원하지 않는다. 선언 파일에는 기존 함수·구조적 테이블 계약을 사용한다. enum·match·async/await도 별도 후속 기능이다.
+상속, trait 상속, 제네릭, 접근 제어, 사용자 정의 `init` 생성자, `.d.arky`의 class·trait 선언은 아직 지원하지 않는다. 선언 파일에는 기존 함수·구조적 테이블 계약을 사용한다. enum·match도 후속 기능이다. async 메서드는 [async/await 안내](async-await.md)를 따른다.

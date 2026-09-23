@@ -168,7 +168,7 @@ impl Parser {
         }
         if !self.typed {
             return Err(
-                self.fail("type annotations require a .luax file; .lua remains ordinary Lua")
+                self.fail("type annotations require a .arky file; .lua remains ordinary Lua")
             );
         }
         let start = self.tok().span.start;
@@ -340,7 +340,7 @@ impl Parser {
             return Ok(None);
         }
         if !self.typed {
-            return Err(self.fail("type annotations require a .luax file"));
+            return Err(self.fail("type annotations require a .arky file"));
         }
         let start = self.tok().span.start;
         self.index += 1;
@@ -1028,7 +1028,7 @@ impl Parser {
             let start = self.tok().span.start;
             let marker = if self.take("?") {
                 if !self.typed {
-                    return Err(self.fail("optional chaining requires a .luax file"));
+                    return Err(self.fail("optional chaining requires a .arky file"));
                 }
                 let marker = self.tokens[self.index - 1].span.clone();
                 if marker.end != self.tok().span.start

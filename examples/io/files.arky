@@ -2,7 +2,7 @@
 import arguments from "args"
 
 -- Resolve fixtures beside this source, regardless of the working directory.
-local source = arguments[0] or "examples/io/files.luax"
+local source = arguments[0] or "examples/io/files.arky"
 local directory = "./"
 for index = 1, #source do
    local character = source:sub(index, index)

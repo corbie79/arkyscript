@@ -4,8 +4,8 @@ const path = require('node:path');
 const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');
 module.exports = async (root, until) => {
-  const main = vscode.Uri.file(path.join(root,'examples/debug/main.luax'));
-  const worker = vscode.Uri.file(path.join(root,'examples/debug/worker.luax'));
+  const main = vscode.Uri.file(path.join(root,'examples/debug/main.arky'));
+  const worker = vscode.Uri.file(path.join(root,'examples/debug/worker.arky'));
   const points = [new vscode.SourceBreakpoint(new vscode.Location(main,new vscode.Position(1,0)))];
   const trace=path.join(root,'build/editor-test/vscode-mapped-trace.jsonl');
   fs.writeFileSync(trace,'');
@@ -16,7 +16,7 @@ module.exports = async (root, until) => {
   const frame=async(session,threadId)=> (await session.customRequest('stackTrace',{threadId})).stackFrames[0];
   try {
     vscode.debug.addBreakpoints(points);
-    assert.equal(await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0],'Tynex: mapped modules'),true);
+    assert.equal(await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0],'Arky: mapped modules'),true);
     let stop=await stopped();
     const session=currentSession;
     let top=await frame(session,stop.threadId);
@@ -44,11 +44,11 @@ module.exports = async (root, until) => {
     vscode.debug.removeBreakpoints(points);
     events.length=0;
     const cli=path.join(root,'target/debug',process.platform==='win32'?'tynex.exe':'tynex');
-    const result=spawnSync(cli,['bundle','examples/debug/error.luax','--out','build/debug/error'],{cwd:root,encoding:'utf8'});
+    const result=spawnSync(cli,['bundle','examples/debug/error.arky','--out','build/debug/error'],{cwd:root,encoding:'utf8'});
     assert.equal(result.status,0,result.stderr);
     assert.equal(await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0],{
-      type:'tynex',request:'launch',name:'Tynex mapped error',
-      entry:'examples/debug/error.luax',bundleDirectory:'build/debug/error'
+      type:'tynex',request:'launch',name:'Arky mapped error',
+      entry:'examples/debug/error.arky',bundleDirectory:'build/debug/error'
     }),true);
     stop=await stopped();
     const errorSession=currentSession;
@@ -58,13 +58,13 @@ module.exports = async (root, until) => {
     await errorSession.customRequest('continue',{threadId:stop.threadId});
     await until(()=>events.find(e=>e.event==='terminated'),'error session did not terminate');
     events.length=0;
-    const importMain=vscode.Uri.file(path.join(root,'examples/imports/main.luax'));
-    const importWorker=vscode.Uri.file(path.join(root,'examples/imports/worker.luax'));
+    const importMain=vscode.Uri.file(path.join(root,'examples/imports/main.arky'));
+    const importWorker=vscode.Uri.file(path.join(root,'examples/imports/worker.arky'));
     const importPoints=[6,10].map(line=>new vscode.SourceBreakpoint(new vscode.Location(importMain,new vscode.Position(line-1,0))));
     points.push(...importPoints); vscode.debug.addBreakpoints(importPoints);
     assert.equal(await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0],{
-      type:'tynex',request:'launch',name:'Tynex import and try',
-      entry:'examples/imports/main.luax',bundleDirectory:'build/debug/vscode-imports'
+      type:'tynex',request:'launch',name:'Arky import and try',
+      entry:'examples/imports/main.arky',bundleDirectory:'build/debug/vscode-imports'
     }),true);
     stop=await stopped();
     const importSession=currentSession;

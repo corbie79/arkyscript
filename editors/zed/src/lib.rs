@@ -10,7 +10,7 @@ impl zed::Extension for Tynex {
         config: serde_json::Value,
     ) -> Result<zed::StartDebuggingRequestArgumentsRequest> {
         if adapter_name != "tynex-emmy" {
-            return Err("Unknown Tynex debug adapter".into());
+            return Err("Unknown Arky debug adapter".into());
         }
         request_kind(&config)
     }
@@ -22,7 +22,7 @@ impl zed::Extension for Tynex {
         tree: &zed::Worktree,
     ) -> Result<zed::DebugAdapterBinary> {
         if adapter_name != "tynex-emmy" {
-            return Err("Unknown Tynex debug adapter".into());
+            return Err("Unknown Arky debug adapter".into());
         }
         let mut value: serde_json::Value =
             serde_json::from_str(&config.config).map_err(|e| e.to_string())?;
@@ -94,7 +94,7 @@ fn request_kind(value: &serde_json::Value) -> Result<zed::StartDebuggingRequestA
     match value["request"].as_str() {
         Some("attach") => Ok(zed::StartDebuggingRequestArgumentsRequest::Attach),
         Some("launch") => Ok(zed::StartDebuggingRequestArgumentsRequest::Launch),
-        _ => Err("Tynex debugging requires launch or attach".into()),
+        _ => Err("Arky debugging requires launch or attach".into()),
     }
 }
 zed::register_extension!(Tynex);
