@@ -1,0 +1,19 @@
+--!typecheck strict
+class Player
+   name: string
+end
+trait Named
+   label: function(Self): string
+   function describe(): string
+      return "name: " .. self:label()
+   end
+end
+impl Named for Player
+   function label(): string
+      return self.name
+   end
+end
+local function show(value: Named): ()
+   print(value:describe())
+end
+show(Player {name = "Mina"})

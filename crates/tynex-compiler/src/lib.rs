@@ -130,6 +130,18 @@ pub fn prepare(source: &str, typed_syntax: bool) -> Result<Prepared, Vec<Diagnos
 }
 pub fn declaration(source: &str) -> Result<Interface, Vec<Diagnostic>> {
     let tokens = lexer::lex(source).map_err(|e| vec![e])?;
+    if tokens
+        .windows(2)
+        .any(|t| t[0].text == "declare" && t[1].text == "class")
+    {
+        let body = parser::native_declaration(tokens).map_err(|e| vec![e])?;
+        let result = checker::check(&body, Mode::Strict, &BTreeMap::new());
+        return if result.errors.is_empty() {
+            Ok(result.interface)
+        } else {
+            Err(result.errors)
+        };
+    }
     parser::declaration(tokens)
         .map(|value| Interface {
             value,
@@ -226,8 +238,8 @@ impl Prepared {
 // Capturing the builtins before executing user code keeps lowered constructors
 // independent of later local declarations or global reassignment. Helper code
 // stays unmapped; field defaults and methods retain their original source spans.
-const CLASS_RUNTIME: &str = r#"local __tynex_class = (function(type, next, rawget, setmetatable, error, select)
-return function(name, traits, build)
+const CLASS_RUNTIME: &str = r#"local __tynex_class, __tynex_impl = (function(type, next, rawget, setmetatable, error, select, getmeta)
+local function create(name, traits, build)
     local fields, defaults, methods, allowed = {}, {}, {}, {}
     build(fields, defaults, methods)
     for i = 1, #fields do allowed[fields[i][1]] = true end
@@ -242,7 +254,25 @@ return function(name, traits, build)
         end
     end
     local instance_meta = {__index = methods}
-    return setmetatable({}, {__call = function(_, initial, ...)
+    local implemented, extensions = {}, {}
+    for key in next, methods do if not explicit[key] then extensions[key] = true end end
+    for i = 1, #traits do implemented[traits[i]] = true end
+    local function implement(trait, explicit, defaults)
+        if implemented[trait] then error('duplicate trait implementation for ' .. name, 2) end
+        for key in next, explicit do
+            if allowed[key] or methods[key] ~= nil then error('impl cannot replace member ' .. key, 2) end
+        end
+        for key in next, defaults do
+            if allowed[key] then error('trait default conflicts with field ' .. key, 2) end
+            if extensions[key] then error('conflicting trait default ' .. key, 2) end
+        end
+        for key, value in next, defaults do
+            if methods[key] == nil then methods[key] = value; extensions[key] = true end
+        end
+        for key, value in next, explicit do methods[key] = value; extensions[key] = true end
+        implemented[trait] = true
+    end
+    return setmetatable({}, {__arky_impl = implement, __call = function(_, initial, ...)
         if type(initial) ~= 'table' or select('#', ...) ~= 0 then
             error(name .. ' constructor expects exactly one table', 2)
         end
@@ -264,7 +294,15 @@ return function(name, traits, build)
         return setmetatable(instance, instance_meta)
     end})
 end
-end)(type, next, rawget, setmetatable, error, select)
+return create, function(trait, target, build)
+    local meta = getmeta(target)
+    local register = meta and rawget(meta, '__arky_impl')
+    if type(register) ~= 'function' then error('impl target does not support Arky extensions', 2) end
+    local methods = {}
+    build(methods)
+    register(trait, methods, trait)
+end
+end)(type, next, rawget, setmetatable, error, select, (debug and debug.getmetatable) or getmetatable)
 "#;
 
 #[derive(Debug)]

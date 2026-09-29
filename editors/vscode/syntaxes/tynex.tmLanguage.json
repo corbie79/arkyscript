@@ -110,7 +110,7 @@
     },
     {
       "name": "keyword.control.lua",
-      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except|class|trait|is|async|await)\\b"
+      "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while|import|from|declare|try|except|class|trait|impl|extends|readonly|is|async|await)\\b"
     },
     {
       "name": "entity.name.function.lua",
@@ -252,7 +252,7 @@
           "name": "punctuation.separator.type.tynex"
         }
       },
-      "end": "(?=[=,;)\\r\\n]|$|\\b(?:return|end|local|if|then|else|do|import|from|declare|try|except|class|trait|is)\\b)",
+      "end": "(?=[=,;)\\r\\n]|$|\\b(?:return|end|local|if|then|else|do|import|from|declare|try|except|class|trait|impl|extends|readonly|is)\\b)",
       "patterns": [
         {
           "include": "#comments"

@@ -10,7 +10,7 @@ export default grammar(lua, {
   reserved: {
     global: _ => ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for',
       'function', 'goto', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat',
-      'return', 'then', 'true', 'until', 'while', 'class', 'trait', 'import',
+      'return', 'then', 'true', 'until', 'while', 'class', 'trait', 'impl', 'import',
       'from', 'declare', 'try', 'except', 'async', 'await'],
   },
   rules: {
@@ -38,7 +38,12 @@ export default grammar(lua, {
     optional_method_index_expression: $ => seq(
       field('table', $._prefix_expression), '?:', field('method', $.identifier)
     ),
-    declaration: ($, original) => choice(original, $.export_declaration, $.declare_statement, $.class_declaration, $.trait_declaration),
+    declaration: ($, original) => choice(original, $.export_declaration, $.declare_statement, $.class_declaration, $.trait_declaration, $.impl_declaration, $.native_declaration),
+    impl_declaration: $ => seq('impl', field('trait', $.named_type), 'for', field('target', $.named_type),
+      repeat(choice($.method_declaration, $.empty_statement)), 'end'),
+    native_declaration: $ => seq('declare', 'class', field('name', $.identifier),
+      optional(seq('extends', $.named_type)), repeat(choice($.native_member, $.empty_statement)), 'end'),
+    native_member: $ => prec.right(seq(optional('readonly'), field('name', $.identifier), $.type_annotation, optional(';'))),
     class_declaration: $ => seq(
       'class', field('name', $.identifier), optional($.trait_list),
       repeat(choice($.class_field, $.method_declaration, $.empty_statement)), 'end'

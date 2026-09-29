@@ -143,3 +143,7 @@ end
 ## 프로젝트 문법 확장
 
 `.arky`는 `import name from "module"`, `.d.arky`는 `declare name: TYPE`을 지원한다. `try … except err then … else … end`는 중첩된 return/break와 다중 반환을 보존한다. 스코프·로더·캐시·선언 계약·지원 범위는 [import·선언·예외 처리](imports-exceptions.md)를 따른다. 기존 `require`와 `export: TYPE`도 유지한다.
+
+## 분리된 구현과 네이티브 타입
+
+모듈 최상위의 `impl Trait for Type`으로 기존 스크립트·네이티브 타입에 trait을 구현한다. `.d.arky`의 `declare class`·`extends`·`constructor`·`readonly`로 호스트 타입 계약을 표현한다. 이름 충돌, 구현 소유권, 모듈 초기화 순서와 선언의 신뢰 경계는 [impl 문서](impl.md)를 따른다.

@@ -68,7 +68,7 @@ lua.reg_class<Sprite>("Sprite").reg_base<Node>().reg_con<>();
 
 Lua에 노출하는 부모는 하나이며, public하고 모호하지 않은 C++ 관계만 허용합니다. 부모로 사용된 등록은 고정되고, 자식에서 상속된 이름을 덮어쓰면 오류입니다. C++ 가상 메서드는 기존 override를 호출합니다. 원래 소유권과 const 보호를 유지하며 역변환이나 빌린 포인터의 소유권 승격은 하지 않습니다.
 
-[상속 API·trait 연결 설계](../docs/native-bindings.md)와 [렌더링 명령 수집 예제](../examples/cpp_rendering.cpp)를 참고하세요. 네이티브 명명 타입 선언과 분리된 `impl` 문법은 아직 지원하지 않습니다.
+[상속 API·trait 연결 설계](../docs/native-bindings.md)와 [렌더링 명령 수집 예제](../examples/cpp_rendering.cpp)를 참고하세요. 네이티브 명명 타입 선언과 분리된 `impl`은 [문법·호스트 연결 안내](../docs/impl.md)를 따릅니다. 스크립트 메서드는 별도 확장 표에 연결되며 기존 네이티브 멤버를 덮어쓸 수 없습니다.
 
 ## 핵심 인자 변환 모듈
 

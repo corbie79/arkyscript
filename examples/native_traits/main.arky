@@ -1,0 +1,21 @@
+--!typecheck strict
+import engine from "engine"
+trait Named
+   label: function(Self): string
+   function describe(): string
+      return "name: " .. self:label()
+   end
+end
+impl Named for engine.Sprite
+   function label(): string
+      return "sprite " .. self.texture
+   end
+end
+local sprite = engine.Sprite()
+sprite.texture = 7
+sprite:move(10)
+local function show(value: Named): ()
+   print(value:describe())
+end
+show(sprite)
+engine.submit(sprite)

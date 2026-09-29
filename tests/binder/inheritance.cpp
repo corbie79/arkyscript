@@ -160,6 +160,35 @@ void inheritance() {
     check(lua_gettop(L) == 0, "stack is restored after conversions and errors");
 }
 
+void script_trait_extensions() {
+    state vm;
+    binder lua(vm);
+    lua.reg_class<Node>("Node").reg_con<>().reg_var("x", &Node::x).reg_func("kind", &Node::kind);
+    auto sprite = lua.reg_class<Sprite>("Sprite");
+    sprite.reg_base<Node>().reg_con<>().reg_var("texture", &Sprite::texture);
+    lua.dostring(R"(
+        s = Sprite()
+        local extend_node = debug.getmetatable(Node).__arky_impl
+        extend_sprite = debug.getmetatable(Sprite).__arky_impl
+        named = {label = function(self) return "node " .. self.x end}
+        extend_node(named, {}, named)
+        assert(s:label() == "node 4" and s:kind() == 2)
+        descriptive = {describe = function(self) return self:label() .. "!" end}
+        extend_sprite(descriptive, {}, descriptive)
+        assert(s:describe() == "node 4!")
+        local ok = pcall(extend_sprite, {}, {valid=function() end, x=function() end}, {})
+        assert(not ok and s.valid == nil)
+        ok = pcall(extend_node, {}, {}, {texture=function() end})
+        assert(not ok and s.texture == 2)
+        ok = pcall(extend_sprite, {}, {}, {x=function() end})
+        assert(not ok and s.x == 4)
+    )");
+    fails([&] { lua.dostring("extend_sprite(descriptive, {}, descriptive)"); }, "duplicate");
+    fails([&] { sprite.reg_func("describe", &Sprite::kind); }, "script trait");
+    fails([&] { lua.dostring("s.describe = function() end"); }, "read-only");
+    check(lua_gettop(vm.get()) == 0, "script extensions leave a balanced stack");
+}
+
 void ownership_and_state_isolation() {
     std::shared_ptr<PlainBase> held;
     {
@@ -189,6 +218,7 @@ int main() {
         inheritance();
         check(Sprite::live == 0, "all sprite objects released");
         ownership_and_state_isolation();
+        script_trait_extensions();
         check(Sprite::live == 0, "isolated state releases objects");
         std::cout << "inheritance: " << checks << " checks passed\n";
     } catch (const std::exception& exception) {

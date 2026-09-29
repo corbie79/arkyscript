@@ -43,7 +43,7 @@ declare read: function(string): (string?, string?)
 
 각 선언은 모듈이 반환하는 테이블의 공개 필드다. 생성 Lua나 전역 변수는 만들지 않는다. 초기값·실행문·중복 이름은 오류다. 기존 `export: {label: function(string, number): string}` 형식도 유지하며, 두 형식은 한 파일에서 섞지 않는다. 테이블 이외의 모듈 반환값은 `export: TYPE`으로 기술한다.
 
-선언 파일은 strict 문법으로 검사하지만 레거시 구현이 계약을 지키는지 검사하지는 않는다. typed 구현의 공개 타입은 계속 추론하며 sidecar를 붙이면 오류다. 명명 타입·제네릭·전역 ambient 선언은 아직 지원하지 않는다.
+선언 파일은 strict 문법으로 검사하지만 레거시 구현이 계약을 지키는지 검사하지는 않는다. typed 구현의 공개 타입은 계속 추론하며 sidecar를 붙이면 오류다. 네이티브 명명 타입은 `declare class`로 선언하며 [impl·네이티브 선언 안내](impl.md)를 따른다. 제네릭·전역 ambient 선언은 아직 지원하지 않는다.
 
 ## try / except / else
 

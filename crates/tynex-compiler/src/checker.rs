@@ -42,6 +42,8 @@ struct Checker<'a> {
     conditional: usize,
     nominals: BTreeMap<u64, NominalType>,
     self_type: Option<Type>,
+    local_nominals: HashSet<u64>,
+    active_impls: HashSet<u64>,
     async_body: bool,
 }
 
@@ -95,10 +97,71 @@ pub fn check(body: &[Stmt], mode: Mode, modules: &BTreeMap<String, Interface>) -
         depth: 0,
         varargs: Some(Type::Any),
         conditional: 0,
-        nominals: modules.values().flat_map(|m| m.nominals.clone()).collect(),
+        nominals: BTreeMap::new(),
+        local_nominals: HashSet::new(),
+        active_impls: HashSet::new(),
         self_type: None,
         async_body: false,
     };
+    for module in modules.values() {
+        for (id, incoming) in &module.nominals {
+            if let Some(mut existing) = c.nominals.get(id).cloned() {
+                for (contract, origin) in &incoming.implementations {
+                    if existing
+                        .implementations
+                        .get(contract)
+                        .is_some_and(|old| old != origin)
+                    {
+                        c.error(
+                            "T014",
+                            "duplicate trait implementation across modules",
+                            0..0,
+                        );
+                    }
+                    existing.implementations.insert(*contract, *origin);
+                }
+                for (name, origin) in &incoming.extension_methods {
+                    if existing
+                        .extension_methods
+                        .get(name)
+                        .is_some_and(|old| old != origin)
+                    {
+                        c.error("T014", "conflicting extension methods across modules", 0..0);
+                    }
+                    existing.extension_methods.insert(name.clone(), *origin);
+                }
+                existing.methods.extend(incoming.methods.clone());
+                for contract in &incoming.traits {
+                    if !existing.traits.contains(contract) {
+                        existing.traits.push(*contract);
+                    }
+                }
+                c.nominals.insert(*id, existing);
+            } else {
+                c.nominals.insert(*id, incoming.clone());
+            }
+        }
+    }
+    // Imported branches may add an ancestor extension and a descendant member independently.
+    for nominal in c.nominals.clone().values() {
+        let mut base = nominal.base;
+        while let Some(id) = base {
+            let parent = c.nominals[&id].clone();
+            for (name, origin) in &parent.extension_methods {
+                if nominal.fields.contains_key(name)
+                    || (nominal.methods.contains_key(name)
+                        && nominal.extension_methods.get(name) != Some(origin))
+                {
+                    c.error(
+                        "T014",
+                        "imported impl conflicts with a derived native member",
+                        0..0,
+                    );
+                }
+            }
+            base = parent.base;
+        }
+    }
     let values = vec![
         (
             "print",
@@ -394,11 +457,18 @@ impl Checker<'_> {
         let value = Type::Definition(id, binding.name.clone());
         self.insert(&binding.name, value.clone(), value);
         self.lookup_mut(&binding.name).unwrap().readonly = true;
+        self.local_nominals.insert(id);
         self.nominals.insert(
             id,
             NominalType {
                 name: binding.name.clone(),
                 is_trait,
+                native: false,
+                readonly_fields: HashSet::new(),
+                base: None,
+                constructor: None,
+                implementations: BTreeMap::new(),
+                extension_methods: BTreeMap::new(),
                 fields: BTreeMap::new(),
                 methods: BTreeMap::new(),
                 required_fields: HashSet::new(),
@@ -502,6 +572,11 @@ impl Checker<'_> {
                 self.nominals
                     .get_mut(&id)
                     .unwrap()
+                    .defaults
+                    .insert(key.clone());
+                self.nominals
+                    .get_mut(&id)
+                    .unwrap()
                     .methods
                     .insert(key.clone(), ty);
             }
@@ -576,6 +651,302 @@ impl Checker<'_> {
         }
         self.self_type = previous_self;
     }
+    fn activate_module(&mut self, name: &str, span: Range<usize>) {
+        let origins: HashSet<_> = self
+            .modules
+            .get(name)
+            .into_iter()
+            .flat_map(|m| m.nominals.values())
+            .flat_map(|n| n.implementations.values().copied())
+            .collect();
+        if !origins.is_empty() && (self.scopes.len() != 2 || self.conditional != 0) {
+            self.error(
+                "T014",
+                "modules with impl must be imported at module top level",
+                span,
+            );
+            return;
+        }
+        self.active_impls.extend(origins);
+    }
+    fn effective_nominal(&self, id: u64) -> NominalType {
+        let mut result = self.nominals[&id].clone();
+        let mut base = result.base;
+        while let Some(id) = base {
+            let parent = &self.nominals[&id];
+            for (name, ty) in &parent.methods {
+                result
+                    .methods
+                    .entry(name.clone())
+                    .or_insert_with(|| ty.clone());
+            }
+            for (name, origin) in &parent.extension_methods {
+                result
+                    .extension_methods
+                    .entry(name.clone())
+                    .or_insert(*origin);
+            }
+            for contract in &parent.traits {
+                if !result.traits.contains(contract) {
+                    result.traits.push(*contract);
+                }
+            }
+            for (contract, origin) in &parent.implementations {
+                result.implementations.entry(*contract).or_insert(*origin);
+            }
+            base = parent.base;
+        }
+        result.methods.retain(|name, _| {
+            result
+                .extension_methods
+                .get(name)
+                .is_none_or(|origin| self.active_impls.contains(origin))
+        });
+        result.traits.retain(|contract| {
+            result
+                .implementations
+                .get(contract)
+                .is_none_or(|origin| self.active_impls.contains(origin))
+        });
+        result
+    }
+    fn native_declaration(&mut self, declaration: &NativeDecl) {
+        let base = declaration
+            .base
+            .as_ref()
+            .and_then(|b| match self.named_value(&b.name) {
+                Some(Type::Definition(id, _)) if self.nominals[&id].native => Some(id),
+                _ => {
+                    self.error(
+                        "T014",
+                        "native base must be an earlier declared native class",
+                        b.span.clone(),
+                    );
+                    None
+                }
+            });
+        let id = self.nominal(&declaration.name, false);
+        let instance = Type::Instance(id, declaration.name.name.clone());
+        let previous = self.self_type.replace(instance.clone());
+        if let Some(parent) = base {
+            let contract = self.nominals[&parent].clone();
+            let nominal = self.nominals.get_mut(&id).unwrap();
+            nominal.fields = contract.fields;
+            nominal.readonly_fields = contract.readonly_fields;
+            nominal.methods = contract.methods;
+        }
+        self.nominals.get_mut(&id).unwrap().native = true;
+        self.nominals.get_mut(&id).unwrap().base = base;
+        let mut names = HashSet::new();
+        for member in &declaration.members {
+            let key = member.name.as_bytes().to_vec();
+            if declaration.readonly.contains(&member.name) {
+                self.nominals
+                    .get_mut(&id)
+                    .unwrap()
+                    .readonly_fields
+                    .insert(key.clone());
+            }
+            if !names.insert(key.clone())
+                || self.nominals[&id].fields.contains_key(&key)
+                || self.nominals[&id].methods.contains_key(&key)
+            {
+                self.error(
+                    "T014",
+                    "duplicate or inherited native member",
+                    member.span.clone(),
+                );
+                continue;
+            }
+            let ty = self.resolve(member.annotation.as_ref().unwrap(), member.span.clone());
+            if member.name == "constructor" {
+                if !matches!(&ty, Type::Function(_, result, _) if result.values == [instance.clone()] && result.minimum == 1 && result.tail.is_none())
+                {
+                    self.error(
+                        "T014",
+                        "native constructor must be a function returning Self",
+                        member.span.clone(),
+                    );
+                }
+                self.nominals.get_mut(&id).unwrap().constructor = Some(ty);
+            } else if matches!(&ty, Type::Function(args,_,_) if args.first() == Some(&instance)) {
+                self.nominals.get_mut(&id).unwrap().methods.insert(key, ty);
+            } else {
+                self.nominals.get_mut(&id).unwrap().fields.insert(key, ty);
+            }
+        }
+        self.self_type = previous;
+    }
+    fn implementation(&mut self, declaration: &ImplDecl) {
+        if self.scopes.len() != 2 || self.conditional != 0 {
+            self.error(
+                "T014",
+                "impl is only allowed at module top level",
+                declaration.target.span.clone(),
+            );
+            return;
+        }
+        let Some(Type::Definition(target, label)) = self.named_value(&declaration.target.name)
+        else {
+            self.error(
+                "T014",
+                "impl target must be a declared class",
+                declaration.target.span.clone(),
+            );
+            return;
+        };
+        let Some(Type::Definition(contract, _)) = self.named_value(&declaration.contract.name)
+        else {
+            self.error(
+                "T014",
+                "impl requires a declared trait",
+                declaration.contract.span.clone(),
+            );
+            return;
+        };
+        if self.nominals[&target].is_trait || !self.nominals[&contract].is_trait {
+            self.error(
+                "T014",
+                "impl requires a trait and a concrete class",
+                declaration.target.span.clone(),
+            );
+            return;
+        }
+        if !self.local_nominals.contains(&target) && !self.local_nominals.contains(&contract) {
+            self.error(
+                "T014",
+                "impl must be in the module defining its type or trait",
+                declaration.target.span.clone(),
+            );
+            return;
+        }
+        if self.nominals[&target].traits.contains(&contract) {
+            self.error(
+                "T014",
+                "duplicate trait implementation",
+                declaration.target.span.clone(),
+            );
+            return;
+        }
+        let interface = self.nominals[&contract].clone();
+        let instance = Type::Instance(target, label);
+        let previous = self.self_type.replace(instance.clone());
+        static NEXT_IMPL: AtomicU64 = AtomicU64::new(1);
+        let origin = NEXT_IMPL.fetch_add(1, Ordering::Relaxed);
+        self.active_impls.insert(origin);
+        let mut added = HashSet::new();
+        let original = self.effective_nominal(target);
+        self.nominals.get_mut(&target).unwrap().methods = original.methods.clone();
+        self.nominals.get_mut(&target).unwrap().extension_methods =
+            original.extension_methods.clone();
+        for method in &declaration.methods {
+            let key = method.name.name.as_bytes().to_vec();
+            if !added.insert(key.clone())
+                || original.methods.contains_key(&key)
+                || original.fields.contains_key(&key)
+            {
+                self.error(
+                    "T014",
+                    "impl cannot replace an existing or duplicate member",
+                    method.name.span.clone(),
+                );
+            }
+            if !interface.methods.contains_key(&key) {
+                self.error(
+                    "T014",
+                    "impl method is not declared by the trait",
+                    method.name.span.clone(),
+                );
+            }
+            let ty = self.signature(&method.function, Some(&instance));
+            self.nominals
+                .get_mut(&target)
+                .unwrap()
+                .methods
+                .insert(key, ty);
+        }
+        for key in &interface.defaults {
+            if original.fields.contains_key(key) {
+                self.error(
+                    "T014",
+                    "trait default conflicts with a field",
+                    declaration.target.span.clone(),
+                );
+            }
+            if !self.nominals[&target].methods.contains_key(key) {
+                let ty = substitute_self(&interface.methods[key], contract, &instance);
+                self.nominals
+                    .get_mut(&target)
+                    .unwrap()
+                    .methods
+                    .insert(key.clone(), ty);
+                added.insert(key.clone());
+            } else if original.extension_methods.contains_key(key)
+                || original.defaults.contains(key)
+            {
+                self.error(
+                    "T014",
+                    "trait default conflicts with an earlier impl",
+                    declaration.target.span.clone(),
+                );
+            }
+        }
+        self.nominals
+            .get_mut(&target)
+            .unwrap()
+            .traits
+            .push(contract);
+        for method in &declaration.methods {
+            let ty = self.function(&method.function, None, Some(&instance));
+            self.nominals
+                .get_mut(&target)
+                .unwrap()
+                .methods
+                .insert(method.name.name.as_bytes().to_vec(), ty);
+        }
+        for (key, expected) in &interface.methods {
+            let expected = substitute_self(expected, contract, &instance);
+            let valid = self.nominals[&target]
+                .methods
+                .get(key)
+                .is_some_and(|actual| self.method_accepts(&expected, actual));
+            if !valid {
+                self.error(
+                    "T014",
+                    format!(
+                        "missing or incompatible trait method '{}'",
+                        String::from_utf8_lossy(key)
+                    ),
+                    declaration.target.span.clone(),
+                );
+            }
+        }
+        for (id, descendant) in &self.nominals.clone() {
+            let mut base = descendant.base;
+            while let Some(parent) = base {
+                if parent == target {
+                    if added.iter().any(|key| {
+                        self.nominals[id].methods.contains_key(key)
+                            || self.nominals[id].fields.contains_key(key)
+                    }) {
+                        self.error(
+                            "T014",
+                            "impl conflicts with a derived native member",
+                            declaration.target.span.clone(),
+                        );
+                    }
+                    break;
+                }
+                base = self.nominals[&parent].base;
+            }
+        }
+        let nominal = self.nominals.get_mut(&target).unwrap();
+        nominal.implementations.insert(contract, origin);
+        for key in added {
+            nominal.extension_methods.insert(key, origin);
+        }
+        self.self_type = previous;
+    }
     fn trait_declaration(&mut self, declaration: &TraitDecl) {
         let id = self.nominal(&declaration.name, true);
         let receiver = Type::AbstractSelf(id, declaration.name.name.clone());
@@ -632,8 +1003,9 @@ impl Checker<'_> {
         };
         want.len() == got.len()
             && wt == gt
-            && want.iter().zip(got).all(|(a, b)| {
-                self.accepts(&unwrap(a), &unwrap(b)) && self.accepts(&unwrap(b), &unwrap(a))
+            && want.iter().zip(got).enumerate().all(|(index, (a, b))| {
+                (index == 0 || self.accepts(&unwrap(a), &unwrap(b)))
+                    && self.accepts(&unwrap(b), &unwrap(a))
             })
             && wr.values.len() == gr.values.len()
             && wr.tail == gr.tail
@@ -651,6 +1023,14 @@ impl Checker<'_> {
         span: Range<usize>,
     ) -> Pack {
         let nominal = self.nominals[&id].clone();
+        if nominal.native {
+            return if let Some(constructor) = nominal.constructor {
+                self.call(&constructor, arguments, receiver, span)
+            } else {
+                self.error("T014", "native class has no declared constructor", span);
+                Pack::one(Type::Unknown)
+            };
+        }
         if nominal.is_trait {
             self.expressions(arguments, &[], None);
             self.error("T014", "traits cannot be constructed", span);
@@ -786,12 +1166,20 @@ impl Checker<'_> {
                 _ => None,
             };
             if let Some(actual_id) = actual_id {
+                let mut parent = self.nominals.get(&actual_id).and_then(|n| n.base);
+                while let Some(id) = parent {
+                    if id == *expected_id || self.effective_nominal(id).traits.contains(expected_id)
+                    {
+                        return true;
+                    }
+                    parent = self.nominals.get(&id).and_then(|n| n.base);
+                }
                 return *expected_id == actual_id
                     || self.nominals.get(expected_id).is_some_and(|t| t.is_trait)
                         && self
-                            .nominals
-                            .get(&actual_id)
-                            .is_some_and(|t| t.traits.contains(expected_id));
+                            .effective_nominal(actual_id)
+                            .traits
+                            .contains(expected_id);
             }
         }
         if let Type::Receiver(required) = expected {
@@ -925,8 +1313,17 @@ impl Checker<'_> {
         }
         match stmt {
             Stmt::Class(declaration) => self.class(declaration),
+            Stmt::Impl(declaration) => self.implementation(declaration),
+            Stmt::Native(declaration) => self.native_declaration(declaration),
+            Stmt::Declare(binding) => {
+                self.check_redeclaration(binding);
+                let ty = self.resolve(binding.annotation.as_ref().unwrap(), binding.span.clone());
+                self.insert(&binding.name, ty.clone(), ty);
+                self.lookup_mut(&binding.name).unwrap().readonly = true;
+            }
             Stmt::Trait(declaration) => self.trait_declaration(declaration),
             Stmt::Import(binding, name) => {
+                self.activate_module(name, binding.span.clone());
                 self.imports.push(Import {
                     name: Some(name.clone()),
                     span: binding.span.clone(),
@@ -1913,6 +2310,9 @@ impl Checker<'_> {
                     .and_then(Self::string_constant)
                     .and_then(|s| std::str::from_utf8(s).ok())
                     .map(str::to_owned);
+                if let Some(name) = &name {
+                    self.activate_module(name, span.clone());
+                }
                 let value = name
                     .as_ref()
                     .and_then(|n| self.modules.get(n))
@@ -2185,7 +2585,7 @@ impl Checker<'_> {
             return Type::Unknown;
         }
         if let Type::Instance(id, _) | Type::AbstractSelf(id, _) | Type::Definition(id, _) = ty {
-            let nominal = self.nominals[id].clone();
+            let nominal = self.effective_nominal(*id);
             if matches!(ty, Type::Definition(..)) {
                 self.error(
                     "T014",
@@ -2198,6 +2598,9 @@ impl Checker<'_> {
                 if !matches!(ty, Type::Definition(..))
                     && let Some(value) = nominal.fields.get(name)
                 {
+                    if write && nominal.readonly_fields.contains(name) {
+                        self.error("T014", "native property is readonly", span.clone());
+                    }
                     return value.clone();
                 }
                 if let Some(value) = nominal.methods.get(name) {

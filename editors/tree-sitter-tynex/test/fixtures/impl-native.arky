@@ -1,0 +1,10 @@
+declare class Node
+ readonly id: number
+ move: function(Self, number): ()
+end
+declare class Sprite extends Node
+ constructor: function(): Self
+end
+impl Named for engine.Sprite
+ function label(): string return "sprite" end
+end

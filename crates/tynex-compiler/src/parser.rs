@@ -109,6 +109,88 @@ pub fn declaration(tokens: Vec<Token>) -> Result<Type, Diagnostic> {
     }
     Ok(Type::Table(table.into()))
 }
+pub fn native_declaration(tokens: Vec<Token>) -> Result<Vec<Stmt>, Diagnostic> {
+    let mut p = Parser {
+        tokens,
+        index: 0,
+        erased: vec![],
+        typed: true,
+        declarations_only: false,
+        depth: 0,
+        loops: 0,
+        variadic: false,
+        protected: vec![],
+        edits: vec![],
+        imports: false,
+        exceptions: 0,
+        classes: false,
+        async_body: false,
+        async_runtime: false,
+    };
+    let mut body = vec![];
+    let mut fields = vec![];
+    while p.tok().kind != Kind::Eof {
+        p.expect("declare")?;
+        let name = if p.take("class") {
+            let name = p.declaration_name()?;
+            let base = if p.take("extends") {
+                Some(p.qualified_name()?)
+            } else {
+                None
+            };
+            let mut members = vec![];
+            let mut readonly = std::collections::HashSet::new();
+            while !p.at("end") && p.tok().kind != Kind::Eof {
+                if p.take(";") {
+                    continue;
+                }
+                let is_readonly = p.take("readonly");
+                let member = p.binding()?;
+                if is_readonly {
+                    readonly.insert(member.name.clone());
+                }
+                if member.annotation.is_none() {
+                    return Err(p.fail("native members require a type"));
+                }
+                members.push(member);
+                p.take(";");
+            }
+            p.expect("end")?;
+            let exported = name.name.clone();
+            body.push(Stmt::Native(NativeDecl {
+                name,
+                base,
+                members,
+                readonly,
+            }));
+            exported
+        } else {
+            let binding = p.binding()?;
+            if binding.annotation.is_none() {
+                return Err(p.fail("declare requires a type"));
+            }
+            let exported = binding.name.clone();
+            body.push(Stmt::Declare(binding));
+            exported
+        };
+        fields.push(TableField::Named(
+            name.as_bytes().to_vec(),
+            Expr {
+                kind: ExprKind::Name(name),
+                span: 0..0,
+            },
+        ));
+        p.take(";");
+    }
+    body.push(Stmt::Return(
+        vec![Expr {
+            kind: ExprKind::Table(fields),
+            span: 0..0,
+        }],
+        0..0,
+    ));
+    Ok(body)
+}
 impl Parser {
     fn tok(&self) -> &Token {
         &self.tokens[self.index]
@@ -145,7 +227,7 @@ impl Parser {
         const RESERVED: &[&str] = &[
             "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto",
             "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until",
-            "while", "class", "trait", "enum", "match", "async", "await",
+            "while", "class", "trait", "impl", "enum", "match", "async", "await",
         ];
         if self.tok().kind != Kind::Word
             || RESERVED.contains(&self.tok().text.as_str())
@@ -541,6 +623,8 @@ impl Parser {
                 Stmt::Import(binding, name)
             } else if self.typed && self.take("try") {
                 self.try_statement(start)?
+            } else if self.typed && self.take("impl") {
+                self.impl_statement(start)?
             } else if self.typed && self.take("class") {
                 self.class_statement(start)?
             } else if self.typed && self.take("trait") {
@@ -780,6 +864,50 @@ impl Parser {
             .into(),
         );
         Ok(Method { name, function })
+    }
+    fn qualified_name(&mut self) -> Result<Binding, Diagnostic> {
+        let mut binding = self.declaration_name()?;
+        while self.take(".") {
+            let part = self.name()?;
+            binding.name.push('.');
+            binding.name.push_str(&part.text);
+            binding.span.end = part.span.end;
+        }
+        Ok(binding)
+    }
+    fn impl_statement(&mut self, start: usize) -> Result<Stmt, Diagnostic> {
+        self.classes = true;
+        let contract = self.qualified_name()?;
+        self.expect("for")?;
+        let target = self.qualified_name()?;
+        self.edit(
+            start..target.span.end,
+            format!(
+                "__tynex_impl({}, {}, function(__tynex_methods) ",
+                contract.name, target.name
+            ),
+        );
+        let mut methods = vec![];
+        while !self.at("end") && self.tok().kind != Kind::Eof {
+            if self.take(";") {
+                continue;
+            }
+            let start = self.tok().span.start;
+            let is_async = self.take("async");
+            if is_async {
+                self.edit(self.tokens[self.index - 1].span.clone(), String::new());
+            }
+            self.expect("function")?;
+            methods.push(self.method(start, is_async)?);
+        }
+        let end = self.tok().span.clone();
+        self.expect("end")?;
+        self.edit(end, "end);".into());
+        Ok(Stmt::Impl(ImplDecl {
+            contract,
+            target,
+            methods,
+        }))
     }
     fn class_statement(&mut self, start: usize) -> Result<Stmt, Diagnostic> {
         self.classes = true;

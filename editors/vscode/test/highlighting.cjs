@@ -28,6 +28,9 @@ assert.deepEqual(language.aliases, ['Arky', 'arky']);
       assert.equal(found.scopes.some(s => s.startsWith(scope)), !absent, `${row+1}:${word}: ${found.scopes}`);
     }
   }
+  check('impl Named for engine.Sprite\nend\ndeclare class Sprite extends Node\nreadonly id: number\nend', [
+    [0,'impl','keyword'], [0,'for','keyword'], [2,'declare','keyword'],
+    [2,'class','keyword'], [2,'extends','keyword'], [3,'readonly','keyword']]);
   check('local function add(score: number, amount: number?): number\n  return score + amount\nend', [
     [0,'function','keyword'], [0,'add','entity.name.function'], [0,'score','variable.parameter'],
     [0,'number','storage.type'], [1,'return','keyword'], [2,'end','keyword']]);
@@ -105,5 +108,5 @@ assert.deepEqual(language.aliases, ['Arky', 'arky']);
     [5,'Socket','storage.type'], [5,'?','keyword.operator.type'],
     [6,'Socket','storage.type',true], [7,'Socket','comment']]);
   registry.dispose();
-  console.log('TextMate highlighting: 18 fixtures passed');
+  console.log('TextMate highlighting: 19 fixtures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

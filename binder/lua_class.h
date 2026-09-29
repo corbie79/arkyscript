@@ -36,6 +36,11 @@ inline int index_dispatch(lua_State* L) {
         lua_rawget(L, -2);
         if (!lua_isnil(L, -1)) return 1;
         lua_pop(L, 2);
+        lua_getfield(L, -1, "extensions");
+        lua_pushvalue(L, 2);
+        lua_rawget(L, -2);
+        if (!lua_isnil(L, -1)) return 1;
+        lua_pop(L, 2);
         lua_getfield(L, -1, "getters");
         lua_pushvalue(L, 2);
         lua_rawget(L, -2);
@@ -79,7 +84,7 @@ inline bool inherited_member(lua_State* L, int meta, const char* name) {
     stack_guard stack(L);
     lua_getfield(L, meta, "base");
     while (lua_istable(L, -1)) {
-        for (const char* table : {"methods", "getters"}) {
+        for (const char* table : {"methods", "getters", "extensions"}) {
             lua_getfield(L, -1, table);
             lua_getfield(L, -1, name);
             const bool exists = !lua_isnil(L, -1);
@@ -92,6 +97,94 @@ inline bool inherited_member(lua_State* L, int meta, const char* name) {
     return false;
 }
 
+// Native members remain immutable. Script trait methods live in a separate table.
+inline bool class_member(lua_State* L, int meta, const char* name) {
+    stack_guard stack(L);
+    for (const char* table : {"methods", "getters", "extensions"}) {
+        lua_getfield(L, meta, table);
+        lua_getfield(L, -1, name);
+        if (!lua_isnil(L, -1)) return true;
+        lua_pop(L, 2);
+    }
+    return inherited_member(L, meta, name);
+}
+inline bool descendant_member(lua_State* L, int meta, const char* name) {
+    stack_guard stack(L);
+    reserve(L, 8);
+    meta = absolute_index(L, meta);
+    lua_getfield(L, meta, "children");
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        const int child = lua_gettop(L);
+        if (class_member(L, child, name) || descendant_member(L, child, name)) return true;
+        lua_pop(L, 1);
+    }
+    return false;
+}
+inline int implement_trait(lua_State* L) {
+    reserve(L, 12);
+    if (lua_gettop(L) != 3) throw error("invalid native impl registration");
+    for (int i = 1; i <= 3; ++i) expect(L, i, LUA_TTABLE);
+    lua_pushvalue(L, lua_upvalueindex(1));
+    const int meta = lua_gettop(L);
+    lua_getfield(L, meta, "traits");
+    const int traits = lua_gettop(L);
+    lua_pushvalue(L, 1);
+    lua_rawget(L, traits);
+    if (!lua_isnil(L, -1)) throw error("duplicate native trait implementation");
+    lua_pop(L, 1);
+    // Validate the whole registration before publishing any method.
+    for (int source : {2, 3}) {
+        lua_pushnil(L);
+        while (lua_next(L, source)) {
+            if (lua_type(L, -2) != LUA_TSTRING || !lua_isfunction(L, -1))
+                throw error("native impl requires named functions");
+            if (source == 2 && class_member(L, meta, lua_tostring(L, -2)))
+                throw error("native impl cannot replace an existing member");
+            if (!class_member(L, meta, lua_tostring(L, -2))
+                && descendant_member(L, meta, lua_tostring(L, -2)))
+                throw error("native impl conflicts with a derived member");
+            if (source == 3) {
+                // A default can reuse a native method, but never a field/property.
+                lua_pushvalue(L, meta);
+                while (lua_istable(L, -1)) {
+                    lua_getfield(L, -1, "getters");
+                    lua_pushvalue(L, -4);
+                    lua_rawget(L, -2);
+                    if (!lua_isnil(L, -1)) throw error("native trait default conflicts with a property");
+                    lua_pop(L, 2);
+                    lua_getfield(L, -1, "extensions");
+                    lua_pushvalue(L, -4);
+                    lua_rawget(L, -2);
+                    if (!lua_isnil(L, -1)) throw error("conflicting native trait defaults");
+                    lua_pop(L, 2);
+                    lua_getfield(L, -1, "base");
+                    lua_remove(L, -2);
+                }
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        }
+    }
+    lua_getfield(L, meta, "extensions");
+    const int methods = lua_gettop(L);
+    for (int source : {3, 2}) {
+        lua_pushnil(L);
+        while (lua_next(L, source)) {
+            if (source == 2 || !class_member(L, meta, lua_tostring(L, -2))) {
+                lua_pushvalue(L, -2);
+                lua_pushvalue(L, -2);
+                lua_rawset(L, methods);
+            }
+            lua_pop(L, 1);
+        }
+    }
+    lua_pushvalue(L, 1);
+    lua_pushboolean(L, true);
+    lua_rawset(L, traits);
+    return 0;
+}
+
 template<class T> void create_class(lua_State* L) {
     static_assert(object_type<T> && !std::is_const_v<T> && std::is_nothrow_destructible_v<T>);
     if (push_metatable<T>(L)) throw error("C++ class is already registered in this Lua state");
@@ -101,7 +194,7 @@ template<class T> void create_class(lua_State* L) {
     lua_pushlightuserdata(L, &object_metatable_key);
     lua_pushboolean(L, true);
     lua_rawset(L, meta);
-    for (const char* name : {"methods", "getters", "setters", "constructors"}) {
+    for (const char* name : {"methods", "getters", "setters", "constructors", "extensions", "traits", "children"}) {
         lua_newtable(L);
         lua_setfield(L, meta, name);
     }
@@ -120,6 +213,9 @@ template<class T> void create_class(lua_State* L) {
     lua_rawset(L, LUA_REGISTRYINDEX);
     lua_newtable(L); // public class factory
     lua_newtable(L); // factory metatable
+    lua_pushvalue(L, meta);
+    lua_pushcclosure(L, boundary<implement_trait>, 1);
+    lua_setfield(L, -2, "__arky_impl");
     lua_getfield(L, meta, "constructors");
     lua_pushcclosure(L, constructor_dispatch, 1);
     lua_setfield(L, -2, "__call");
@@ -163,7 +259,7 @@ public:
         lua_getfield(L_, derived, "base");
         if (!lua_isnil(L_, -1)) throw error("a C++ base is already registered");
         lua_pop(L_, 1);
-        for (const char* table : {"methods", "getters", "setters", "constructors"}) {
+        for (const char* table : {"methods", "getters", "setters", "constructors", "extensions", "traits"}) {
             lua_getfield(L_, derived, table);
             lua_pushnil(L_);
             if (lua_next(L_, -2)) throw error("register the C++ base before constructors and members");
@@ -179,6 +275,9 @@ public:
         lua_setfield(L_, derived, "base");
         lua_pushboolean(L_, true);
         lua_setfield(L_, base, "sealed");
+        lua_getfield(L_, base, "children");
+        lua_pushvalue(L_, derived);
+        lua_rawseti(L_, -2, static_cast<int>(lua_objlen(L_, -2)) + 1);
         return *this;
     }
     template<class... A> cpp_class& reg_con() {
@@ -235,6 +334,10 @@ private:
         detail::require_open_class(L_, -1);
         if (detail::inherited_member(L_, -1, name))
             throw error("member name is inherited from a C++ base");
+        lua_getfield(L_, -1, "extensions");
+        lua_getfield(L_, -1, name);
+        if (!lua_isnil(L_, -1)) throw error("member name is used by a script trait");
+        lua_pop(L_, 2);
         lua_getfield(L_, -1, std::string_view(table) == "methods" ? "getters" : "methods");
         lua_getfield(L_, -1, name);
         const bool conflict = !lua_isnil(L_, -1);

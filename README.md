@@ -58,6 +58,8 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 네이티브 `Sprite : Node` 관계는 `.reg_base<Node>()`로 등록합니다. 부모 메서드·프로퍼티 접근과 부모 포인터·참조·`shared_ptr` 변환을 지원합니다. [렌더링 바인딩 예제](examples/cpp_rendering.cpp), [상속 규칙과 trait 확장 설계](docs/native-bindings.md)에 등록 순서·충돌·수명 규칙을 정리했습니다.
 
+`impl Named for engine.Sprite`로 네이티브 타입에 스크립트 trait을 구현할 수 있습니다. 선언 파일의 `declare class Sprite extends Node`는 부모 관계와 호출 계약을 검사기에 전달합니다. [impl·네이티브 선언 매뉴얼](docs/impl.md), [스크립트 예제](examples/impl.arky), [실제 C++ 객체 연결 예제](examples/native_traits/main.arky)를 제공합니다.
+
 ## 실제 병렬 Task
 
 `task.spawn`은 고정 개수의 OS worker에 작은 작업을 배분합니다. 실행 작업마다 독립 Lua VM을 사용하고 입력·결과를 복사하므로 메인 VM을 여러 스레드가 동시에 건드리지 않습니다. Task마다 스레드를 새로 만들지는 않지만 VM 생성·데이터 복사 비용은 있습니다. 공식 LuaJIT은 수정하지 않습니다.

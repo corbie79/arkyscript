@@ -30,7 +30,7 @@ struct Renderer {
     }
 };
 
-int main() {
+int main(int argc, char** argv) {
     try {
         next2::luax::state vm;
         next2::luax::binder lua(vm);
@@ -42,7 +42,17 @@ int main() {
         lua.reg_class<Renderer>("Renderer").reg_func("add", &Renderer::add);
         Renderer renderer; // host owns the renderer for the duration of script use
         lua.set_var("renderer", &renderer);
-        lua.dostring(R"(
+        if (argc == 2) {
+            lua.dostring(R"(
+                arky_engine = {Node=Node, Sprite=Sprite,
+                    submit=function(node) renderer:add(node) end}
+                __tynex_import = function(name)
+                    assert(name == "engine")
+                    return arky_engine
+                end
+            )");
+            lua.dofile(argv[1]);
+        } else lua.dostring(R"(
             local first = Sprite()
             first.texture = 7
             first:move(10)
@@ -55,8 +65,8 @@ int main() {
         )");
         // One host frame: native virtual dispatch, with no per-object Lua callback.
         const auto commands = renderer.collect();
-        if (commands.size() != 2 || commands[0].x != 10 || commands[0].texture != 7
-            || commands[1].x != 20 || commands[1].texture != 9)
+        if (commands.size() != (argc == 2 ? 1u : 2u) || commands[0].x != 10 || commands[0].texture != 7
+            || (argc != 2 && (commands[1].x != 20 || commands[1].texture != 9)))
             throw std::runtime_error("incorrect collected render commands");
         std::cout << "Native render queue: " << commands.size() << " commands\n";
     } catch (const std::exception& exception) {

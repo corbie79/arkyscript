@@ -71,4 +71,4 @@ VS Code TextMate와 Zed Tree-sitter는 선언·필드·메서드·`is`·`Self`·
 python3 -m unittest discover -s tests -p test_classes.py -v
 ```
 
-상속, trait 상속, 제네릭, 접근 제어, 사용자 정의 `init` 생성자, `.d.arky`의 class·trait 선언은 아직 지원하지 않는다. 선언 파일에는 기존 함수·구조적 테이블 계약을 사용한다. enum·match도 후속 기능이다. async 메서드는 [async/await 안내](async-await.md)를 따른다.
+스크립트 class 상속, trait 상속, 제네릭, 접근 제어, 사용자 정의 `init` 생성자와 선언 파일의 trait 선언은 아직 지원하지 않는다. 분리된 `impl Trait for Type`과 `.d.arky`의 네이티브 `declare class`는 [별도 안내](impl.md)를 따른다. enum·match도 후속 기능이다. async 메서드는 [async/await 안내](async-await.md)를 따른다.

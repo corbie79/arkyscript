@@ -20,7 +20,15 @@
         "named": true
       },
       {
+        "type": "impl_declaration",
+        "named": true
+      },
+      {
         "type": "implicit_variable_declaration",
+        "named": true
+      },
+      {
+        "type": "native_declaration",
         "named": true
       },
       {
@@ -1139,6 +1147,46 @@
     }
   },
   {
+    "type": "impl_declaration",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "named_type",
+            "named": true
+          }
+        ]
+      },
+      "trait": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "named_type",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "empty_statement",
+          "named": true
+        },
+        {
+          "type": "method_declaration",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "implicit_variable_declaration",
     "named": true,
     "fields": {
@@ -1307,6 +1355,66 @@
       "types": [
         {
           "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "native_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "empty_statement",
+          "named": true
+        },
+        {
+          "type": "named_type",
+          "named": true
+        },
+        {
+          "type": "native_member",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "native_member",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type_annotation",
           "named": true
         }
       ]
@@ -2384,6 +2492,10 @@
     "named": false
   },
   {
+    "type": "extends",
+    "named": false
+  },
+  {
     "type": "false",
     "named": true
   },
@@ -2420,6 +2532,10 @@
     "named": false
   },
   {
+    "type": "impl",
+    "named": false
+  },
+  {
     "type": "import",
     "named": false
   },
@@ -2453,6 +2569,10 @@
   },
   {
     "type": "or",
+    "named": false
+  },
+  {
+    "type": "readonly",
     "named": false
   },
   {

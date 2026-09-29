@@ -82,3 +82,7 @@ make binder-examples
 ## 네이티브 상속과 렌더링 명령 수집
 
 [cpp_rendering.cpp](cpp_rendering.cpp)는 `Sprite`를 `Node`로 전달하고 부모 메서드를 호출하는 C++ 호스트 예제입니다. 스크립트는 상태를 설정하고 네이티브 Renderer가 명령을 모읍니다. 실제 GPU를 사용하지 않으며 `make binder-examples`로 실행하면 `Native render queue: 2 commands`를 출력합니다. [상속 규칙](../docs/native-bindings.md)을 참고하세요.
+
+## 분리된 trait 구현
+
+`./bin/arky run examples/impl.arky`는 먼저 정의한 Player에 Named를 구현하고 `name: Mina`를 출력합니다. `examples/native_traits/`는 C++ Sprite에 같은 방식으로 trait을 구현합니다. [호스트 실행 명령](../docs/impl.md#c-호스트에서-실행하기)을 참고하세요.

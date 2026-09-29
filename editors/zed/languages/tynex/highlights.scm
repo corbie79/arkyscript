@@ -12,6 +12,8 @@
 (named_type) @type
 (class_declaration name: (identifier) @type)
 (trait_declaration name: (identifier) @type)
+(native_declaration name: (identifier) @type)
+(native_member name: (identifier) @property)
 (class_field name: (identifier) @property)
 (trait_requirement name: (identifier) @function.method)
 (method_declaration name: (identifier) @function.method)
@@ -28,7 +30,7 @@
 (function_declaration name: (dot_index_expression field: (identifier) @function))
 ["local" "function" "return" "end" "if" "then" "else" "elseif"
  "do" "while" "repeat" "until" "for" "in" "export"
- "import" "from" "declare" "try" "except" "class" "trait" "is" "async" "await"] @keyword
+ "import" "from" "declare" "try" "except" "class" "trait" "impl" "extends" "readonly" "is" "async" "await"] @keyword
 ["and" "or" "not"] @keyword.operator
 ["+" "-" "*" "/" "%" "^" "#" "==" "~=" "<=" ">=" "<" ">" "=" ".." "?" "..."] @operator
 ["?." "?[" "?(" "?:"] @operator

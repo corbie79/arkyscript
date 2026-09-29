@@ -419,7 +419,7 @@ print(player:label())
 
 상속·정적 메서드·접근 제어·사용자 정의 생성자 문법은 아직 없습니다. `function init()`를 작성해도 생성 시 자동 실행되는 특별한 생성자가 되지 않습니다. 기본값에서 초기화 중인 self를 참조할 수도 없습니다.
 
-C++ 네이티브 클래스의 기존 부모 관계는 호스트 바인더의 `reg_base<Base>()`로 별도 지원합니다. 스크립트 class 상속과 분리된 impl 문법은 아직 없습니다. [네이티브 바인딩 규칙](native-bindings.md)을 참고하세요.
+C++ 네이티브 클래스의 기존 부모 관계는 호스트 바인더의 `reg_base<Base>()`로 별도 지원합니다. 분리된 impl 문법을 지원하며 스크립트 class 상속은 아직 없습니다. [네이티브 바인딩 규칙](native-bindings.md)을 참고하세요.
 
 ## 12. Trait
 
@@ -454,6 +454,27 @@ show(User {name = "Mina"})
 메서드 모양이 같다는 이유만으로 trait을 구현한 것으로 보지 않습니다. `is`를 명시해야 합니다. trait에는 필드·생성자·상속이 없습니다.
 
 `equal: function(Self, Self): boolean`처럼 receiver 외의 인자에도 Self가 있으면 구체 클래스 값으로 호출해야 합니다. 구현 클래스가 지워진 trait 값에서는 서로 다른 구현을 섞을 수 있어 호출이 제한됩니다. 자세한 Self 제약은 [class·trait 상세 문서](classes-traits.md)를 참고하세요.
+
+### 클래스 정의와 구현 분리
+
+타입과 trait을 선언한 뒤 모듈 최상위에서 별도로 구현할 수 있습니다.
+
+```lua
+class Device
+   name: string
+end
+trait Named
+   label: function(Self): string
+end
+impl Named for Device
+   function label(): string
+      return self.name
+   end
+end
+print(Device {name = "sensor"}:label())
+```
+
+타입 또는 trait을 정의한 모듈에서 구현하며, 기존 멤버 덮어쓰기와 중복 구현은 오류입니다. 같은 문법으로 네이티브 타입에도 구현할 수 있습니다. [impl·네이티브 선언 안내](impl.md)에 모듈 순서와 충돌 규칙을 정리했습니다.
 
 ## 13. 모듈과 선언 파일
 
@@ -496,7 +517,7 @@ declare version: string
 
 각 `declare`는 모듈이 반환하는 테이블의 필드이며 전역 변수를 만들지 않습니다. 테이블 이외의 값을 반환하는 모듈은 `export: function(number): number`처럼 전체 계약을 작성합니다. `declare`와 `export:` 형식은 한 파일에서 섞지 않습니다.
 
-선언 파일에는 초기값이나 실행문을 쓰지 않습니다. 현재 class·trait 명명 타입 선언도 지원하지 않습니다. 선언 파일은 legacy 구현을 검증하는 것이 아니라 **구현이 지킨다고 신뢰하는 계약**입니다. `.arky` 구현의 공개 타입은 반환값에서 추론하며 별도 sidecar 선언을 붙이지 않습니다.
+선언 파일에는 초기값이나 실행문을 쓰지 않습니다. 네이티브 타입은 `declare class`로 선언하고 `extends`로 부모 관계, `constructor: function(): Self`로 생성자 계약을 표현할 수 있습니다. [네이티브 선언 문법](impl.md)을 참고하세요. 선언 파일은 legacy 구현을 검증하는 것이 아니라 **구현이 지킨다고 신뢰하는 계약**입니다. `.arky` 구현의 공개 타입은 반환값에서 추론하며 별도 sidecar 선언을 붙이지 않습니다.
 
 ## 14. 예외 처리
 

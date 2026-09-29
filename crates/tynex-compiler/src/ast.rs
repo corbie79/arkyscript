@@ -45,6 +45,12 @@ pub struct TableType {
 pub struct NominalType {
     pub name: String,
     pub is_trait: bool,
+    pub native: bool,
+    pub readonly_fields: HashSet<Vec<u8>>,
+    pub base: Option<u64>,
+    pub constructor: Option<Type>,
+    pub implementations: BTreeMap<u64, u64>,
+    pub extension_methods: BTreeMap<Vec<u8>, u64>,
     pub fields: BTreeMap<Vec<u8>, Type>,
     pub methods: BTreeMap<Vec<u8>, Type>,
     pub required_fields: HashSet<Vec<u8>>,
@@ -335,6 +341,9 @@ pub struct Function {
 #[derive(Debug)]
 pub enum Stmt {
     Class(ClassDecl),
+    Impl(ImplDecl),
+    Native(NativeDecl),
+    Declare(Binding),
     Trait(TraitDecl),
     Import(Binding, String),
     Try(Box<TryStatement>),
@@ -392,4 +401,18 @@ pub struct TryStatement {
     pub error: Binding,
     pub handler: Vec<Stmt>,
     pub otherwise: Option<Vec<Stmt>>,
+}
+
+#[derive(Debug)]
+pub struct ImplDecl {
+    pub contract: Binding,
+    pub target: Binding,
+    pub methods: Vec<Method>,
+}
+#[derive(Debug)]
+pub struct NativeDecl {
+    pub name: Binding,
+    pub base: Option<Binding>,
+    pub members: Vec<Binding>,
+    pub readonly: HashSet<String>,
 }

@@ -84,7 +84,7 @@ export: {
 }
 ```
 
-기본 타입·optional·테이블·함수 타입을 조합한다. 선언 파일에는 `export: TYPE` 하나 또는 여러 `declare 이름: TYPE`을 허용한다. declare는 반환 테이블의 필드 계약이며 두 형식을 섞거나 실행 코드를 넣을 수 없다. 명명 타입·제네릭·class/trait 선언은 아직 없다. `.d.arky` 자체는 strict 선언 문법으로 검사한다. typed 구현에 sidecar를 붙이면 진단하며 공개 타입은 구현에서 추론한다.
+기본 타입·optional·테이블·함수 타입을 조합한다. 선언 파일에는 `export: TYPE` 하나 또는 여러 `declare 이름: TYPE`을 허용한다. declare는 반환 테이블의 필드 계약이며 두 형식을 섞거나 실행 코드를 넣을 수 없다. 네이티브 class는 `declare class`와 `extends`로 선언하며 [별도 안내](impl.md)를 따른다. trait 선언과 사용자 제네릭은 아직 없다. `.d.arky` 자체는 strict 선언 문법으로 검사한다. typed 구현에 sidecar를 붙이면 진단하며 공개 타입은 구현에서 추론한다.
 
 선언 파일은 **legacy 구현과 비교 검증하지 않는 신뢰 계약**이다. 잘못된 계약은 런타임 오류를 일으킬 수 있다. 선언 없는 legacy와 외부 모듈은 unknown이며 strict에서는 `local api: any = require('legacy')`처럼 명시적 경계가 필요하다. gradual 모듈의 미해결 인자도 다른 파일에서 자동으로 안전한 타입이 되지 않는다.
 

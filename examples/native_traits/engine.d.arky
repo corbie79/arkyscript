@@ -1,0 +1,9 @@
+declare class Node
+   x: number
+   move: function(Self, number): ()
+end
+declare class Sprite extends Node
+   constructor: function(): Self
+   texture: number
+end
+declare submit: function(Node): ()
