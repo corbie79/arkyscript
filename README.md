@@ -1,6 +1,6 @@
 # Arky — Lua 기반 타입 스크립트
 
-**Arky**는 Lua를 기반으로 타입·class·trait·async/await를 제공하는 스크립트 언어입니다. 이름은 에픽세븐의 Arky에서 따왔습니다. **Tynex = Type + Nexus**는 Arky의 도구 모음으로, 독립 Rust 컴파일러, `next2::luax::` C++20 바인딩, VS Code·Zed의 구문 강조·LSP·디버깅 도구를 포함합니다. 저장소는 [corbie79/tynex](https://github.com/corbie79/tynex)입니다. 현재 실행·바인딩 검증 대상은 LuaJIT이며, 다른 Lua 버전 지원은 호환 계층과 별도 검증이 필요합니다.
+**Arky**는 Lua를 기반으로 타입·class·trait·async/await를 제공하는 스크립트 언어입니다. 이름은 에픽세븐의 Arky에서 따왔습니다. **Tynex = Type + Nexus**는 Arky의 도구 모음으로, 독립 Rust 컴파일러, `next2::luax::` C++20 바인딩, VS Code·Zed의 구문 강조·LSP·디버깅 도구를 포함합니다. 저장소는 [corbie79/arkyscript](https://github.com/corbie79/arkyscript)입니다. 현재 실행·바인딩 검증 대상은 LuaJIT이며, 다른 Lua 버전 지원은 호환 계층과 별도 검증이 필요합니다.
 
 명령은 `tynex`, 프로젝트 설정은 `tynex.toml`, 환경 변수 접두사는 `TYNEX_`입니다. 스크립트는 `.arky`, 선언 파일은 `.d.arky` 확장자를 사용합니다. 에디터의 언어 이름은 `Arky`입니다. 이전 `.tlj`·`.d.tlj` 및 `.luax`·`.d.luax` 파일은 각각 `.arky`·`.d.arky`로 이름을 바꾸고 프로젝트 설정의 경로·glob도 갱신해야 합니다.
 
@@ -67,6 +67,8 @@ lua.dostring("assert(sum(20, 22) == 42)");
 `fs.read_file()`과 `net.connect()`, Socket의 `read()`·`write()`도 `Task`를 반환합니다. 파일·DNS는 제한된 작업 풀에서, TCP는 논블로킹 방식으로 진행해 대기 중에도 호스트 루프를 계속 실행할 수 있습니다. [파일·TCP API와 제한](docs/io.md), [동시 읽기·echo 예제](examples/io/README.md)를 제공합니다.
 
 ## 현재 문법
+
+처음 배우는 경우 [Arky 문법 매뉴얼](docs/syntax-manual.md)에서 기본 문법부터 클래스·trait·모듈·async까지 순서대로 확인할 수 있습니다.
 
 ```lua
 local function add(a: number, b: number): number
