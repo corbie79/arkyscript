@@ -78,3 +78,7 @@ make binder-examples
 - [payload enum·match](design/enum-match.md): 경우별 데이터, Result/Option, 완전성 검사 제안
 
 전체 규칙은 [언어 설계](../docs/language-design.md)에 있습니다.
+
+## 네이티브 상속과 렌더링 명령 수집
+
+[cpp_rendering.cpp](cpp_rendering.cpp)는 `Sprite`를 `Node`로 전달하고 부모 메서드를 호출하는 C++ 호스트 예제입니다. 스크립트는 상태를 설정하고 네이티브 Renderer가 명령을 모읍니다. 실제 GPU를 사용하지 않으며 `make binder-examples`로 실행하면 `Native render queue: 2 commands`를 출력합니다. [상속 규칙](../docs/native-bindings.md)을 참고하세요.

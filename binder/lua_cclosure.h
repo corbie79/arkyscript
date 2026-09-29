@@ -50,10 +50,10 @@ template<class F> int invoke(lua_State* L) {
     if (!box || !box->value) throw error("expired C++ function");
     auto args = arguments<typename traits::arguments>(L, 1, std::make_index_sequence<traits::arity>{});
     if constexpr (std::is_void_v<typename traits::result>) {
-        std::apply(*box->value, std::move(args));
+        std::apply(*static_cast<F*>(box->value), std::move(args));
         return 0;
     } else {
-        push(L, std::apply(*box->value, std::move(args)));
+        push(L, std::apply(*static_cast<F*>(box->value), std::move(args)));
         return 1;
     }
 }

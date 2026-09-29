@@ -54,7 +54,9 @@ lua.dostring("assert(sum(20, 22) == 42)");
 
 `make setup` 후 C++20 컴파일러로 `make binder-test`, `make binder-sanitize`를 실행합니다. Windows x64는 `make windows` 후 `make binder-windows`로 xwin 크로스 빌드를 확인합니다. LuaJIT 업데이트 검증에도 바인더의 네이티브 테스트와 Windows 빌드를 포함합니다. [바인딩 API 안내](binder/README.md), [실행 예제](examples/cpp_binder.cpp)를 참고하세요.
 
-`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 4개를 실행합니다. 여기에는 실제 OS 스레드 풀을 사용하는 [Task 예제](examples/cpp_tasks.cpp)도 포함됩니다. [예제 목록](examples/README.md)에는 C++ 및 스크립트 `class`·`trait`의 실행 명령과 출력을 정리했습니다.
+`make binder-examples`는 [클래스·생성자·프로퍼티](examples/cpp_class.cpp)와 [C++20 concept 기반 공통 동작](examples/cpp_traits.cpp)을 포함한 C++ 예제 5개를 실행합니다. 여기에는 실제 OS 스레드 풀을 사용하는 [Task 예제](examples/cpp_tasks.cpp)도 포함됩니다. [예제 목록](examples/README.md)에는 C++ 및 스크립트 `class`·`trait`의 실행 명령과 출력을 정리했습니다.
+
+네이티브 `Sprite : Node` 관계는 `.reg_base<Node>()`로 등록합니다. 부모 메서드·프로퍼티 접근과 부모 포인터·참조·`shared_ptr` 변환을 지원합니다. [렌더링 바인딩 예제](examples/cpp_rendering.cpp), [상속 규칙과 trait 확장 설계](docs/native-bindings.md)에 등록 순서·충돌·수명 규칙을 정리했습니다.
 
 ## 실제 병렬 Task
 

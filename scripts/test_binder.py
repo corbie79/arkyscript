@@ -10,9 +10,9 @@ from build_common import ROOT, dependencies, find_tool, run
 
 
 TEST_SOURCES = tuple(ROOT / "tests" / "binder" / name for name in
-                     ("arg.cpp", "object.cpp", "value.cpp", "binder.cpp")) + (ROOT / "tests/task/pool.cpp", ROOT / "tests/task/lua.cpp", ROOT / "tests/io/io.cpp")
+                     ("arg.cpp", "object.cpp", "value.cpp", "binder.cpp", "inheritance.cpp")) + (ROOT / "tests/task/pool.cpp", ROOT / "tests/task/lua.cpp", ROOT / "tests/io/io.cpp")
 EXAMPLE_SOURCES = tuple(ROOT / "examples" / name for name in
-                        ("cpp_binder.cpp", "cpp_class.cpp", "cpp_traits.cpp", "cpp_tasks.cpp"))
+                        ("cpp_binder.cpp", "cpp_class.cpp", "cpp_traits.cpp", "cpp_tasks.cpp", "cpp_rendering.cpp"))
 SOURCES = TEST_SOURCES + EXAMPLE_SOURCES
 
 

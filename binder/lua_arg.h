@@ -23,7 +23,15 @@ template<class T> struct value_traits { static constexpr bool enabled = false; }
 
 template<class T, bool Callable = false> inline char type_key;
 // Keep the ownership handle outside userdata so repeated finalization is harmless.
-template<class T> struct holder { T* value; std::shared_ptr<T>* owner; bool writable; };
+// Uniform storage lets upcasts share ownership without reinterpreting shared_ptr<T>.
+struct object_storage { void* value; std::shared_ptr<void>* owner; bool writable; };
+template<class T> using holder = object_storage;
+inline char object_metatable_key;
+using upcast_function = void* (*)(void*);
+
+inline int absolute_index(lua_State* L, int index) {
+    return index > 0 || index <= LUA_REGISTRYINDEX ? index : lua_gettop(L) + index + 1;
+}
 
 template<class T, bool Callable = false> bool push_metatable(lua_State* L) {
     lua_pushlightuserdata(L, &type_key<T, Callable>);
@@ -62,17 +70,46 @@ template<class T, bool Callable = false> holder<T>* new_holder(lua_State* L) {
 }
 template<class T, bool Callable = false, class... A> void emplace(lua_State* L, A&&... args) {
     auto* box = new_holder<T, Callable>(L);
-    box->owner = new std::shared_ptr<T>(std::make_shared<T>(std::forward<A>(args)...));
+    box->owner = new std::shared_ptr<void>(std::make_shared<T>(std::forward<A>(args)...));
     box->value = box->owner->get();
 }
-template<class T> T* object(lua_State* L, int index) {
+// A view adjusts the pointer but keeps the original allocation/control block.
+// Only class metatables carry this marker; callable userdata cannot be upcast.
+template<class T> object_storage object_view(lua_State* L, int index) {
     using U = std::remove_const_t<T>;
-    auto* box = test_holder<U>(L, index);
-    if (!box || !box->value) throw error("argument " + std::to_string(index) + ": wrong or expired C++ object");
-    if constexpr (!std::is_const_v<T>) {
-        if (!box->writable) throw error("cannot modify a const C++ object");
+    stack_guard stack(L);
+    reserve(L, 6);
+    index = absolute_index(L, index);
+    if (lua_type(L, index) != LUA_TUSERDATA || lua_objlen(L, index) != sizeof(object_storage)
+        || !lua_getmetatable(L, index))
+        throw error("argument " + std::to_string(index) + ": wrong or expired C++ object");
+    lua_pushlightuserdata(L, &object_metatable_key);
+    lua_rawget(L, -2);
+    const bool registered = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 1);
+    if (!registered) throw error("wrong or expired C++ object");
+    auto view = *static_cast<object_storage*>(lua_touserdata(L, index));
+    if (!view.value) throw error("wrong or expired C++ object");
+    if (!push_metatable<U>(L)) throw error("wrong or expired C++ object");
+    const int target = lua_gettop(L);
+    const int current = target - 1;
+    while (!lua_rawequal(L, current, target)) {
+        lua_getfield(L, current, "upcast");
+        if (lua_type(L, -1) != LUA_TUSERDATA || lua_objlen(L, -1) != sizeof(upcast_function))
+            throw error("wrong or expired C++ object");
+        view.value = (*static_cast<upcast_function*>(lua_touserdata(L, -1)))(view.value);
+        lua_pop(L, 1);
+        lua_getfield(L, current, "base");
+        if (!lua_istable(L, -1)) throw error("wrong or expired C++ object");
+        lua_replace(L, current);
     }
-    return box->value;
+    if constexpr (!std::is_const_v<T>) {
+        if (!view.writable) throw error("cannot modify a const C++ object");
+    }
+    return view;
+}
+template<class T> T* object(lua_State* L, int index) {
+    return static_cast<T*>(object_view<T>(L, index).value);
 }
 
 template<class T> struct optional_type : std::false_type {};
@@ -88,10 +125,6 @@ template<class T> inline constexpr bool object_type =
     std::is_class_v<T> && !string_type<T> && !optional_type<T>::value &&
     !vector_type<T>::value && !shared_type<T>::value && !value_traits<T>::enabled;
 inline constexpr double max_integer = 9007199254740991.0;
-
-inline int absolute_index(lua_State* L, int index) {
-    return index > 0 || index <= LUA_REGISTRYINDEX ? index : lua_gettop(L) + index + 1;
-}
 
 // Validate array shape before conversion; lua_next order must not decide vector order.
 inline int array_size(lua_State* L, int index) {
@@ -164,10 +197,9 @@ template<class T> decltype(auto) read(lua_State* L, int index) {
         using P = typename shared_type<U>::value_type;
         static_assert(object_type<std::remove_const_t<P>>, "shared_ptr requires a registered C++ class");
         if (lua_isnil(L, index)) return U{};
-        (void)object<P>(L, index); // Includes const and type checks.
-        auto* box = test_holder<std::remove_const_t<P>>(L, index);
-        if (!box->owner) throw error("borrowed C++ object has no shared ownership");
-        return U(*box->owner);
+        const auto view = object_view<P>(L, index);
+        if (!view.owner) throw error("borrowed C++ object has no shared ownership");
+        return U(*view.owner, static_cast<P*>(view.value));
     } else if constexpr (std::is_pointer_v<U> && object_type<std::remove_cv_t<std::remove_pointer_t<U>>>) {
         if (lua_isnil(L, index)) return U{nullptr};
         return object<std::remove_pointer_t<U>>(L, index);
@@ -228,7 +260,7 @@ template<class T> void push(lua_State* L, T&& value) {
         static_assert(object_type<V>, "shared_ptr requires a registered C++ class");
         if (!value) { lua_pushnil(L); return; }
         auto* box = new_holder<V>(L);
-        box->owner = new std::shared_ptr<V>(std::const_pointer_cast<V>(std::forward<T>(value)));
+        box->owner = new std::shared_ptr<void>(std::const_pointer_cast<V>(std::forward<T>(value)));
         box->value = box->owner->get();
         box->writable = !std::is_const_v<P>;
     } else if constexpr (std::is_pointer_v<U> && object_type<std::remove_cv_t<std::remove_pointer_t<U>>>) {

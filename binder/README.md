@@ -55,7 +55,20 @@ int result = lua.call<int>("sum", 20, 22);
 - `set_namespace("app.math")`로 등록·조회·호출 경로를 지정합니다. `"app.math.sum"` 같은 경로도 직접 사용할 수 있습니다. 경로 조회는 일반 테이블을 사용하며 `__index` 등 메타메서드를 호출하지 않습니다.
 - `dostring(source)`, `dobuffer(source, chunk_name)`, `dofile(path)`는 Lua를 실행합니다. 타입 문법을 사용하는 `.arky` 소스는 Tynex 컴파일러로 먼저 Lua로 변환합니다.
 
-지원 값은 bool·숫자·C++ enum·문자열·`std::optional<T>`·`std::vector<T>`·등록된 클래스와 해당 클래스의 `std::shared_ptr<T>`입니다. `std::string`과 `std::string_view`는 문자열 안의 NUL도 유지합니다. 숫자/문자열/bool 사이의 암묵 변환은 하지 않으며, 정수는 **±(2^53−1)**과 목적 C++ 타입 범위를 검사합니다. Lua number가 double이므로 64비트 정수 전체 범위를 보장하지 않습니다. NaN·무한대는 거부합니다. `value`와 `value::table`로 동적 값·키/값 테이블을 지원합니다. 다중 반환·`std::unique_ptr` 자동 변환·클래스 간 자동 다운캐스팅은 제공하지 않습니다.
+지원 값은 bool·숫자·C++ enum·문자열·`std::optional<T>`·`std::vector<T>`·등록된 클래스와 해당 클래스의 `std::shared_ptr<T>`입니다. `std::string`과 `std::string_view`는 문자열 안의 NUL도 유지합니다. 숫자/문자열/bool 사이의 암묵 변환은 하지 않으며, 정수는 **±(2^53−1)**과 목적 C++ 타입 범위를 검사합니다. Lua number가 double이므로 64비트 정수 전체 범위를 보장하지 않습니다. NaN·무한대는 거부합니다. `value`와 `value::table`로 동적 값·키/값 테이블을 지원합니다. 다중 반환·`std::unique_ptr` 자동 변환·클래스 간 자동 다운캐스팅은 제공하지 않습니다. 명시적으로 등록한 부모 방향 변환은 `reg_base<Base>()`로 지원합니다.
+
+## 네이티브 상속
+
+부모 등록을 완료한 뒤 자식에 `.reg_base<Base>()`를 먼저 호출합니다. 부모 필드·메서드·프로퍼티를 노출하고, 자식 userdata를 부모 포인터·참조·`shared_ptr` 인자로 전달할 수 있습니다.
+
+```cpp
+lua.reg_class<Node>("Node").reg_func("move", &Node::move);
+lua.reg_class<Sprite>("Sprite").reg_base<Node>().reg_con<>();
+```
+
+Lua에 노출하는 부모는 하나이며, public하고 모호하지 않은 C++ 관계만 허용합니다. 부모로 사용된 등록은 고정되고, 자식에서 상속된 이름을 덮어쓰면 오류입니다. C++ 가상 메서드는 기존 override를 호출합니다. 원래 소유권과 const 보호를 유지하며 역변환이나 빌린 포인터의 소유권 승격은 하지 않습니다.
+
+[상속 API·trait 연결 설계](../docs/native-bindings.md)와 [렌더링 명령 수집 예제](../examples/cpp_rendering.cpp)를 참고하세요. 네이티브 명명 타입 선언과 분리된 `impl` 문법은 아직 지원하지 않습니다.
 
 ## 핵심 인자 변환 모듈
 
