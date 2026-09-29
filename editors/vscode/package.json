@@ -4,7 +4,7 @@
   "description": "Arky script development tools powered by Tynex: diagnostics, syntax highlighting, and mapped debugging.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/corbie79/tynex.git",
+    "url": "https://github.com/corbie79/arkyscript.git",
     "directory": "editors/vscode"
   },
   "version": "0.1.0",
@@ -71,7 +71,7 @@
       "properties": {
         "tynex.serverPath": {
           "type": "string",
-          "default": "tynex",
+          "default": "arky",
           "scope": "window",
           "description": "Tynex executable path. Supports ${workspaceFolder}; relative paths are resolved from the first workspace folder. Restart the server after changing."
         },

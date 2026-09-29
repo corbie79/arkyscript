@@ -5,7 +5,7 @@ use std::{
 use tempfile::TempDir;
 
 fn check(dir: &TempDir, name: &str, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_tynex"))
+    Command::new(env!("CARGO_BIN_EXE_arky"))
         .current_dir(dir.path())
         .args(["check", name])
         .args(args)
@@ -123,7 +123,7 @@ fn bundled_class_maps_and_runtime_manifest_share_helper_offsets() {
     let source =
         "class Item\n function fail(): ()\n  error('method failure')\n end\nend\nItem {}:fail()\n";
     file(&dir, "main.arky", source);
-    let result = Command::new(env!("CARGO_BIN_EXE_tynex"))
+    let result = Command::new(env!("CARGO_BIN_EXE_arky"))
         .current_dir(dir.path())
         .args(["bundle", "main.arky", "--out", "bundle"])
         .output()

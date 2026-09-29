@@ -59,7 +59,7 @@ print(select('#', (values?()))) -- 1
 VS Code·Zed 구문 강조와 LSP 진단에 포함된다. 생성 코드는 원본 줄·소스 맵을 유지한다. 변환에 내부 함수가 사용되어 디버거에서 추가 프레임과 내부 변수가 보일 수 있다. 새 문법의 실제 에디터 GUI 세션은 별도 검증 대상이다.
 
 ```sh
-./bin/tynex run examples/optional_chaining.arky
+./bin/arky run examples/optional_chaining.arky
 python3 -m unittest discover -s tests -p test_optional_chaining.py -v
 ```
 

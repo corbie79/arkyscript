@@ -21,7 +21,7 @@ async function activate(context) {
             if (vscode.workspace.textDocuments.some(d=>d.isDirty && !d.isUntitled && d.uri.fsPath.startsWith(root+path.sep))) {
                 throw new Error('Save project changes before building the Arky debug bundle.');
             }
-            let cli = vscode.workspace.getConfiguration('tynex',folder.uri).get('serverPath','tynex').replaceAll('${workspaceFolder}',root);
+            let cli = vscode.workspace.getConfiguration('tynex',folder.uri).get('serverPath','arky').replaceAll('${workspaceFolder}',root);
             if (!path.isAbsolute(cli) && /[\\/]/.test(cli)) cli = path.resolve(root,cli);
             if (process.platform === 'win32' && path.isAbsolute(cli) && !path.extname(cli)) cli += '.exe';
             const output = path.resolve(root,config.bundleDirectory || 'build/debug/vscode');
@@ -46,7 +46,7 @@ async function activate(context) {
         await client?.dispose();
         const config = vscode.workspace.getConfiguration('tynex');
         const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        let command = config.get('serverPath', 'tynex');
+        let command = config.get('serverPath', 'arky');
         if (command.includes('${workspaceFolder}')) {
             if (!folder) throw new Error('tynex.serverPath requires an open workspace folder.');
             command = command.replaceAll('${workspaceFolder}', folder);

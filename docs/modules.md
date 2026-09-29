@@ -7,9 +7,9 @@
 저장소 루트에서 다음 명령을 실행한다.
 
 ```sh
-./bin/tynex run examples/modules/main.arky
-./bin/tynex check --project examples/modules/tynex.toml
-./bin/tynex check --project examples/modules/tynex.toml --format json
+./bin/arky run examples/modules/main.arky
+./bin/arky check --project examples/modules/tynex.toml
+./bin/arky check --project examples/modules/tynex.toml --format json
 ```
 
 실행 결과는 `Mina: 60`과 `Multiplier: 2`다. [main.arky](../examples/modules/main.arky)는 [scores.arky](../examples/modules/src/scores.arky)를 가져오고, scores는 typed 숫자 모듈과 원본 legacy formatter를 사용한다. 별도로 등록한 bonus 모듈은 동적 이름으로 가져온다. legacy 구현과 [formatter.d.arky](../examples/modules/legacy/formatter.d.arky)의 공개 계약을 분리했다.

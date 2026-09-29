@@ -1,10 +1,10 @@
 # Arky for VS Code
 
-Local development extension for Arky scripts, powered by the independent Rust Tynex compiler. Provides `.arky` source and `.d.arky` declaration highlighting, file breakpoints, and compiler diagnostics through `tynex lsp`. Completion, hover, rename and formatting are not implemented.
+Local development extension for Arky scripts, powered by the independent Rust Tynex compiler. Provides `.arky` source and `.d.arky` declaration highlighting, file breakpoints, and compiler diagnostics through `arky lsp`. Completion, hover, rename and formatting are not implemented.
 
-Build the Rust CLI in the Tynex repository with `cargo build --locked -p tynex-cli`. Install the generated VSIX, open the repository, and open `examples/main.arky`. Repository settings select `target/debug/tynex`; Windows uses `.exe` automatically.
+Build the Rust CLI in the Tynex repository with `cargo build --locked -p tynex-cli`. Install the generated VSIX, open the repository, and open `examples/main.arky`. Repository settings select `target/debug/arky`; Windows uses `.exe` automatically.
 
-For another project, set `tynex.serverPath` to the absolute executable path (or put `tynex` on PATH). Enable `tynex.checkLua` to also synchronize `.lua` buffers. Use **Arky: Restart Language Server** after changing these settings. Only trusted, local file workspaces are supported. Policy comes from the nearest saved `tynex.toml` and each file's leading directive.
+For another project, set `tynex.serverPath` to the absolute executable path (or put `arky` on PATH). Enable `tynex.checkLua` to also synchronize `.lua` buffers. Use **Arky: Restart Language Server** after changing these settings. Only trusted, local file workspaces are supported. Policy comes from the nearest saved `tynex.toml` and each file's leading directive.
 
 Install **Local Lua Debugger** (`tomblind.local-lua-debugger-vscode`) to use the repository's launch configuration. The LuaJIT runtime must be built separately; neither the compiler nor runtime is bundled in this extension.
 

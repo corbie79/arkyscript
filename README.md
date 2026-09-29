@@ -2,7 +2,7 @@
 
 **Arky**는 Lua를 기반으로 타입·class·trait·async/await를 제공하는 스크립트 언어입니다. 이름은 에픽세븐의 Arky에서 따왔습니다. **Tynex = Type + Nexus**는 Arky의 도구 모음으로, 독립 Rust 컴파일러, `next2::luax::` C++20 바인딩, VS Code·Zed의 구문 강조·LSP·디버깅 도구를 포함합니다. 저장소는 [corbie79/arkyscript](https://github.com/corbie79/arkyscript)입니다. 현재 실행·바인딩 검증 대상은 LuaJIT이며, 다른 Lua 버전 지원은 호환 계층과 별도 검증이 필요합니다.
 
-명령은 `tynex`, 프로젝트 설정은 `tynex.toml`, 환경 변수 접두사는 `TYNEX_`입니다. 스크립트는 `.arky`, 선언 파일은 `.d.arky` 확장자를 사용합니다. 에디터의 언어 이름은 `Arky`입니다. 이전 `.tlj`·`.d.tlj` 및 `.luax`·`.d.luax` 파일은 각각 `.arky`·`.d.arky`로 이름을 바꾸고 프로젝트 설정의 경로·glob도 갱신해야 합니다.
+실행 명령은 `arky`입니다. 기존 `tynex` 명령을 사용하는 스크립트는 `arky`로 변경하세요. 프로젝트 설정은 `tynex.toml`, 환경 변수 접두사는 `TYNEX_`입니다. 스크립트는 `.arky`, 선언 파일은 `.d.arky` 확장자를 사용합니다. 에디터의 언어 이름은 `Arky`입니다. 이전 `.tlj`·`.d.tlj` 및 `.luax`·`.d.luax` 파일은 각각 `.arky`·`.d.arky`로 이름을 바꾸고 프로젝트 설정의 경로·glob도 갱신해야 합니다.
 
 **Rust 컴파일러**가 Arky의 언어 처리를 담당합니다. Rust가 파싱·타입 검사·Lua 생성을 담당하고, 수정하지 않은 공식 LuaJIT이 실행합니다. Rust 컴파일러를 선택한 것이 사용자 스크립트에 Rust 소유권·대여 규칙을 도입한다는 뜻은 아닙니다.
 
@@ -19,23 +19,23 @@ Rust 1.94.0은 `rust-toolchain.toml`, Rust 의존성은 `Cargo.lock`, 공식 Lua
 
 ```sh
 make setup
-./bin/tynex check examples/main.arky
-./bin/tynex run examples/main.arky
-./bin/tynex run examples/control_flow.arky
-./bin/tynex run examples/multiple_values.arky
-./bin/tynex run examples/class.arky
-./bin/tynex run examples/traits.arky
-./bin/tynex run examples/optional_chaining.arky
-./bin/tynex run examples/async.arky
-./bin/tynex run examples/modules/main.arky
-./bin/tynex run examples/imports/main.arky
-./bin/tynex run examples/tasks/main.arky
-./bin/tynex check --project examples/modules/tynex.toml
-./bin/tynex run examples/legacy.lua
+./bin/arky check examples/main.arky
+./bin/arky run examples/main.arky
+./bin/arky run examples/control_flow.arky
+./bin/arky run examples/multiple_values.arky
+./bin/arky run examples/class.arky
+./bin/arky run examples/traits.arky
+./bin/arky run examples/optional_chaining.arky
+./bin/arky run examples/async.arky
+./bin/arky run examples/modules/main.arky
+./bin/arky run examples/imports/main.arky
+./bin/arky run examples/tasks/main.arky
+./bin/arky check --project examples/modules/tynex.toml
+./bin/arky run examples/legacy.lua
 make test
 ```
 
-첫 출력은 `LuaJIT score: 15`입니다. `bin/tynex`은 개발용 Cargo 실행 래퍼입니다. 배포용 실행 파일은 `cargo build --release --locked -p tynex-cli`로 생성하며 Windows에서는 `target/release/tynex.exe`, 다른 호스트에서는 `target/release/tynex`을 사용합니다.
+첫 출력은 `LuaJIT score: 15`입니다. `bin/arky`은 개발용 Cargo 실행 래퍼입니다. 배포용 실행 파일은 `cargo build --release --locked -p tynex-cli`로 생성하며 Windows에서는 `target/release/arky.exe`, 다른 호스트에서는 `target/release/arky`을 사용합니다.
 
 컴파일러만 사용할 때는 LuaJIT 없이도 `cargo test --workspace --locked`, typed 파일만으로 구성된 그래프의 `check`·`gen`을 실행할 수 있습니다. 그래프에 `.lua` legacy 파일이 있으면 구문 검사에 엔진이 필요하며, 실제 실행에도 엔진이 필요합니다. 엔진은 `TYNEX_LUAJIT` → CLI 옆의 LuaJIT → 저장소의 고정 SHA 산출물 순서로 찾습니다. 독립 배포 시 엔진과 필요한 DLL·jit 모듈을 함께 배치해야 합니다.
 
@@ -133,11 +133,11 @@ mode = "strict"
 우선순위는 CLI `--mode` > 파일 선두 지시문 > 마지막 일치 override > 프로젝트 기본값 > 확장자 기본값입니다. **CLI `--mode`는 진입 파일에만 적용**하며, 가져온 모듈은 각자의 정책으로 검사합니다. 기본적으로 파일마다 가장 가까운 설정 하나를 찾고, `--project`를 지정하면 그래프 전체에서 그 설정을 사용합니다. 모듈 검색 경로는 진입 프로젝트의 설정으로 고정합니다.
 
 ```sh
-./bin/tynex run --mode gradual examples/main.arky
-./bin/tynex check --mode strict examples/main.arky
-./bin/tynex check --format json examples/type_error.arky
-./bin/tynex gen examples/main.arky
-./bin/tynex run legacy/main.lua -- 'user argument' --script-flag
+./bin/arky run --mode gradual examples/main.arky
+./bin/arky check --mode strict examples/main.arky
+./bin/arky check --format json examples/type_error.arky
+./bin/arky gen examples/main.arky
+./bin/arky run legacy/main.lua -- 'user argument' --script-flag
 ```
 
 `run/debug/gen`은 진입 파일을 요구합니다. `check --project tynex.toml`은 include/exclude로 선택한 프로젝트 파일과 의존 모듈을 검사합니다. 파일 없는 `check`도 현재 디렉터리에서 설정을 찾습니다. JSON 출력은 `check`의 컴파일러·모듈·legacy 구문 진단과 검사한 파일 목록에 제공합니다. 설정·I/O·CLI 사용 오류는 현재 stderr 텍스트로 출력합니다. 오류가 있으면 0이 아닌 종료 코드를 반환합니다.
@@ -156,7 +156,7 @@ declare label: function(string, number): string
 
 ## 에디터와 디버깅
 
-`tynex lsp`와 VS Code 로컬 확장을 추가했습니다. 미저장 파일·의존 모듈·선언 파일의 진단을 같은 Rust 검사기로 처리합니다. VS Code 확장 설치와 Zed 연결은 [에디터 안내](docs/editors.md)를 따릅니다. 두 에디터 모두 `.arky` 전용 타입 구문 강조를 제공합니다. 자동완성·정의 이동은 아직 없습니다.
+`arky lsp`와 VS Code 로컬 확장을 추가했습니다. 미저장 파일·의존 모듈·선언 파일의 진단을 같은 Rust 검사기로 처리합니다. VS Code 확장 설치와 Zed 연결은 [에디터 안내](docs/editors.md)를 따릅니다. 두 에디터 모두 `.arky` 전용 타입 구문 강조를 제공합니다. 자동완성·정의 이동은 아직 없습니다.
 
 VS Code·Zed의 **Arky: mapped modules** 구성은 생성 번들과 원본 소스 맵을 사용합니다. [디버깅 안내](docs/debugging.md)를 따릅니다. macOS ARM64의 실제 VS Code 확장 호스트에서 `.arky`·`.d.arky` 언어 등록, 미저장 진단·파일 감시, 원본 중단점·모듈 Step Into/Over·Watch·조건부 중단점·오류·재연결을 재검증했습니다. EmmyLua DAP 프로토콜 검증도 제공합니다. Zed 전용 확장은 구문 강조·LSP·소스 맵 디버깅 설정과 WASM 빌드를 제공합니다. [검증 기록](docs/editor-validation.md)에 방식을 구분했습니다. 이후 추가한 class·trait·선택적 호출·async는 자동 테스트로 검증했으며 GUI 세션은 재검증하지 않았습니다. match와 디버거의 전체 async 논리 스택은 후속 작업입니다.
 

@@ -41,16 +41,16 @@ print(greet("Arky"))
 
 ```sh
 make setup
-./bin/tynex check hello.arky
-./bin/tynex run hello.arky
-./bin/tynex gen hello.arky
+./bin/arky check hello.arky
+./bin/arky run hello.arky
+./bin/arky gen hello.arky
 ```
 
 - `check`: 타입과 문법을 검사합니다.
 - `run`: 검사한 다음 실행합니다. 위 예제는 `Hello, Arky`를 출력합니다.
 - `gen`: 검사한 다음 진입 파일의 Lua 코드를 출력합니다.
 
-`bin/tynex`은 저장소의 개발용 실행 래퍼입니다. 배포된 CLI를 사용한다면 `tynex`로 바꿉니다. import나 async를 사용하는 생성 코드는 전용 로더·런타임 연결이 필요하므로 실행은 `run`을 사용하세요.
+`bin/arky`은 저장소의 개발용 실행 래퍼입니다. 배포된 CLI를 사용한다면 `arky`로 바꿉니다. import나 async를 사용하는 생성 코드는 전용 로더·런타임 연결이 필요하므로 실행은 `run`을 사용하세요.
 
 ## 2. 소스 표기와 값
 
@@ -475,7 +475,7 @@ import numbers from "numbers"
 print(numbers.double(21))
 ```
 
-`./bin/tynex run 경로/main.arky`로 실행하면 42를 출력합니다. `from` 뒤에는 문자열 리터럴을 사용합니다. 모듈 검색·중복·순환 의존은 실행 전에 검사합니다.
+`./bin/arky run 경로/main.arky`로 실행하면 42를 출력합니다. `from` 뒤에는 문자열 리터럴을 사용합니다. 모듈 검색·중복·순환 의존은 실행 전에 검사합니다.
 
 import 이름은 재대입할 수 없지만 가져온 테이블의 필드까지 불변이 되는 것은 아닙니다. 조건문이나 함수 안의 import도 의존성 검사는 미리 수행하고 초기화는 문장을 실행할 때 수행합니다.
 
@@ -577,9 +577,9 @@ mode = "strict"
 우선순위는 CLI `--mode` → 파일 선두 지시문 → 마지막 일치 override → 프로젝트 기본값 → 확장자 기본값입니다. CLI의 `--mode`는 진입 파일에만 적용합니다.
 
 ```sh
-./bin/tynex check --mode strict hello.arky
-./bin/tynex check --project tynex.toml
-./bin/tynex check --format json hello.arky
+./bin/arky check --mode strict hello.arky
+./bin/arky check --project tynex.toml
+./bin/arky check --format json hello.arky
 ```
 
 strict가 타입 표기를 모든 변수에 강제하지는 않습니다. any·선언 파일·외부 모듈 경계에는 런타임 타입 보장이 없습니다.

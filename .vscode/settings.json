@@ -3,6 +3,6 @@
   "files.associations": {
     "*.arky": "tynex"
   },
-  "tynex.serverPath": "${workspaceFolder}/target/debug/tynex",
+  "tynex.serverPath": "${workspaceFolder}/target/debug/arky",
   "tynex.checkLua": true
 }

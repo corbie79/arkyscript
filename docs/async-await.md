@@ -70,13 +70,13 @@ chunk() -- async 진입 함수를 호출해 큐에 등록하는 코드
 runtime.step(64)
 ```
 
-`tynex run/debug/bundle`은 런타임 연결을 자동으로 준비한다. gen만 사용하는 호스트는 직접 주입해야 하며 static import가 있으면 전용 로더도 필요하다. worker를 쓸 때는 초기화 전에 해당 엔진의 tynex_task 모듈 경로를 설정한다. 실제 Cocos Director/Scheduler 연결·앱 종료 처리는 호스트 통합 작업으로 남아 있다.
+`arky run/debug/bundle`은 런타임 연결을 자동으로 준비한다. gen만 사용하는 호스트는 직접 주입해야 하며 static import가 있으면 전용 로더도 필요하다. worker를 쓸 때는 초기화 전에 해당 엔진의 tynex_task 모듈 경로를 설정한다. 실제 Cocos Director/Scheduler 연결·앱 종료 처리는 호스트 통합 작업으로 남아 있다.
 
 ## 예제와 도구
 
 ```sh
-./bin/tynex run examples/async.arky
-./bin/tynex run examples/tasks/async.arky
+./bin/arky run examples/async.arky
+./bin/arky run examples/tasks/async.arky
 python3 -m unittest discover -s tests -p 'test_async*.py' -v
 ```
 

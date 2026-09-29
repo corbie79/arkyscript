@@ -7,12 +7,12 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "program": {
-        "command": "${workspaceFolder}/target/debug/tynex",
+        "command": "${workspaceFolder}/target/debug/arky",
         "communication": "pipe"
       },
       "windows": {
         "program": {
-          "command": "${workspaceFolder}/target/debug/tynex.exe",
+          "command": "${workspaceFolder}/target/debug/arky.exe",
           "communication": "pipe"
         }
       },

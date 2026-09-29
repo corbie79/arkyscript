@@ -25,7 +25,7 @@ fn change(path: &Path, version: i32, text: &str) -> Value {
     )
 }
 fn session(messages: Vec<Value>) -> Vec<Value> {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_tynex"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_arky"))
         .arg("lsp")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -208,7 +208,7 @@ fn abrupt_exit_and_oversized_frames_fail_cleanly() {
         "Content-Length: 999999999\r\n\r\n",
         "Content-Length: 33\r\n\r\n{\"jsonrpc\":\"2.0\",\"method\":\"exit\"}",
     ] {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_tynex"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_arky"))
             .arg("lsp")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -230,7 +230,7 @@ fn live_transport_flushes_and_registers_watches_without_eof() {
     use std::io::{BufRead, BufReader, Read};
     use std::sync::mpsc;
     use std::time::Duration;
-    let mut child = Command::new(env!("CARGO_BIN_EXE_tynex"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_arky"))
         .arg("lsp")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

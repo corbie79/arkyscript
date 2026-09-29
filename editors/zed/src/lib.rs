@@ -35,8 +35,8 @@ impl zed::Extension for Tynex {
         let binary = zed::settings::LspSettings::for_worktree("tynex", tree)?.binary;
         let command = user_binary
             .or_else(|| binary.and_then(|b| b.path))
-            .or_else(|| tree.which("tynex"))
-            .unwrap_or_else(|| format!("{root}/target/debug/tynex{suffix}"));
+            .or_else(|| tree.which("arky"))
+            .unwrap_or_else(|| format!("{root}/target/debug/arky{suffix}"));
         let map = value["tynexMap"]
             .as_str()
             .ok_or("Set tynexMap to the bundle's debug-map.json")?
@@ -75,13 +75,13 @@ impl zed::Extension for Tynex {
         tree: &zed::Worktree,
     ) -> Result<zed::Command> {
         let binary = zed::settings::LspSettings::for_worktree(id.as_ref(), tree)?.binary;
-        let command = match binary.as_ref().and_then(|b| b.path.clone()).or_else(|| tree.which("tynex")) {
+        let command = match binary.as_ref().and_then(|b| b.path.clone()).or_else(|| tree.which("arky")) {
             Some(command) => command,
             None if tree.read_text_file("Cargo.toml").is_ok() => format!(
-                "{}/target/debug/tynex{}", tree.root_path(),
+                "{}/target/debug/arky{}", tree.root_path(),
                 if zed::current_platform().0 == zed::Os::Windows { ".exe" } else { "" }
             ),
-            None => return Err("Set lsp.tynex.binary.path to the Tynex executable, or install tynex on PATH. Open the project folder to use its settings.".into()),
+            None => return Err("Set lsp.tynex.binary.path to the Arky executable, or install arky on PATH. Open the project folder to use its settings.".into()),
         };
         Ok(zed::Command {
             command,

@@ -28,7 +28,7 @@ Rust는 공통 소스·Cargo 테스트·타입이 있는 내부 AST에 적합하
 - 원본 위치 진단, check JSON 출력, 타입 제거 시 행 보존, 공식 LuaJIT 실행·디버거 연결 bridge.
 - Rust 단위/CLI 테스트와 실제 LuaJIT 실행 테스트. 공통 Lua 문법 27개 사례의 직접 실행 비교, 반복문·메서드의 디버그 훅 검사. VS Code 확장 호스트·Zed UI에서 원본 중단점·변수·식 평가·Step Over·정상 종료 확인. 검증 범위는 [에디터 기록](editor-validation.md)에 구분.
 
-- `tynex lsp`: 미저장 문서·모듈·선언 파일, UTF-16 진단, 버전/닫기, 파일 감시, legacy 구문 검사. VS Code 로컬 VSIX·TextMate 문법과 Zed 전용 Tree-sitter grammar·WASM 확장 제공.
+- `arky lsp`: 미저장 문서·모듈·선언 파일, UTF-16 진단, 버전/닫기, 파일 감시, legacy 구문 검사. VS Code 로컬 VSIX·TextMate 문법과 Zed 전용 Tree-sitter grammar·WASM 확장 제공.
 - UTF-16 소스 맵 emitter, v3 sidecar·원본/생성 위치 DAP 변환, 독립 bundle/exec-bundle, 긴 파일명을 포함한 원본 오류 traceback.
 
 현재 구현은 전체 Lua 정적 검사기가 아니다. 사용자 iterator·조건부 새 멤버와 별칭 전파·순환 모듈의 타입 해석·타입 별칭·제네릭은 추가해야 한다. legacy 본문 내부 의존 분석과 실행 중 typed 컴파일도 하지 않는다. 기존 `.lua` 프로젝트는 legacy 경로를 유지하며 typed 동적 의존은 미리 등록한다. 미구현 문법을 any로 덮어 통과시키지 않는다.

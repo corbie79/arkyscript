@@ -10,7 +10,7 @@ import subprocess
 import threading
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = ROOT / 'target/debug' / ('tynex.exe' if os.name == 'nt' else 'tynex')
+CLI = ROOT / 'target/debug' / ('arky.exe' if os.name == 'nt' else 'arky')
 
 
 class Dap:

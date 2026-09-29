@@ -25,7 +25,7 @@
   "lsp": {
     "emmylua": {
       "binary": {
-        "path": "./target/debug/tynex",
+        "path": "./target/debug/arky",
         "arguments": [
           "lsp"
         ]
@@ -33,7 +33,7 @@
     },
     "tynex": {
       "binary": {
-        "path": "./target/debug/tynex",
+        "path": "./target/debug/arky",
         "arguments": [
           "lsp"
         ]

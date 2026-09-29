@@ -9,7 +9,7 @@ fn file(dir: &TempDir, name: &str, source: &str) {
     fs::write(p, source).unwrap();
 }
 fn check(dir: &TempDir, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_tynex"))
+    Command::new(env!("CARGO_BIN_EXE_arky"))
         .current_dir(dir.path())
         .arg("check")
         .args(args)

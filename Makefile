@@ -3,10 +3,10 @@ setup:
 	python3 scripts/bootstrap.py
 
 check:
-	./bin/tynex check examples/main.arky
+	./bin/arky check examples/main.arky
 
 run:
-	./bin/tynex run examples/main.arky
+	./bin/arky run examples/main.arky
 
 test:
 	cargo test --workspace --locked

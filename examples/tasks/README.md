@@ -2,8 +2,8 @@
 
 ```sh
 make setup
-./bin/tynex run examples/tasks/main.arky
-./bin/tynex run examples/tasks/cancellation.arky
+./bin/arky run examples/tasks/main.arky
+./bin/arky run examples/tasks/cancellation.arky
 make task-test
 ```
 

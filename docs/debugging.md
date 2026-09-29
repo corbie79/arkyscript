@@ -37,7 +37,7 @@
 3. 라이브러리 디렉터리를 `TYNEX_EMMY_CORE_DIR`로 지정해 실행 작업을 시작한다.
 
 ```sh
-TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex debug examples/main.arky
+TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/arky debug examples/main.arky
 ```
 
 4. 서버 대기 메시지가 나온 뒤 **Rust frontend on LuaJIT: connect to example**을 시작한다.
@@ -49,8 +49,8 @@ TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex debug examples/main.arky
 ## 생성 번들과 소스 맵
 
 ```sh
-./bin/tynex bundle examples/debug/main.arky --out build/debug/modules
-./bin/tynex exec-bundle build/debug/modules
+./bin/arky bundle examples/debug/main.arky --out build/debug/modules
+./bin/arky exec-bundle build/debug/modules
 ```
 
 번들은 생성 Lua, 표준 v3 `.lua.map`, `debug-map.json`, Lua 로더/manifest를 포함한다. 생성 파일은 원래 생성 경로로 로드한다. 파일명을 원본으로 바꾸고 잘못된 행을 표시하지 않는다. 생성 헤더와 내부 helper 행에는 원본 위치를 붙이지 않고, 사용자 코드의 행은 원본으로 연결한다. Rust emitter는 한 원본 위치가 여러 생성 줄로 확장되는 경우와 매핑 없는 helper도 처리한다. class·trait의 생성 코드에도 원본 매핑을 연결한다. 메서드·필드 기본값 오류와 번들의 원본 행을 회귀 검사한다. async 변환도 원본 행을 유지하고 번들에서 coroutine 오류 위치를 매핑한다. match 변환은 아직 없다.
@@ -61,14 +61,14 @@ Zed의 새 **Arky: mapped modules** 구성은 `tynex-emmy`를 사용한다. 먼�
 
 ```sh
 python3 scripts/prepare_zed.py --emmy-dap /absolute/path/to/emmylua_dap
-./bin/tynex bundle examples/debug/main.arky --out build/debug/modules
-TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/tynex exec-bundle build/debug/modules --debug
+./bin/arky bundle examples/debug/main.arky --out build/debug/modules
+TYNEX_EMMY_CORE_DIR=/absolute/path/to/core ./bin/arky exec-bundle build/debug/modules --debug
 ```
 
 대기 메시지가 보이면 Zed에서 해당 구성을 시작한다. `tynexMap`은 `debug-map.json` 경로이며 `tynexBackend`로 EmmyLua DAP 경로를 따로 지정할 수 있다. 생략하면 PATH 또는 `build/editors/bin/emmylua_dap[.exe]`를 찾는다. 중계만 직접 실행하려면 다음을 사용한다.
 
 ```sh
-./bin/tynex dap --map build/debug/modules/debug-map.json --backend /absolute/path/to/emmylua_dap
+./bin/arky dap --map build/debug/modules/debug-map.json --backend /absolute/path/to/emmylua_dap
 ```
 
 번들은 현재 로컬 디버깅용 산출물로 절대 경로를 포함한다. 소스를 바꿨으면 재생성하고 새 디버그 세션을 시작한다. 다른 컴퓨터로 옮기는 배포 패키지 형식은 아니다. 기존 파일을 덮어쓰지 않도록 빈 디렉터리 또는 Tynex가 표시한 번들 디렉터리에만 출력한다. legacy 모듈은 원본 로딩을 유지한다.

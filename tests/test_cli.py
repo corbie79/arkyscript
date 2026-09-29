@@ -8,7 +8,7 @@ import textwrap
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = ROOT / "target/debug" / ("tynex.exe" if os.name == "nt" else "tynex")
+CLI = ROOT / "target/debug" / ("arky.exe" if os.name == "nt" else "arky")
 REVISION = json.loads((ROOT / "dependencies.json").read_text())["luajit"]["revision"]
 DEFAULT_RUNTIME = (ROOT / "build/windows-x64" / REVISION / "luajit.exe") if os.name == "nt" else (ROOT / "build/native" / REVISION / "src/luajit")
 LUAJIT = Path(os.environ.get("TYNEX_LUAJIT", str(DEFAULT_RUNTIME)))
@@ -249,7 +249,7 @@ class RustLuaJITTests(unittest.TestCase):
             "local s: string = 'hi\\x41\\255\\z   there' print(s)",
             "local s: string = [==[quotes ' and -- comments\n]==] print(s)",
             "local n: -- annotation\nnumber = 1; (print)(n)",
-            "#!/usr/bin/env tynex\nlocal function f(): number return 1 end print(f())",
+            "#!/usr/bin/env arky\nlocal function f(): number return 1 end print(f())",
         ]
         for index, code in enumerate(cases):
             with self.subTest(index=index):

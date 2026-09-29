@@ -66,8 +66,8 @@ trait 타입으로 인자를 받을 수 있고 호출은 Lua의 동적 메서드
 VS Code TextMate와 Zed Tree-sitter는 선언·필드·메서드·`is`·`Self`·명명 타입을 강조한다. LSP는 컴파일러의 동일한 타입 진단을 사용한다. 생성된 메서드와 기본값 식은 원본 위치에 연결되며 소스 맵·디버깅 번들에서도 원본 행을 유지한다. 자동 검증은 [컴파일러 검사](../crates/tynex-compiler/tests/class_traits.rs), [실행·모듈·오류 위치](../tests/test_classes.py), [LSP](../tests/test_lsp.py), 에디터 문법 테스트에 있다. 이 기능에 대한 실제 에디터 GUI 디버깅은 별도 검증 대상이다.
 
 ```sh
-./bin/tynex run examples/class.arky
-./bin/tynex run examples/traits.arky
+./bin/arky run examples/class.arky
+./bin/arky run examples/traits.arky
 python3 -m unittest discover -s tests -p test_classes.py -v
 ```
 

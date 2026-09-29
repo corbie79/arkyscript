@@ -67,10 +67,10 @@ make task                    # 기존 엔진용 두 네이티브 모듈 재빌�
 make task-test               # C++ + coroutine + worker + 파일/TCP 통합 검사
 make binder-sanitize         # ASan/UBSan 수명 검사
 make windows                 # xwin Windows x64 엔진 + 두 DLL
-./bin/tynex run examples/io/files.arky
+./bin/arky run examples/io/files.arky
 ```
 
-`tynex_io.so` 또는 `tynex_io.dll`을 엔진 옆에 배치한다. `tynex run/debug/bundle`은 private native loader로 모듈을 로드하고 읽기 전용 `fs`·`net`을 typed 환경에 제공한다. 기존 `require`나 `package.loaded`를 변경해도 이미 캡처한 내부 함수를 바꾸지는 않는다. Lua 자체를 보안 샌드박스로 만드는 기능은 아니다.
+`tynex_io.so` 또는 `tynex_io.dll`을 엔진 옆에 배치한다. `arky run/debug/bundle`은 private native loader로 모듈을 로드하고 읽기 전용 `fs`·`net`을 typed 환경에 제공한다. 기존 `require`나 `package.loaded`를 변경해도 이미 캡처한 내부 함수를 바꾸지는 않는다. Lua 자체를 보안 샌드박스로 만드는 기능은 아니다.
 
 임베딩에서는 모듈 검색 경로를 준비한 뒤 같은 런타임을 주입한다.
 

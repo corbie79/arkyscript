@@ -47,20 +47,20 @@ make binder-examples
 ## typed Lua — 실행 가능
 
 ```sh
-./bin/tynex run examples/main.arky
-./bin/tynex run examples/control_flow.arky
-./bin/tynex run examples/multiple_values.arky
-./bin/tynex run examples/class.arky
-./bin/tynex run examples/traits.arky
-./bin/tynex run examples/optional_chaining.arky
-./bin/tynex run examples/async.arky
-./bin/tynex run examples/io/files.arky
-./bin/tynex run examples/imports/main.arky
-./bin/tynex run examples/exceptions.arky
-./bin/tynex run examples/modules/main.arky
-./bin/tynex run examples/tasks/main.arky
-./bin/tynex run examples/tasks/cancellation.arky
-./bin/tynex run examples/tasks/async.arky
+./bin/arky run examples/main.arky
+./bin/arky run examples/control_flow.arky
+./bin/arky run examples/multiple_values.arky
+./bin/arky run examples/class.arky
+./bin/arky run examples/traits.arky
+./bin/arky run examples/optional_chaining.arky
+./bin/arky run examples/async.arky
+./bin/arky run examples/io/files.arky
+./bin/arky run examples/imports/main.arky
+./bin/arky run examples/exceptions.arky
+./bin/arky run examples/modules/main.arky
+./bin/arky run examples/tasks/main.arky
+./bin/arky run examples/tasks/cancellation.arky
+./bin/arky run examples/tasks/async.arky
 ```
 
 `multiple_values.arky`는 현재 지원되는 Lua 테이블 메서드와 다중 반환을, `imports/`는 정적 import·선언 파일·try/except/else를 보여줍니다. 오류 진단 확인용 `type_error.arky`는 의도적으로 타입 검사가 실패합니다.

@@ -4,7 +4,7 @@
 
 ```sh
 make setup
-./bin/tynex run examples/io/files.arky
+./bin/arky run examples/io/files.arky
 ```
 
 출력은 다음과 같습니다. 값 사이는 탭입니다.
@@ -25,7 +25,7 @@ python3 examples/io/echo_server.py
 두 번째 터미널에서 클라이언트를 실행합니다.
 
 ```sh
-./bin/tynex run examples/io/tcp.arky
+./bin/arky run examples/io/tcp.arky
 ```
 
 ```text

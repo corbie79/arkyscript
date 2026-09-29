@@ -1,6 +1,6 @@
 # 에디터와 최소 LSP
 
-`tynex lsp`는 stdin/stdout의 LSP 3.17 메시지로 컴파일러 진단을 제공한다. VS Code와 Zed에서 같은 Rust 모듈 검사기·파일별 정책을 사용한다. 에디터 설정은 사용자 스크립트의 타입 정책을 바꾸지 않는다.
+`arky lsp`는 stdin/stdout의 LSP 3.17 메시지로 컴파일러 진단을 제공한다. VS Code와 Zed에서 같은 Rust 모듈 검사기·파일별 정책을 사용한다. 에디터 설정은 사용자 스크립트의 타입 정책을 바꾸지 않는다.
 
 ## VS Code
 
@@ -13,7 +13,7 @@ npm --prefix editors/vscode run package
 code --install-extension editors/vscode/tynex-0.1.0.vsix
 ```
 
-저장소를 열면 [.vscode/settings.json](../.vscode/settings.json)의 실행 파일을 사용한다. 다른 프로젝트에서는 `tynex.serverPath`를 빌드한 바이너리의 절대 경로로 설정하거나 PATH에 `tynex`을 둔다. `${workspaceFolder}`를 사용할 수 있으며 Windows에서 확장자가 없는 절대 경로에는 `.exe`를 붙인다. 첫 workspace folder의 실행 파일 하나를 사용하므로 서로 다른 컴파일러 버전을 쓰는 프로젝트는 별도 창으로 연다.
+저장소를 열면 [.vscode/settings.json](../.vscode/settings.json)의 실행 파일을 사용한다. 다른 프로젝트에서는 `tynex.serverPath`를 빌드한 바이너리의 절대 경로로 설정하거나 PATH에 `arky`을 둔다. `${workspaceFolder}`를 사용할 수 있으며 Windows에서 확장자가 없는 절대 경로에는 `.exe`를 붙인다. 첫 workspace folder의 실행 파일 하나를 사용하므로 서로 다른 컴파일러 버전을 쓰는 프로젝트는 별도 창으로 연다.
 
 `.arky`는 **Arky** 언어로 표시된다. `.lua` 버퍼도 반영하려면 `tynex.checkLua`를 켠다. 이 저장소에서는 켜져 있다. 실행 경로나 옵션을 바꾼 뒤 **Arky: Restart Language Server**를 실행한다. 신뢰하지 않은 workspace에서는 확장을 실행하지 않는다.
 
@@ -31,7 +31,7 @@ python3 scripts/prepare_zed.py
 
 Zed의 **zed: install dev extension**에서 출력된 `build/editors/zed` 폴더를 선택하고 저장소 **폴더**를 연다. 스테이징 스크립트는 Zed의 grammar revision 요구를 충족하기 위해 `build/editors/grammar`에만 로컬 Git snapshot을 만든다. 프로젝트나 공식 LuaJIT 저장소를 커밋하지 않는다. 확장/grammar 변경 뒤에는 스테이징을 다시 하고 dev extension을 재빌드한다.
 
-`.arky`의 언어 이름은 **Arky**다. [.zed/settings.json](../.zed/settings.json)의 `lsp.tynex.binary.path`는 `./target/debug/tynex`을 가리키며, binary override에는 `"arguments": ["lsp"]`도 반드시 지정한다. 다른 프로젝트에서는 절대 경로나 PATH의 `tynex`을 사용한다. Windows는 `.exe` 경로를 지정한다. `.lua`에는 별도 [EmmyLua 확장](https://zed.dev/extensions/emmylua)을 사용하며 이 저장소의 설정은 그 언어 서버도 Tynex으로 바꾼다. typed formatter는 아직 없으므로 format-on-save는 껐다.
+`.arky`의 언어 이름은 **Arky**다. [.zed/settings.json](../.zed/settings.json)의 `lsp.tynex.binary.path`는 `./target/debug/arky`을 가리키며, binary override에는 `"arguments": ["lsp"]`도 반드시 지정한다. 다른 프로젝트에서는 절대 경로나 PATH의 `arky`을 사용한다. Windows는 `.exe` 경로를 지정한다. `.lua`에는 별도 [EmmyLua 확장](https://zed.dev/extensions/emmylua)을 사용하며 이 저장소의 설정은 그 언어 서버도 Tynex으로 바꾼다. typed formatter는 아직 없으므로 format-on-save는 껐다.
 
 경로·인자를 바꾼 뒤 **workspace: reload**를 실행한다. 단일 파일만 열면 프로젝트 설정을 찾을 수 없으므로 폴더를 열거나 사용자 설정에 절대 경로를 둔다. 소스 맵 디버거는 이 확장의 `tynex-emmy` 어댑터를 사용한다. 별도 EmmyLua DAP 실행 파일과 `emmy_core` 준비는 [디버깅 안내](debugging.md)를 따른다. [Zed 언어 확장 사양](https://zed.dev/docs/extensions/languages)
 

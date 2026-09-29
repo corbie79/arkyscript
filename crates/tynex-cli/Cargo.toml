@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "tynex"
+name = "arky"
 path = "src/main.rs"
 
 [dependencies]

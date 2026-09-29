@@ -17,7 +17,7 @@ use tynex_compiler::Mode;
 
 #[derive(Parser)]
 #[command(
-    name = "tynex",
+    name = "arky",
     version,
     about = "Tynex — development tools for Arky scripts and Lua: compiler, language server, and debugger"
 )]
@@ -79,7 +79,7 @@ fn main() -> ExitCode {
     match execute(Cli::parse()) {
         Ok(code) => ExitCode::from(code),
         Err(message) => {
-            eprintln!("tynex: {message}");
+            eprintln!("arky: {message}");
             ExitCode::FAILURE
         }
     }
@@ -130,7 +130,7 @@ fn runtime() -> Result<PathBuf, String> {
         }
         break;
     }
-    Err("LuaJIT runtime not found. Run make setup, place the engine beside tynex, or set TYNEX_LUAJIT.".into())
+    Err("LuaJIT runtime not found. Run make setup, place the engine beside arky, or set TYNEX_LUAJIT.".into())
 }
 
 fn execute(cli: Cli) -> Result<u8, String> {

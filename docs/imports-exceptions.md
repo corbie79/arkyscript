@@ -3,7 +3,7 @@
 공식 LuaJIT 소스를 수정하지 않고 Rust 컴파일러와 프로젝트 로더에서 제공한다. `.arky`의 gradual/strict에서 사용할 수 있다. 기존 `.lua`의 legacy 실행과 `require`는 유지한다. 실행 예제:
 
 ```sh
-./bin/tynex run examples/imports/main.arky
+./bin/arky run examples/imports/main.arky
 ```
 
 출력은 `score: 42`다.
