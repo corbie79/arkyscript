@@ -4,6 +4,10 @@
 // Author: eugene.choi.
 #include "lua_cclosure.h"
 
+namespace next2::luax {
+enum class instance_field_policy { protect_native_members, allow_method_overrides };
+}
+
 namespace next2::luax::detail {
 template<class T, class F, std::size_t... I> auto method(F function, std::index_sequence<I...>) {
     using traits = function_traits<F>;
@@ -28,13 +32,74 @@ inline int constructor_dispatch(lua_State* L) {
     lua_call(L, count, 1);
     return 1;
 }
+inline char instance_fields_key;
+inline char instance_fields_owner_key;
+struct instance_field_options { bool enabled = false; bool method_overrides = false; };
+inline instance_field_options instance_fields_options(lua_State* L, int meta) {
+    meta = absolute_index(L, meta);
+    lua_pushvalue(L, meta);
+    while (lua_istable(L, -1)) {
+        lua_pushlightuserdata(L, &instance_fields_key);
+        lua_rawget(L, -2);
+        const bool configured = !lua_isnil(L, -1);
+        const bool overrides = lua_tointeger(L, -1)
+            == static_cast<lua_Integer>(instance_field_policy::allow_method_overrides);
+        lua_pop(L, 1);
+        if (configured) { lua_pop(L, 1); return {true, overrides}; }
+        lua_getfield(L, -1, "base");
+        lua_remove(L, -2);
+    }
+    lua_pop(L, 1);
+    return {};
+}
+inline void require_live_instance(lua_State* L) {
+    if (lua_type(L, 1) != LUA_TUSERDATA || lua_objlen(L, 1) != sizeof(object_storage)
+        || !lua_getmetatable(L, 1)) {
+        luaL_error(L, "wrong or expired C++ object");
+        return;
+    }
+    const bool matches = lua_rawequal(L, -1, lua_upvalueindex(1)) != 0;
+    lua_pop(L, 1);
+    if (!matches || !static_cast<object_storage*>(lua_touserdata(L, 1))->value)
+        luaL_error(L, "wrong or expired C++ object");
+}
+// A userdata starts with its creator's environment (often the globals table).
+// Create an isolated environment lazily; never use the shared environment for
+// peer fields. No registry roots are needed, so Lua callback/self cycles collect.
+inline bool push_instance_fields(lua_State* L, bool create) {
+    lua_getfenv(L, 1);
+    lua_pushlightuserdata(L, &instance_fields_owner_key);
+    lua_rawget(L, -2);
+    const bool own = lua_touserdata(L, -1) == lua_touserdata(L, 1);
+    lua_pop(L, 1);
+    if (own) return true;
+    lua_pop(L, 1);
+    if (!create) return false;
+    lua_newtable(L);
+    lua_pushlightuserdata(L, &instance_fields_owner_key);
+    lua_pushlightuserdata(L, lua_touserdata(L, 1));
+    lua_rawset(L, -3);
+    lua_pushvalue(L, -1);
+    lua_setfenv(L, 1);
+    return true;
+}
 inline int index_dispatch(lua_State* L) {
+    const auto fields = instance_fields_options(L, lua_upvalueindex(1));
+    if (fields.enabled) require_live_instance(L);
     lua_pushvalue(L, lua_upvalueindex(1)); // current class metatable
     while (lua_istable(L, -1)) {
         lua_getfield(L, -1, "methods");
         lua_pushvalue(L, 2);
         lua_rawget(L, -2);
-        if (!lua_isnil(L, -1)) return 1;
+        if (!lua_isnil(L, -1)) {
+            if (fields.method_overrides && push_instance_fields(L, false)) {
+                lua_pushvalue(L, 2);
+                lua_rawget(L, -2);
+                if (lua_isfunction(L, -1)) return 1;
+                lua_pop(L, 2);
+            }
+            return 1;
+        }
         lua_pop(L, 2);
         lua_getfield(L, -1, "extensions");
         lua_pushvalue(L, 2);
@@ -53,9 +118,15 @@ inline int index_dispatch(lua_State* L) {
         lua_getfield(L, -1, "base");
         lua_remove(L, -2);
     }
+    if (fields.enabled && push_instance_fields(L, false)) {
+        lua_pushvalue(L, 2);
+        lua_rawget(L, -2);
+    }
     return 1;
 }
 inline int newindex_dispatch(lua_State* L) {
+    const auto fields = instance_fields_options(L, lua_upvalueindex(1));
+    if (fields.enabled) require_live_instance(L);
     lua_pushvalue(L, lua_upvalueindex(1));
     while (lua_istable(L, -1)) {
         lua_getfield(L, -1, "setters");
@@ -68,8 +139,35 @@ inline int newindex_dispatch(lua_State* L) {
             return 0;
         }
         lua_pop(L, 2);
+        if (fields.enabled) {
+            for (const char* table : {"methods", "getters", "extensions"}) {
+                lua_getfield(L, -1, table);
+                lua_pushvalue(L, 2);
+                lua_rawget(L, -2);
+                if (!lua_isnil(L, -1)) {
+                    if (fields.method_overrides && std::string_view(table) == "methods") {
+                        if (!lua_isfunction(L, 3) && !lua_isnil(L, 3))
+                            return luaL_error(L, "native method override must be a function or nil");
+                        push_instance_fields(L, true);
+                        lua_pushvalue(L, 2);
+                        lua_pushvalue(L, 3);
+                        lua_rawset(L, -3);
+                        return 0;
+                    }
+                    return luaL_error(L, "unknown or read-only C++ property");
+                }
+                lua_pop(L, 2);
+            }
+        }
         lua_getfield(L, -1, "base");
         lua_remove(L, -2);
+    }
+    if (fields.enabled) {
+        push_instance_fields(L, true);
+        lua_pushvalue(L, 2);
+        lua_pushvalue(L, 3);
+        lua_rawset(L, -3);
+        return 0;
     }
     return luaL_error(L, "unknown or read-only C++ property");
 }
@@ -79,6 +177,66 @@ inline void require_open_class(lua_State* L, int meta) {
     const bool sealed = lua_toboolean(L, -1) != 0;
     lua_pop(L, 1);
     if (sealed) throw error("base class registration is sealed; register base members before derived classes");
+}
+inline void require_no_instances(lua_State* L, int meta) {
+    lua_getfield(L, meta, "instances_created");
+    const bool used = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 1);
+    if (used) throw error("register ownership and bases before exposing C++ objects");
+}
+
+template<class T> void register_ref_object(lua_State* L, arky_ref_object<T> hooks) {
+    static_assert(object_type<T> && !std::is_const_v<T>);
+    if (hooks.ownership != ref_ownership::native && hooks.ownership != ref_ownership::lua)
+        throw error("invalid native reference ownership");
+    if (hooks.ownership == ref_ownership::lua && (!hooks.addRef || !hooks.decRef))
+        throw error("Lua reference ownership requires addRef and decRef");
+    stack_guard stack(L);
+    reserve(L, 12);
+    if (!push_metatable<T>(L)) throw error("C++ type has not been registered in this Lua state");
+    const int meta = lua_gettop(L);
+    require_open_class(L, meta);
+    require_no_instances(L, meta);
+    if (reference_policy<T>(L).policy) throw error("native reference policy is already registered or inherited");
+    lua_getfield(L, meta, "constructors");
+    lua_pushnil(L);
+    if (lua_next(L, -2)) throw error("native reference objects require a pointer factory");
+    lua_pop(L, 1);
+    auto* policy = new (lua_newuserdata(L, sizeof(registered_ref_policy<T>))) registered_ref_policy<T>{
+        {hooks.ownership, +[](object_storage& box, void* identity, const ref_policy& policy) {
+            if (policy.ownership == ref_ownership::native) return;
+            static_assert(std::is_standard_layout_v<registered_ref_policy<T>>);
+            const auto& hooks = reinterpret_cast<const registered_ref_policy<T>&>(policy).hooks;
+            auto* owner = new retained_ref<T>{static_cast<T*>(identity), hooks.decRef};
+            hooks.addRef(owner->value);
+            box.owner = owner;
+            box.release = +[](void* value) noexcept {
+                auto* held = static_cast<retained_ref<T>*>(value);
+                auto pointer = held->value;
+                auto release = held->decRef;
+                delete held;
+                release(pointer);
+            };
+            box.abandon = +[](void* value) noexcept { delete static_cast<retained_ref<T>*>(value); };
+        }}, hooks
+    };
+    lua_pushlightuserdata(L, &ref_policy_key);
+    lua_pushvalue(L, -2);
+    lua_rawset(L, meta);
+    lua_newtable(L); // const/mutable caches plus pending-finalizer tracking
+    for (int view : {1, 2}) {
+        lua_newtable(L);
+        lua_newtable(L);
+        lua_pushliteral(L, "v");
+        lua_setfield(L, -2, "__mode");
+        lua_setmetatable(L, -2);
+        lua_rawseti(L, -2, view);
+    }
+    lua_newtable(L);
+    lua_rawseti(L, -2, 3);
+    lua_pushlightuserdata(L, &policy->policy);
+    lua_pushvalue(L, -2);
+    lua_rawset(L, LUA_REGISTRYINDEX);
 }
 inline bool inherited_member(lua_State* L, int meta, const char* name) {
     stack_guard stack(L);
@@ -186,7 +344,9 @@ inline int implement_trait(lua_State* L) {
 }
 
 template<class T> void create_class(lua_State* L) {
-    static_assert(object_type<T> && !std::is_const_v<T> && std::is_nothrow_destructible_v<T>);
+    // Externally managed types may have a protected destructor. emplace checks
+    // destructibility only when the binder actually constructs a value.
+    static_assert(object_type<T> && !std::is_const_v<T>);
     if (push_metatable<T>(L)) throw error("C++ class is already registered in this Lua state");
     lua_pop(L, 1);
     lua_newtable(L); // instance metatable
@@ -256,6 +416,9 @@ public:
         detail::push_metatable<T>(L_);
         const int derived = lua_gettop(L_);
         detail::require_open_class(L_, derived);
+        detail::require_no_instances(L_, derived);
+        if (detail::reference_policy<T>(L_).policy)
+            throw error("register the C++ base before reference ownership");
         lua_getfield(L_, derived, "base");
         if (!lua_isnil(L_, -1)) throw error("a C++ base is already registered");
         lua_pop(L_, 1);
@@ -285,6 +448,8 @@ public:
         detail::reserve(L_, 8);
         detail::push_metatable<T>(L_);
         detail::require_open_class(L_, -1);
+        if (detail::reference_policy<T>(L_).policy)
+            throw error("native reference objects require a pointer factory");
         lua_getfield(L_, -1, "constructors");
         lua_rawgeti(L_, -1, sizeof...(A));
         const bool exists = !lua_isnil(L_, -1);
@@ -292,6 +457,47 @@ public:
         if (exists) throw error("a constructor with this argument count is already registered");
         lua_pushcfunction(L_, (detail::boundary<detail::construct<T, A...>>));
         lua_rawseti(L_, -2, sizeof...(A));
+        return *this;
+    }
+    cpp_class& reg_ref_object(arky_ref_object<T> policy) {
+        detail::register_ref_object(L_, policy);
+        return *this;
+    }
+    // The closest explicitly configured class supplies the inherited policy.
+    // Overrides live in each userdata's fields, never in the native method table.
+    cpp_class& enable_instance_fields(instance_field_policy policy = instance_field_policy::protect_native_members) {
+        if (policy != instance_field_policy::protect_native_members
+            && policy != instance_field_policy::allow_method_overrides)
+            throw error("invalid instance field policy");
+        detail::stack_guard stack(L_);
+        detail::reserve(L_, 4);
+        detail::push_metatable<T>(L_);
+        detail::require_open_class(L_, -1);
+        detail::require_no_instances(L_, -1);
+        lua_pushlightuserdata(L_, &detail::instance_fields_key);
+        lua_pushinteger(L_, static_cast<lua_Integer>(policy));
+        lua_rawset(L_, -3);
+        return *this;
+    }
+    // Adapter functions spell out self as T& or const T&. This keeps receiver
+    // conversion, const checks, and lifetime checks identical to native methods.
+    template<class F> requires (!std::is_member_function_pointer_v<std::decay_t<F>>)
+    cpp_class& reg_method(const char* name, F&& function) {
+        using traits = detail::function_traits<std::decay_t<F>>;
+        static_assert(traits::arity > 0, "reg_method requires an explicit T& or const T& self parameter");
+        if constexpr (traits::arity > 0) {
+            using self = std::tuple_element_t<0, typename traits::arguments>;
+            static_assert(std::is_same_v<self, T&> || std::is_same_v<self, const T&>,
+                          "reg_method requires an explicit T& or const T& self parameter");
+        }
+        put("methods", name, std::forward<F>(function));
+        return *this;
+    }
+    // Raw Lua C callbacks own argument validation and exception boundaries.
+    // They receive the calling state (including coroutines) and self at slot 1.
+    cpp_class& reg_raw_method(const char* name, lua_CFunction function) {
+        if (!function) throw error("cannot register a null Lua C function");
+        put("methods", name, function);
         return *this;
     }
     template<class F> requires std::is_member_function_pointer_v<F>
@@ -344,7 +550,10 @@ private:
         lua_pop(L_, 2);
         if (conflict) throw error("member name is already used by a method/property");
         lua_getfield(L_, -1, table);
-        detail::push_function(L_, std::forward<F>(function));
+        if constexpr (std::is_same_v<std::decay_t<F>, lua_CFunction>)
+            lua_pushcfunction(L_, function);
+        else
+            detail::push_function(L_, std::forward<F>(function));
         lua_setfield(L_, -2, name);
     }
     void erase(const char* table, const char* name) {

@@ -10,6 +10,7 @@ Tynex 개발 키트의 헤더 전용 C++20 바인딩 모듈입니다. 공개 네
 | --- | --- |
 | `lua_binder.h` | 전역 함수·클래스 등록, 스크립트 실행, 호스트 호출 API |
 | `lua_arg.h` | 핵심 인자·결과 변환, `carg`·`pusher`·`result`, userdata 소유권 |
+| `lua_ref_object.h` | `arky_ref_object<T>`, native/Lua 소유권 정책 |
 | `lua_class.h` | `cpp_class<T>`, 생성자·메서드·멤버·프로퍼티 등록과 디스패치 |
 | `lua_cclosure.h` | 가변 인자 C++ 함수·람다를 Lua 콜백으로 연결 |
 | `lua_object.h` / `lua_object.inl` | registry 참조를 갖는 Lua 객체, 필드 접근·함수 호출 |
@@ -48,7 +49,7 @@ int result = lua.call<int>("sum", 20, 22);
 
 ## API와 규칙
 
-- `reg_func(name, callable)`: 일반 함수, `noexcept` 함수, 캡처·mutable·이동 전용 람다, `std::function` 지원. 오버로드·generic 람다는 명시적인 인자 타입을 가진 람다로 감쌉니다. `lua_CFunction`은 원래 C API 호출 규약으로 등록합니다.
+- `reg_func(name, callable)`: 일반 함수, `noexcept` 함수, 캡처·mutable·이동 전용 람다, `std::function` 지원. 오버로드·generic 람다는 명시적인 인자 타입을 가진 람다로 감쌉니다. `lua_CFunction`으로 변환 가능한 함수·`noexcept` 함수 포인터·캡처 없는 람다는 원래 C API 호출 규약으로 등록합니다. 이 콜백의 `lua_State*`는 현재 호출 스택이며 반환하는 `int`는 Lua 반환값 개수입니다. Lua 오류를 내는 raw 콜백에는 `noexcept`를 붙이지 않습니다.
 - `reg_class<T>(name)`: 상태마다 한 번 등록합니다. `reg_con<Args...>()`은 인자 개수로 생성자를 선택하며 같은 개수의 중복 등록은 오류입니다. 생성자를 자동 등록하지 않습니다.
 - `reg_func`, `reg_var`, `reg_prop`은 메서드·멤버·프로퍼티를 등록합니다. const 메서드는 그대로 유지됩니다. getter만 등록한 프로퍼티와 const 멤버는 읽기 전용입니다. 알 수 없는 멤버 쓰기와 메서드/프로퍼티 이름 충돌은 오류입니다. 같은 종류의 멤버 재등록은 교체입니다.
 - `set_var/get_var<T>`, `call<R>(name, args...)`로 값을 주고받습니다. `R` 생략은 반환값을 버립니다. 현재 반환값은 하나이며, 함수 인자 개수는 정확히 맞아야 합니다.
@@ -69,6 +70,30 @@ lua.reg_class<Sprite>("Sprite").reg_base<Node>().reg_con<>();
 Lua에 노출하는 부모는 하나이며, public하고 모호하지 않은 C++ 관계만 허용합니다. 부모로 사용된 등록은 고정되고, 자식에서 상속된 이름을 덮어쓰면 오류입니다. C++ 가상 메서드는 기존 override를 호출합니다. 원래 소유권과 const 보호를 유지하며 역변환이나 빌린 포인터의 소유권 승격은 하지 않습니다.
 
 [상속 API·trait 연결 설계](../docs/native-bindings.md)와 [렌더링 명령 수집 예제](../examples/cpp_rendering.cpp)를 참고하세요. 네이티브 명명 타입 선언과 분리된 `impl`은 [문법·호스트 연결 안내](../docs/impl.md)를 따릅니다. 스크립트 메서드는 별도 확장 표에 연결되며 기존 네이티브 멤버를 덮어쓸 수 없습니다.
+
+## 기존 Lua 호출 형태 연결
+
+C++ 메서드와 Lua API의 반환 규칙이 다르면 `reg_method`로 어댑터를 등록합니다. 첫 인자는 반드시 등록 타입의 `T&` 또는 `const T&`이며, 일반 메서드와 같은 타입·const·수명 검사를 거칩니다.
+
+```cpp
+lua.reg_class<Node>("Node")
+    .enable_instance_fields()
+    .reg_method("setVisible", [](Node& self, bool visible) -> Node* {
+        self.setVisible(visible);
+        return &self;
+    });
+```
+
+참조 정책으로 등록한 객체는 같은 포인터의 래퍼를 재사용하므로 `node:setVisible(false)`가 `node`를 반환합니다. 일반 값 객체의 포인터 반환에는 이 동일성 보장이 없습니다.
+
+- `reg_raw_method(name, lua_CFunction)`은 호출 중인 `lua_State*`와 1번 인자의 self를 그대로 전달합니다. 오버로드, 기본 인자, 다중 반환을 구현할 수 있습니다. 콜백이 직접 self·인자·const·수명을 검사하고 C++ 예외를 Lua 오류로 변환해야 합니다. C++ 자원이 살아 있는 동안 `lua_error`로 longjmp하지 않습니다. LuaJIT 오류가 호출 프레임을 unwind할 수 있으므로 오류를 내는 raw 콜백에 `noexcept`를 붙이지 않습니다.
+- `enable_instance_fields()`는 인스턴스별 Lua 필드와 콜백 저장을 허용합니다. 부모 등록을 고정하거나 객체를 노출하기 전에 설정하며 자식에도 적용됩니다. 기본값은 추가 필드 거부입니다.
+- 기본 정책 `instance_field_policy::protect_native_members`에서는 native 메서드·프로퍼티와 스크립트 trait 이름을 추가 필드로 덮어쓸 수 없습니다. const 래퍼에도 Lua 전용 필드는 저장할 수 있지만 native 값은 바꿀 수 없습니다. 무효화된 래퍼는 추가 필드 읽기·쓰기도 거부합니다.
+- 기존 스크립트가 native 메서드를 Lua 함수로 감싸는 경우 `.enable_instance_fields(instance_field_policy::allow_method_overrides)`를 선택합니다. 해당 인스턴스의 native 메서드 이름에 함수 또는 nil을 쓸 수 있으며, nil은 원래 메서드를 다시 노출합니다. 저장한 원래 함수를 다시 대입해 복원할 수도 있습니다. 프로퍼티·trait 이름과 native 함수 호출의 const·수명 검사는 유지됩니다.
+- 정책은 가장 가까운 부모 설정을 상속하며 자식에서 객체 노출 전에 명시적으로 바꿀 수 있습니다. 메서드 덮어쓰기는 인스턴스별 Lua 필드이므로 다른 객체나 클래스 등록을 바꾸지 않습니다.
+- Lua 필드는 userdata의 독립 환경에 보관합니다. 자기 자신을 캡처한 콜백도 registry에 고정하지 않아 GC로 수거할 수 있습니다. 참조 래퍼의 타입이 부모에서 자식으로 갱신되어도 필드는 유지됩니다.
+
+[호환 어댑터·인스턴스 필드 테스트](../tests/binder/compatibility.cpp)를 참고하세요. 외부 tolua userdata를 Arky 인자로 넘기는 변환은 별도 호스트 연결이 필요합니다.
 
 ## 핵심 인자 변환 모듈
 
@@ -92,6 +117,93 @@ lua_pop(L, 1);
 `std::vector<T>`는 **키가 1부터 N까지 연속인 Lua 배열**로 변환합니다. 중첩 배열과 `vector<bool>`을 지원하며, 읽는 순서는 숫자 인덱스 순서입니다. 구멍이 있는 배열·문자열 키가 섞인 테이블은 오류입니다. nil 요소는 배열에서 사라지므로 vector의 nil 요소 push도 오류로 처리합니다. 빈 vector도 정확히 테이블 하나만 push하며, 변환이 실패하면 스택을 복구합니다.
 
 `std::shared_ptr<T>`는 원래 제어 블록을 공유하므로 객체를 중복 삭제하지 않습니다. Lua 생성자가 만든 객체도 `get_var<std::shared_ptr<T>>` 등으로 공유할 수 있으며, 이 경우 Lua GC나 VM 종료 후에도 호스트 소유권이 유지됩니다. `const T` 보호를 유지하고, 빌린 raw 포인터를 shared_ptr로 바꾸는 것은 거부합니다. 빈 shared_ptr는 nil로 변환합니다.
+
+## Native와 Lua의 객체 소유권
+
+`arky_ref_object<T>`를 등록하면 엔진의 포인터를 Arky가 관리하는 Lua 래퍼로 노출합니다. 이 경로는 `shared_ptr` 제어 블록을 만들지 않습니다. 수명을 결정하는 쪽은 등록 시 선택합니다.
+
+| 정책 | 래퍼 생성 | Lua GC·VM 종료 | native 소멸 |
+| --- | --- | --- | --- |
+| `ref_ownership::native` (기본값) | 포인터 관찰, `addRef` 호출 없음 | 래퍼만 정리, `decRef` 호출 없음 | 호스트 통지로 모든 래퍼 무효화 |
+| `ref_ownership::lua` | 새 래퍼마다 `addRef` 한 번 | 래퍼마다 `decRef` 한 번 | 먼저 소멸했다면 통지로 남은 해제 취소 |
+
+```cpp
+using namespace next2::luax;
+
+lua.reg_class<Ref>("Ref");
+lua.reg_ref_object(arky_ref_object<Ref>{
+    .ownership = ref_ownership::native,
+});
+lua.reg_class<Node>("Node").reg_base<Ref>(); // native 정책 상속
+
+lua.reg_class<WebSocket>("WebSocket");
+lua.reg_ref_object(arky_ref_object<WebSocket>{
+    .addRef = [](WebSocket* p) noexcept { p->addRef(); },
+    .decRef = [](WebSocket* p) noexcept { p->decRef(); },
+    .ownership = ref_ownership::lua,
+});
+
+// native 소멸 콜백: 이 VM의 스레드에서, 등록한 루트 타입으로 통지
+void on_ref_destroyed(binder& lua, Ref* ref) {
+    lua.invalidate_ref_object(ref);
+}
+```
+
+클래스를 등록한 뒤, 자식 클래스 등록과 첫 객체 노출 전에 정책을 등록합니다. `cpp_class<T>::reg_ref_object(policy)`로 이어 쓸 수도 있습니다. `.reg_base<Base>()`를 등록한 계층은 루트 정책을 공유하고 자식이 이를 덮어쓰지 않습니다. 독립적인 등록 계층마다 서로 다른 소유권을 선택할 수 있습니다. 정책 타입은 클래스의 메서드·값 변환 정의와 분리되어 있습니다.
+
+### 래퍼와 소멸 통지
+
+- 같은 VM에서 같은 루트 포인터를 다시 노출하면 살아 있는 Lua userdata를 재사용합니다. 코루틴도 같은 캐시를 공유합니다. 부모 부분 객체의 주소가 달라도 루트 주소로 찾으며, 부모 타입으로 먼저 노출한 래퍼는 자식 포인터를 받을 때 자식 타입으로 갱신합니다.
+- const와 mutable 포인터는 권한 보호를 위해 서로 다른 래퍼를 사용합니다. Lua 소유 모드에서는 각각 참조 하나를 유지합니다. 서로 다른 VM도 각각 관리합니다.
+- 캐시는 weak 참조입니다. native 모드에서 Lua가 래퍼를 GC해도 native 객체는 그대로 남고, 다음 노출 때 래퍼를 다시 만듭니다. VM 종료도 native 객체의 수명에 영향을 주지 않습니다.
+- `invalidate_ref_object(ptr)`는 해당 VM의 래퍼를 무효화하고 캐시에서 제거하며, 무효화한 래퍼 수를 반환합니다. Lua 변수나 `object` 핸들이 남아 있어도 이후 native 접근은 `wrong or expired C++ object` 오류가 됩니다. 이미 소멸 중인 객체에 `decRef`를 다시 호출하지 않습니다. GC 대기 중이라 weak 캐시에서 빠진 래퍼도 추적합니다.
+- native 소멸 통지는 필수입니다. 주소가 재사용되기 전에 동기적으로 통지해야 하며, 호스트가 같은 객체를 노출한 모든 VM에 전달합니다. VM을 닫기 전에 외부 소멸 콜백 연결을 해제해야 합니다. 이 API는 살아 있는 VM의 스레드에서 호출합니다. 다른 스레드의 소멸은 호스트가 접근과 소멸을 동기화해야 하며, 소멸한 포인터만 큐에 넣어 나중에 무효화하는 방식은 지원하지 않습니다.
+
+### 참조 훅과 생성
+
+Lua 소유 모드의 `addRef`와 `decRef`는 둘 다 필요하며 `void(T*) noexcept` 함수 포인터입니다. non-capturing 람다로 멤버 함수를 연결할 수 있습니다. 훅은 Lua를 호출하지 않아야 하지만, `decRef`가 소멸자를 실행하면서 `invalidate_ref_object`를 통지하는 것은 지원합니다. native 모드에서는 두 훅을 생략할 수 있으며 등록해도 호출하지 않습니다.
+
+Lua 소유 모드도 포인터의 기존 참조를 인수하지는 않습니다. 예를 들어 호스트가 참조 수 1인 객체를 만들고 `set_var`로 넘기면 2가 됩니다. 호스트의 원래 참조를 `decRef`하거나 엔진의 autorelease 규약으로 정리해야 이후 Lua GC가 마지막 참조를 해제할 수 있습니다. 정책을 등록한 클래스는 포인터 팩토리로 노출하며, `.reg_con`·값 복사 push·`shared_ptr` 소유권 혼용은 거부합니다. 생성자 기반의 일반 값 객체와 명시적인 기존 `shared_ptr` 바인딩은 별도 경로로 지원합니다.
+
+Yuna는 `RefDestroyTrigger::registerDestroyDelegate`와 `unRegisterDestroyDelegate`를 제공합니다. 호스트 어댑터가 이를 위 통지 API에 연결합니다. 엔진별 연결과 빌드 설정은 호스트 저장소에서 관리하며 Arky 코어는 Cocos 헤더에 의존하지 않습니다.
+
+[수명·소멸·상속·GC 회귀 테스트](../tests/binder/ref_object.cpp)를 참고하세요.
+
+## 사용자 정의 타입 변환
+
+`next2::luax::converter<T>`를 특수화하면 외부 라이브러리의 값 타입을 Lua 값으로 변환할 수 있습니다. 좌표 구조체, 시간 단위, 문자열로 표현하는 enum 등이 대상입니다. 엔진 헤더나 `detail` 네임스페이스에 의존하지 않고 호스트 측 헤더에서 정의합니다.
+
+```cpp
+#include "binder/lua_binder.h"
+#include <chrono>
+
+namespace next2::luax {
+template<> struct converter<std::chrono::milliseconds> {
+    static constexpr bool enabled = true;
+    static std::chrono::milliseconds read(lua_State* L, int index) {
+        return std::chrono::milliseconds(carg<std::chrono::milliseconds::rep>(L, index).to());
+    }
+    static void push(lua_State* L, std::chrono::milliseconds value) {
+        pusher<std::chrono::milliseconds::rep>::push(L, value.count());
+    }
+};
+}
+
+// 기존 VM에도 연결할 수 있습니다.
+next2::luax::binder lua(existing_state);
+lua.reg_func("delay_ms", [](std::chrono::milliseconds delay) { return delay; });
+lua.dostring("assert(delay_ms(250) == 250)");
+```
+
+- 첫 바인딩 사용 전에 동일한 특수화 정의를 모든 관련 번역 단위에 포함합니다. 클래스·구조체·enum 값 타입을 지원합니다.
+- `read`는 `T`를 값으로 반환합니다. 바인더는 일반 스택의 음수 인덱스를 절대 인덱스로 바꾸어 전달합니다. Lua 스택의 기존 값과 높이를 유지해야 합니다.
+- `push`는 Lua 값 하나를 추가합니다. 여러 반환값은 이 API의 범위가 아닙니다. const 참조나 값 인자로 받고 필요하면 이동 인자용 오버로드를 추가할 수 있습니다.
+- 임시 값을 추가하다 C++ 예외가 발생하면 바인더가 임시 스택 항목을 제거합니다. 정상 반환 시에도 스택 높이 규약 위반을 검사합니다. 기존 항목을 제거·교체하거나 Lua 테이블을 수정한 결과까지 복구하지는 않습니다.
+- 오류에는 `next2::luax::error` 등 C++ 예외를 사용합니다. C++ 자원이 살아 있는 동안 `lua_error`·`luaL_check*` 등으로 직접 longjmp하지 않습니다. Lua 메타메서드를 실행할 때도 보호 호출이 필요합니다.
+- 함수 인자·결과, 프로퍼티, `carg`·`pusher`, `object` 접근과 `optional<T>`·`vector<T>` 내부에서 같은 변환을 사용합니다. const 참조 인자는 변환된 값을 호출 동안 보관합니다. 변경 가능한 `T&`는 지원하지 않습니다.
+- 변환을 정의한 타입은 값으로 다루므로 `reg_class<T>`로 함께 등록하지 않습니다. 포인터 수명과 객체 동일성은 `arky_ref_object<T>` 정책을 사용합니다. 기존 외부 userdata 해석은 후속 범위입니다.
+
+[실행 테스트](../tests/binder/converter.cpp)에는 테이블 좌표, 시간 단위, enum, 이동 전용 값과 실패 복구 예제가 있습니다. [범용 바인더 확장 방향](../docs/binder-extensibility.md)에 엔진 어댑터와의 경계를 정리했습니다.
 
 ## 동적 값
 

@@ -20,13 +20,16 @@ public:
     }
     [[nodiscard]] const std::string& get_namespace() const noexcept { return namespace_; }
 
-    template<class F> binder& reg_func(std::string_view name, F&& function) {
+    template<class F> requires (!std::is_convertible_v<F, lua_CFunction>)
+    binder& reg_func(std::string_view name, F&& function) {
         detail::stack_guard stack(L_);
         detail::reserve(L_, 8);
         detail::push_function(L_, std::forward<F>(function));
         detail::set_path(L_, qualify(name));
         return *this;
     }
+    // Include noexcept pointers and captureless lambdas: the forwarding overload
+    // must not treat their lua_State* parameter as a Lua argument to convert.
     // Raw C API callbacks retain their native Lua stack/return-count convention.
     binder& reg_func(std::string_view name, lua_CFunction function) {
         if (!function) throw error("cannot register a null function");
@@ -38,6 +41,15 @@ public:
     }
     template<class T> cpp_class<T> reg_class(std::string_view name) {
         return cpp_class<T>(L_, qualify(name));
+    }
+    template<class T> binder& reg_ref_object(arky_ref_object<T> policy) {
+        detail::register_ref_object(L_, policy);
+        return *this;
+    }
+    // Invoke on the VM thread from the registered root type's destruction hook.
+    // Invalidates all const/mutable views without calling decRef a second time.
+    template<class T> std::size_t invalidate_ref_object(T* value) {
+        return detail::invalidate_reference(L_, value);
     }
     template<class T> void set_var(std::string_view name, T&& value) {
         detail::stack_guard stack(L_);

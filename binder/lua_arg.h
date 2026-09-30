@@ -3,6 +3,7 @@
 // Lua/C++ argument conversion and userdata ownership.
 // Author: eugene.choi.
 #include "lua_util.h"
+#include "lua_ref_object.h"
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -16,18 +17,46 @@
 #include <vector>
 
 namespace next2::luax {
+// Specialize for a C++ value type before its first binding use. read returns T
+// by value without changing the stack; push appends exactly one Lua value.
+// Converters may use carg/pusher recursively and throw C++ exceptions on error.
+template<class T> struct converter { static constexpr bool enabled = false; };
+
 namespace detail {
 template<class> inline constexpr bool unsupported = false;
 template<class T> using plain = std::remove_cvref_t<T>;
 template<class T> struct value_traits { static constexpr bool enabled = false; };
 
 template<class T, bool Callable = false> inline char type_key;
-// Keep the ownership handle outside userdata so repeated finalization is harmless.
-// Uniform storage lets upcasts share ownership without reinterpreting shared_ptr<T>.
-struct object_storage { void* value; std::shared_ptr<void>* owner; bool writable; };
+// Type-erased cleanup allows native reference hooks without a shared_ptr control
+// block. shared is present only for the optional shared_ptr/value conversion path.
+struct object_storage {
+    void* value = nullptr;
+    void* owner = nullptr;
+    void (*release)(void*) noexcept = nullptr;
+    void (*abandon)(void*) noexcept = nullptr;
+    std::shared_ptr<void>* shared = nullptr;
+    void* ref_policy = nullptr;
+    void* ref_identity = nullptr;
+    bool writable = true;
+};
 template<class T> using holder = object_storage;
 inline char object_metatable_key;
+inline char ref_policy_key;
 using upcast_function = void* (*)(void*);
+
+inline void clear_object(object_storage& box, bool destroyed = false) noexcept {
+    const auto old = std::exchange(box, object_storage{});
+    if (old.owner) (destroyed ? old.abandon : old.release)(old.owner);
+}
+inline void own_shared(object_storage& box, std::shared_ptr<void> owner) {
+    auto* shared = new std::shared_ptr<void>(std::move(owner));
+    box.owner = box.shared = shared;
+    box.release = box.abandon = +[](void* value) noexcept {
+        delete static_cast<std::shared_ptr<void>*>(value);
+    };
+    box.value = shared->get();
+}
 
 inline int absolute_index(lua_State* L, int index) {
     return index > 0 || index <= LUA_REGISTRYINDEX ? index : lua_gettop(L) + index + 1;
@@ -47,11 +76,34 @@ template<class T, bool Callable = false> holder<T>* test_holder(lua_State* L, in
     lua_pop(L, 2);
     return matches ? box : nullptr;
 }
+// A weak-value cache loses pending-finalization userdata before __gc runs.
+// Weak-key sets retain those keys through finalization in LuaJIT, allowing a
+// native destruction notification to invalidate even a queued wrapper.
+inline void forget_reference(lua_State* L, const object_storage& box, int wrapper) noexcept {
+    if (!box.ref_policy) return;
+    stack_guard stack(L);
+    wrapper = absolute_index(L, wrapper);
+    lua_pushlightuserdata(L, box.ref_policy);
+    lua_rawget(L, LUA_REGISTRYINDEX);
+    lua_rawgeti(L, -1, 3);
+    const int identities = lua_gettop(L);
+    lua_pushlightuserdata(L, box.ref_identity);
+    lua_rawget(L, identities);
+    if (!lua_istable(L, -1)) return;
+    lua_pushvalue(L, wrapper);
+    lua_pushnil(L);
+    lua_rawset(L, -3);
+    lua_pushnil(L);
+    if (lua_next(L, -2)) return;
+    lua_pushlightuserdata(L, box.ref_identity);
+    lua_pushnil(L);
+    lua_rawset(L, identities);
+}
 template<class T, bool Callable = false> int collect(lua_State* L) noexcept {
     auto* box = test_holder<T, Callable>(L, 1);
     if (box) {
-        box->value = nullptr;
-        delete std::exchange(box->owner, nullptr);
+        forget_reference(L, *box, 1);
+        clear_object(*box);
     }
     return 0;
 }
@@ -62,16 +114,180 @@ template<class T, bool Callable = false> holder<T>* new_holder(lua_State* L) {
         throw error("C++ type has not been registered in this Lua state");
     }
     // Store a pointer in Lua userdata; even over-aligned C++ types are allocated by new.
-    auto* box = new (lua_newuserdata(L, sizeof(holder<T>))) holder<T>{nullptr, nullptr, true};
+    if constexpr (!Callable) {
+        lua_pushboolean(L, true);
+        lua_setfield(L, -2, "instances_created");
+    }
+    auto* box = new (lua_newuserdata(L, sizeof(holder<T>))) holder<T>{};
     lua_pushvalue(L, -2);
     lua_setmetatable(L, -2);
     lua_remove(L, -2);
     return box;
 }
+// Policies are trivial Lua userdata. Each retained wrapper copies its release
+// hook, so finalization does not depend on the policy's shutdown order.
+struct ref_policy {
+    ref_ownership ownership;
+    void (*acquire)(object_storage&, void*, const ref_policy&);
+};
+template<class T> struct registered_ref_policy { ref_policy policy; arky_ref_object<T> hooks; };
+template<class T> struct retained_ref {
+    T* value;
+    void (*decRef)(T*) noexcept;
+};
+struct reference_view { const ref_policy* policy = nullptr; void* identity = nullptr; };
+
+template<class T> reference_view reference_policy(lua_State* L, T* value = nullptr) {
+    stack_guard stack(L);
+    reserve(L, 6);
+    if (!push_metatable<std::remove_const_t<T>>(L)) return {};
+    void* identity = const_cast<std::remove_const_t<T>*>(value);
+    while (lua_istable(L, -1)) {
+        lua_pushlightuserdata(L, &ref_policy_key);
+        lua_rawget(L, -2);
+        if (lua_isuserdata(L, -1))
+            return {static_cast<ref_policy*>(lua_touserdata(L, -1)), identity};
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "upcast");
+        if (identity && lua_type(L, -1) == LUA_TUSERDATA)
+            identity = (*static_cast<upcast_function*>(lua_touserdata(L, -1)))(identity);
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "base");
+        lua_remove(L, -2);
+    }
+    return {};
+}
+
+// Return the adjusted pointer only when the registered base chain reaches to.
+inline void* upcast_pointer(lua_State* L, int from, int to, void* value) {
+    stack_guard stack(L);
+    from = absolute_index(L, from); to = absolute_index(L, to);
+    lua_pushvalue(L, from);
+    while (!lua_rawequal(L, -1, to)) {
+        lua_getfield(L, -1, "upcast");
+        if (lua_type(L, -1) != LUA_TUSERDATA || lua_objlen(L, -1) != sizeof(upcast_function)) return nullptr;
+        value = (*static_cast<upcast_function*>(lua_touserdata(L, -1)))(value);
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "base");
+        if (!lua_istable(L, -1)) return nullptr;
+        lua_remove(L, -2);
+    }
+    return value;
+}
+
+template<class T> void push_reference(lua_State* L, T* value, reference_view reference) {
+    stack_guard stack(L);
+    reserve(L, 10);
+    lua_pushlightuserdata(L, const_cast<ref_policy*>(reference.policy));
+    lua_rawget(L, LUA_REGISTRYINDEX);
+    // Const and mutable views cannot share a userdata without weakening const.
+    lua_rawgeti(L, -1, std::is_const_v<T> ? 2 : 1);
+    const int cache = lua_gettop(L);
+    lua_pushlightuserdata(L, reference.identity);
+    lua_rawget(L, cache);
+    auto* box = lua_type(L, -1) == LUA_TUSERDATA && lua_objlen(L, -1) == sizeof(object_storage)
+        ? static_cast<object_storage*>(lua_touserdata(L, -1)) : nullptr;
+    if (box && box->value) {
+        const int wrapper = lua_gettop(L);
+        lua_getmetatable(L, wrapper);
+        const int current = lua_gettop(L);
+        if (!push_metatable<std::remove_const_t<T>>(L)) throw error("C++ type has not been registered");
+        const int requested = lua_gettop(L);
+        if (upcast_pointer(L, current, requested, box->value) != value) {
+            if (upcast_pointer(L, requested, current, const_cast<std::remove_const_t<T>*>(value)) != box->value)
+                throw error("incompatible native reference view");
+            // A later derived exposure upgrades a base-first wrapper in place.
+            box->value = const_cast<std::remove_const_t<T>*>(value);
+            lua_pushvalue(L, requested);
+            lua_setmetatable(L, wrapper);
+        }
+        // Reusing an identity still exposes the requested class. In particular,
+        // an upgrade allocates no holder, so new_holder cannot seal its setup.
+        lua_pushboolean(L, true);
+        lua_setfield(L, requested, "instances_created");
+        lua_settop(L, wrapper);
+    } else {
+        lua_pop(L, 1);
+        box = new_holder<std::remove_const_t<T>>(L);
+        reference.policy->acquire(*box, reference.identity, *reference.policy);
+        box->value = const_cast<std::remove_const_t<T>*>(value);
+        box->writable = !std::is_const_v<T>;
+        box->ref_policy = const_cast<ref_policy*>(reference.policy);
+        box->ref_identity = reference.identity;
+        const int wrapper = lua_gettop(L);
+        lua_rawgeti(L, cache - 1, 3);
+        const int identities = lua_gettop(L);
+        lua_pushlightuserdata(L, reference.identity);
+        lua_rawget(L, identities);
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
+            lua_newtable(L);
+            lua_newtable(L);
+            lua_pushliteral(L, "k");
+            lua_setfield(L, -2, "__mode");
+            lua_setmetatable(L, -2);
+            lua_pushlightuserdata(L, reference.identity);
+            lua_pushvalue(L, -2);
+            lua_rawset(L, identities);
+        }
+        lua_pushvalue(L, wrapper);
+        lua_pushboolean(L, true);
+        lua_rawset(L, -3);
+        lua_settop(L, wrapper);
+        lua_pushlightuserdata(L, reference.identity);
+        lua_pushvalue(L, -2);
+        lua_rawset(L, cache);
+    }
+    lua_replace(L, stack.top + 1);
+    ++stack.top;
+}
+
+template<class T> std::size_t invalidate_reference(lua_State* L, T* value) {
+    stack_guard stack(L);
+    reserve(L, 8);
+    if (!value) return 0;
+    const auto reference = reference_policy(L, value);
+    if (!reference.policy) throw error("native reference policy has not been registered");
+    lua_pushlightuserdata(L, const_cast<ref_policy*>(reference.policy));
+    lua_rawget(L, LUA_REGISTRYINDEX);
+    const int caches = lua_gettop(L);
+    std::size_t invalidated = 0;
+    lua_rawgeti(L, caches, 3);
+    const int identities = lua_gettop(L);
+    lua_pushlightuserdata(L, reference.identity);
+    lua_rawget(L, identities);
+    if (lua_istable(L, -1)) {
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            if (lua_type(L, -2) == LUA_TUSERDATA && lua_objlen(L, -2) == sizeof(object_storage)) {
+                auto* box = static_cast<object_storage*>(lua_touserdata(L, -2));
+                if (box->value) { clear_object(*box, true); ++invalidated; }
+            }
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+    lua_pushlightuserdata(L, reference.identity);
+    lua_pushnil(L);
+    lua_rawset(L, identities);
+    lua_pop(L, 1);
+    for (int view : {1, 2}) {
+        lua_rawgeti(L, caches, view);
+        lua_pushlightuserdata(L, reference.identity);
+        lua_pushnil(L);
+        lua_rawset(L, -3);
+        lua_pop(L, 1);
+    }
+    return invalidated;
+}
+
 template<class T, bool Callable = false, class... A> void emplace(lua_State* L, A&&... args) {
+    static_assert(std::is_nothrow_destructible_v<T>);
+    if constexpr (!Callable) {
+        if (reference_policy<T>(L).policy) throw error("native reference objects require a pointer factory");
+    }
     auto* box = new_holder<T, Callable>(L);
-    box->owner = new std::shared_ptr<void>(std::make_shared<T>(std::forward<A>(args)...));
-    box->value = box->owner->get();
+    own_shared(*box, std::make_shared<T>(std::forward<A>(args)...));
 }
 // A view adjusts the pointer but keeps the original allocation/control block.
 // Only class metatables carry this marker; callable userdata cannot be upcast.
@@ -123,8 +339,31 @@ template<class T> inline constexpr bool string_type =
     std::is_same_v<T, const char*>;
 template<class T> inline constexpr bool object_type =
     std::is_class_v<T> && !string_type<T> && !optional_type<T>::value &&
-    !vector_type<T>::value && !shared_type<T>::value && !value_traits<T>::enabled;
+    !vector_type<T>::value && !shared_type<T>::value && !value_traits<T>::enabled && !converter<T>::enabled;
 inline constexpr double max_integer = 9007199254740991.0;
+
+template<class T> T read_converted(lua_State* L, int index) {
+    static_assert(std::is_class_v<T> || std::is_enum_v<T>,
+                  "converter requires a C++ value class or enum; wrap pointers in a value type");
+    static_assert(std::is_same_v<decltype(converter<T>::read(L, index)), T>,
+                  "converter<T>::read must return T by value");
+    stack_guard stack(L);
+    reserve(L, 8);
+    if (lua_type(L, index) == LUA_TNONE) throw error("invalid converter stack index");
+    T value = converter<T>::read(L, absolute_index(L, index));
+    if (lua_gettop(L) != stack.top) throw error("converter read must preserve the Lua stack");
+    return value;
+}
+template<class T> void push_converted(lua_State* L, T&& value) {
+    using U = plain<T>;
+    static_assert(std::is_class_v<U> || std::is_enum_v<U>,
+                  "converter requires a C++ value class or enum; wrap pointers in a value type");
+    stack_guard stack(L);
+    reserve(L, 8);
+    converter<U>::push(L, std::forward<T>(value));
+    if (lua_gettop(L) != stack.top + 1) throw error("converter push must append exactly one Lua value");
+    ++stack.top;
+}
 
 // Validate array shape before conversion; lua_next order must not decide vector order.
 inline int array_size(lua_State* L, int index) {
@@ -151,7 +390,9 @@ template<class T> decltype(auto) read(lua_State* L, int index) {
     static_assert(!std::is_rvalue_reference_v<T>, "Lua arguments cannot bind to C++ rvalue references");
     static_assert(!std::is_lvalue_reference_v<T> || std::is_const_v<std::remove_reference_t<T>> || object_type<U>,
                   "Mutable references require a registered C++ class");
-    if constexpr (value_traits<U>::enabled) {
+    if constexpr (converter<U>::enabled) {
+        return read_converted<U>(L, index);
+    } else if constexpr (value_traits<U>::enabled) {
         return value_traits<U>::read(L, index);
     } else if constexpr (std::is_same_v<U, bool>) {
         expect(L, index, LUA_TBOOLEAN);
@@ -198,8 +439,8 @@ template<class T> decltype(auto) read(lua_State* L, int index) {
         static_assert(object_type<std::remove_const_t<P>>, "shared_ptr requires a registered C++ class");
         if (lua_isnil(L, index)) return U{};
         const auto view = object_view<P>(L, index);
-        if (!view.owner) throw error("borrowed C++ object has no shared ownership");
-        return U(*view.owner, static_cast<P*>(view.value));
+        if (!view.shared) throw error("C++ object has no shared ownership");
+        return U(*view.shared, static_cast<P*>(view.value));
     } else if constexpr (std::is_pointer_v<U> && object_type<std::remove_cv_t<std::remove_pointer_t<U>>>) {
         if (lua_isnil(L, index)) return U{nullptr};
         return object<std::remove_pointer_t<U>>(L, index);
@@ -214,7 +455,9 @@ template<class T> decltype(auto) read(lua_State* L, int index) {
 template<class T> void push(lua_State* L, T&& value) {
     using U = plain<T>;
     reserve(L, 4);
-    if constexpr (value_traits<U>::enabled) {
+    if constexpr (converter<U>::enabled) {
+        push_converted(L, std::forward<T>(value));
+    } else if constexpr (value_traits<U>::enabled) {
         value_traits<U>::push(L, std::forward<T>(value));
     } else if constexpr (std::is_same_v<U, std::nullptr_t>) {
         lua_pushnil(L);
@@ -259,13 +502,15 @@ template<class T> void push(lua_State* L, T&& value) {
         using V = std::remove_const_t<P>;
         static_assert(object_type<V>, "shared_ptr requires a registered C++ class");
         if (!value) { lua_pushnil(L); return; }
+        if (reference_policy<V>(L).policy) throw error("native reference policy cannot use shared_ptr ownership");
         auto* box = new_holder<V>(L);
-        box->owner = new std::shared_ptr<void>(std::const_pointer_cast<V>(std::forward<T>(value)));
-        box->value = box->owner->get();
+        own_shared(*box, std::const_pointer_cast<V>(std::forward<T>(value)));
         box->writable = !std::is_const_v<P>;
     } else if constexpr (std::is_pointer_v<U> && object_type<std::remove_cv_t<std::remove_pointer_t<U>>>) {
         if (!value) { lua_pushnil(L); return; }
         using P = std::remove_pointer_t<U>;
+        const auto reference = reference_policy(L, value);
+        if (reference.policy) { push_reference(L, value, reference); return; }
         auto* box = new_holder<std::remove_const_t<P>>(L);
         box->value = const_cast<std::remove_const_t<P>*>(value);
         box->writable = !std::is_const_v<P>;
